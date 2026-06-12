@@ -47,6 +47,9 @@ public class PreferenceConfiguration {
     private static final String ENABLE_ULTRA_LOW_LATENCY_PREF_STRING = "checkbox_ultra_low_latency";
     private static final String ENABLE_ADPF_PREF_STRING = "checkbox_enable_adpf";
     private static final String SUSTAINED_PERFORMANCE_PREF_STRING = "checkbox_sustained_performance";
+    private static final String PREDICTIVE_PACING_PREF_STRING = "checkbox_predictive_pacing";
+    private static final String PACED_ULL_PREF_STRING = "checkbox_paced_ull";
+    private static final String MAX_PENDING_AUDIO_PREF_STRING = "seekbar_max_pending_audio_ms";
     private static final String ENFORCE_DISPLAY_MODE_PREF_STRING = "checkbox_enforce_display_mode";
     private static final String USE_VIRTUAL_DISPLAY_PREF_STRING = "checkbox_use_virtual_display";
     private static final String AUTO_INVERT_VIDEO_RESOLUTION_PREF_STRING = "checkbox_auto_invert_video_resolution";
@@ -236,6 +239,9 @@ public class PreferenceConfiguration {
     public boolean enableUltraLowLatency;
     public boolean enableAdpf;
     public boolean enableSustainedPerformance;
+    public boolean enablePredictivePacing;
+    public boolean enablePacedUll;
+    public int maxPendingAudioMs;
     public String customResolution;
     public String customRefreshRate;
     public int meteredBitrate;
@@ -886,6 +892,9 @@ private static int getFramePacingValue(Context context) {
         config.enableUltraLowLatency = prefs.getBoolean(ENABLE_ULTRA_LOW_LATENCY_PREF_STRING, DEFAULT_ENABLE_ULTRA_LOW_LATENCY);
         config.enableAdpf = prefs.getBoolean(ENABLE_ADPF_PREF_STRING, true);
         config.enableSustainedPerformance = prefs.getBoolean(SUSTAINED_PERFORMANCE_PREF_STRING, false);
+        config.enablePredictivePacing = prefs.getBoolean(PREDICTIVE_PACING_PREF_STRING, false);
+        config.enablePacedUll = prefs.getBoolean(PACED_ULL_PREF_STRING, false);
+        config.maxPendingAudioMs = prefs.getInt(MAX_PENDING_AUDIO_PREF_STRING, 40);
         config.enableSops = prefs.getBoolean(SOPS_PREF_STRING, DEFAULT_SOPS);
         config.playHostAudio = prefs.getBoolean(HOST_AUDIO_PREF_STRING, DEFAULT_HOST_AUDIO);
         config.smallIconMode = prefs.getBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context));

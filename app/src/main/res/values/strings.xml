@@ -567,6 +567,14 @@
     <string name="title_checkbox_sustained_performance">Sustained performance mode</string>
     <string name="summary_checkbox_sustained_performance">Cap CPU/GPU clocks at a thermally sustainable level to avoid performance oscillation during long sessions. Requires Android 7+.</string>
     <string name="thermal_throttling_warning">Device is overheating: performance may degrade. Consider lowering bitrate or frame rate.</string>
+    <string name="title_checkbox_predictive_pacing">Predictive frame scheduling (experimental)</string>
+    <string name="summary_checkbox_predictive_pacing">Schedule frames 2 vsyncs ahead for jitter-free presentation. Smoother, but adds up to one vsync of latency.</string>
+    <string name="title_checkbox_paced_ull">Paced low-latency rendering (experimental)</string>
+    <string name="summary_checkbox_paced_ull">In low-latency mode, align early frames to the next vsync instead of presenting immediately. Reduces micro-judder at no measurable latency cost.</string>
+    <string name="perf_overlay_pacing">Frame pacing: %1$.1f / %2$.1f / %3$.1f ms (p50/p95/p99)</string>
+    <string name="title_seekbar_max_pending_audio">Max pending audio</string>
+    <string name="summary_seekbar_max_pending_audio">Upper bound on queued audio before frames are skipped. Lower values reduce audio latency but may cause crackling on unstable connections.</string>
+    <string name="suffix_seekbar_ms">ms</string>
     <string name="title_checkbox_use_virtual_display">Use Virtual Display</string>
     <string name="summary_checkbox_use_virtual_display">Use Virtual Display by default.\nVirtual Display can automatically match your client side resolution and frame rate settings, giving you a seamless streaming experience.\nRequires Apollo as host streaming software.</string>
     <string name="title_checkbox_resume_without_confirm">Quick Resume</string>

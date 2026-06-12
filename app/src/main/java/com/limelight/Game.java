@@ -708,6 +708,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 prefConfig.framePacing = PreferenceConfiguration.FRAME_PACING_BALANCED;
                 LimeLog.info("Balanced: preferLowerDelays=false, timeout=2000us, pacing=BALANCED");
             }
+
+            decoderRenderer.setPredictiveVsyncRelease(prefConfig.enablePredictivePacing);
+            decoderRenderer.setPacedUltraLowLatency(prefConfig.enablePacedUll);
         } catch (Throwable ignored) {}
 
 // Don't stream HDR if the decoder can't support it
@@ -879,7 +882,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 decoderRenderer.setRenderTarget(streamContainer.getSurface());
 
                 // Starten Sie die NvConnection
-                conn.start(new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio),
+                conn.start(new AndroidAudioRenderer(Game.this, prefConfig.enableAudioFx, prefConfig.maxPendingAudioMs),
                         decoderRenderer, Game.this);
             }
         });
