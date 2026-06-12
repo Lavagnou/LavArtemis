@@ -2,6 +2,9 @@
 
 #include <pthread.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/resource.h>
+#include <sys/syscall.h>
 
 #include <Limelight.h>
 
@@ -147,6 +150,16 @@ int BridgeDrSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
     JNIEnv* env = GetThreadEnv();
     int ret;
 
+    // This runs on moonlight-common-c's video depacketizer thread, which is
+    // created without an elevated priority. Boost it once so decode units
+    // reach MediaCodec ahead of regular app threads under CPU contention.
+    // -16 sits in the same band as Android's THREAD_PRIORITY_URGENT_DISPLAY.
+    static __thread int priorityBoosted = 0;
+    if (!priorityBoosted) {
+        priorityBoosted = 1;
+        setpriority(PRIO_PROCESS, (id_t)syscall(__NR_gettid), -16);
+    }
+
     // Increase the size of our frame data buffer if our frame won't fit
     if ((*env)->GetArrayLength(env, DecodedFrameBuffer) < decodeUnit->fullLength) {
         (*env)->DeleteGlobalRef(env, DecodedFrameBuffer);
@@ -253,6 +266,15 @@ void BridgeArCleanup() {
 
 void BridgeArDecodeAndPlaySample(char* sampleData, int sampleLength) {
     JNIEnv* env = GetThreadEnv();
+
+    // Boost the audio decode thread once; it performs the Opus decode and the
+    // blocking AudioTrack write, so scheduling delays directly add latency.
+    // -19 matches Android's THREAD_PRIORITY_URGENT_AUDIO.
+    static __thread int priorityBoosted = 0;
+    if (!priorityBoosted) {
+        priorityBoosted = 1;
+        setpriority(PRIO_PROCESS, (id_t)syscall(__NR_gettid), -19);
+    }
 
     jshort* decodedData = (*env)->GetPrimitiveArrayCritical(env, DecodedAudioBuffer, NULL);
 

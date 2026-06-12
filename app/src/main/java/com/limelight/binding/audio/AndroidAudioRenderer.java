@@ -15,14 +15,22 @@ import com.limelight.nvstream.jni.MoonBridge;
 
 public class AndroidAudioRenderer implements AudioRenderer {
 
+    private static final int DEFAULT_MAX_PENDING_AUDIO_MS = 40;
+
     private final Context context;
     private final boolean enableAudioFx;
+    private final int maxPendingAudioMs;
 
     private AudioTrack track;
 
     public AndroidAudioRenderer(Context context, boolean enableAudioFx) {
+        this(context, enableAudioFx, DEFAULT_MAX_PENDING_AUDIO_MS);
+    }
+
+    public AndroidAudioRenderer(Context context, boolean enableAudioFx, int maxPendingAudioMs) {
         this.context = context;
         this.enableAudioFx = enableAudioFx;
+        this.maxPendingAudioMs = maxPendingAudioMs > 0 ? maxPendingAudioMs : DEFAULT_MAX_PENDING_AUDIO_MS;
     }
 
     private AudioTrack createAudioTrack(int channelConfig, int sampleRate, int bufferSize, boolean lowLatency) {
@@ -187,11 +195,12 @@ public class AndroidAudioRenderer implements AudioRenderer {
 
     @Override
     public void playDecodedAudio(short[] audioData) {
-        // Only queue up to 40 ms of pending audio data in addition to what AudioTrack is buffering for us.
-        if (MoonBridge.getPendingAudioDuration() < 40) {
+        // Only queue up to maxPendingAudioMs of pending audio data in addition
+        // to what AudioTrack is buffering for us.
+        if (MoonBridge.getPendingAudioDuration() < maxPendingAudioMs) {
             // This will block until the write is completed. That can cause a backlog
             // of pending audio data, so we do the above check to be able to bound
-            // latency at 40 ms in that situation.
+            // latency in that situation.
             track.write(audioData, 0, audioData.length);
         }
         else {

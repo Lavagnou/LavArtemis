@@ -93,12 +93,26 @@ android {
         }
     }
 
+    signingConfigs {
+        // Populated from GitHub Actions secrets (see .github/workflows/release.yml).
+        // Local builds without these env vars are unaffected.
+        ci {
+            String ksPath = System.getenv("CI_KEYSTORE_PATH")
+            if (ksPath != null) {
+                storeFile file(ksPath)
+                storePassword System.getenv("CI_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CI_KEY_ALIAS")
+                keyPassword System.getenv("CI_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix ".noirdebug"
-            resValue "string", "app_label", "Diana"
-            resValue "string", "app_label_root", "Diana (Root)"
-            resValue "string", "app_label_game", "Diana (Game)"
+            resValue "string", "app_label", "LavArtemis (Debug)"
+            resValue "string", "app_label_root", "LavArtemis (Debug Root)"
+            resValue "string", "app_label_game", "LavArtemis (Debug Game)"
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -135,12 +149,22 @@ android {
             //
             // TL;DR: Leave the following line alone!
             applicationIdSuffix ".noir"
-            resValue "string", "app_label", "Artemis"
-            resValue "string", "app_label_root", "Artemis (Root)"
-            resValue "string", "app_label_game", "Artemis (Game)"
+            resValue "string", "app_label", "LavArtemis"
+            resValue "string", "app_label_root", "LavArtemis (Root)"
+            resValue "string", "app_label_game", "LavArtemis (Game)"
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            // CI signing: use the keystore provided via secrets when available,
+            // otherwise fall back to the debug key so CI artifacts are still
+            // installable (note: debug-signed builds can't update keystore-signed
+            // installs and vice versa).
+            if (System.getenv("CI_KEYSTORE_PATH") != null) {
+                signingConfig signingConfigs.ci
+            } else if (System.getenv("GITHUB_ACTIONS") == "true") {
+                signingConfig signingConfigs.debug
+            }
         }
     }
 

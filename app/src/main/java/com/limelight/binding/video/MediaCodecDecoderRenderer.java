@@ -63,11 +63,38 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     public void setPreferLowerDelaysTimeoutUs(int us) { this.preferLowerDelaysTimeoutUs = Math.max(0, us); }
 
 
+    // Paced ULL: when a frame would render immediately but the next vsync is still
+    // >2 ms away, schedule it on the vsync boundary instead. Removes micro-judder
+    // caused by random-phase presentation without measurable latency cost.
+    private volatile boolean pacedUltraLowLatency = false;
+    public void setPacedUltraLowLatency(boolean v) { this.pacedUltraLowLatency = v; }
+
+    // Predictive release: schedule BALANCED frames 2 vsyncs ahead so SurfaceFlinger
+    // can honor the timestamp exactly (timestamps <2 vsyncs out are best-effort).
+    // Trades up to one vsync of latency for jitter-free presentation.
+    private volatile boolean predictiveVsyncRelease = false;
+    public void setPredictiveVsyncRelease(boolean v) { this.predictiveVsyncRelease = v; }
+
+    // Display vsync timing shared between the render loop and release policy
+    private volatile long cachedDisplayVsyncPeriodNs = 0;
+    private volatile long lastVsyncTimeNanos = 0;
+
     // Helper: release with low-latency policy (immediate only when very near to now)
     private void releaseWithPolicy(int bufferIndex, long frameTimeNanos) {
         try {
             long now = System.nanoTime();
             boolean immediate = preferLowerDelays && (frameTimeNanos <= now + 300_000L);
+            if (immediate && pacedUltraLowLatency) {
+                long period = cachedDisplayVsyncPeriodNs;
+                long lastVsync = lastVsyncTimeNanos;
+                if (period > 0 && lastVsync > 0 && now > lastVsync) {
+                    long nextVsync = lastVsync + (((now - lastVsync) / period) + 1) * period;
+                    if (nextVsync - now > 2_000_000L) {
+                        videoDecoder.releaseOutputBuffer(bufferIndex, nextVsync);
+                        return;
+                    }
+                }
+            }
             if (immediate) {
                 videoDecoder.releaseOutputBuffer(bufferIndex, true);
             } else {
@@ -79,14 +106,28 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 videoDecoder.releaseOutputBuffer(bufferIndex, true);
             } catch (Throwable ignored) {}
         }
+        pacingStats.recordPresent(System.nanoTime());
     }
     private int getOutputDequeueTimeoutUs(){ return preferLowerDelays ? Math.max(250, preferLowerDelaysTimeoutUs) : preferLowerDelaysTimeoutUs; }
+
+    // ADPF performance hint session for the decode/render pipeline threads
+    private AdpfHelper adpfHelper;
+
+    // Frame pacing fluidity metrics (present-to-present interval percentiles)
+    private final PacingStats pacingStats = new PacingStats();
+
+    // Optional per-second CSV metrics log for offline A/B comparison
+    private java.io.BufferedWriter perfCsvWriter;
+    private boolean perfCsvFailed;
 
     // Update stats using real decode time: enqueue->dequeue, instead of uptime - PTS
     private void updateDecodeLatencyStats(long presentationTimeUs) {
         Long enqNs = enqueueNsByPtsUs.get(presentationTimeUs);
         if (enqNs != null) {
             enqueueNsByPtsUs.delete(presentationTimeUs);
+            if (adpfHelper != null) {
+                adpfHelper.reportFrameWorkDuration(System.nanoTime() - enqNs);
+            }
             long decMs = (System.nanoTime() - enqNs) / 1_000_000L;
             if (decMs >= 0 && decMs < 1000) {
                 activeWindowVideoStats.decoderTimeMs += decMs;
@@ -327,7 +368,30 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     }
 
     private MediaCodecInfo findAv1Decoder(PreferenceConfiguration prefs) {
-        // For now, don't use AV1 unless explicitly requested
+        // In auto mode, advertise AV1 only where it clearly pays off: a whitelisted
+        // hardware decoder, and either a low-bitrate stream (where AV1's coding
+        // efficiency advantage over HEVC is largest) or 4K.
+        if (prefs.videoFormat == PreferenceConfiguration.FormatOption.AUTO && prefs.enableAutoAv1) {
+            if (prefs.bitrate > 15000 && Math.max(prefs.width, prefs.height) < 3840) {
+                return null;
+            }
+            MediaCodecInfo decoderInfo = MediaCodecHelper.findProbableSafeDecoder("video/av01", -1);
+            if (decoderInfo == null || !MediaCodecHelper.isDecoderWhitelistedForAv1(decoderInfo)) {
+                return null;
+            }
+            // Don't trade away HEVC's reference frame invalidation (packet loss
+            // recovery without an IDR round-trip) for AV1's better compression.
+            if (hevcDecoder != null
+                    && MediaCodecHelper.decoderSupportsRefFrameInvalidationHevc(hevcDecoder)
+                    && !MediaCodecHelper.decoderSupportsRefFrameInvalidationAv1(decoderInfo)) {
+                LimeLog.info("Not using AV1 in auto mode: would lose HEVC RFI");
+                return null;
+            }
+            LimeLog.info("Enabling AV1 in auto mode: " + decoderInfo.getName());
+            return decoderInfo;
+        }
+
+        // Otherwise, don't use AV1 unless explicitly requested
         if (prefs.videoFormat != PreferenceConfiguration.FormatOption.FORCE_AV1) {
             return null;
         }
@@ -802,6 +866,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         this.videoFormat = format;
         this.refreshRate = redrawRate;
 
+        if (prefs != null && prefs.enableAdpf) {
+            adpfHelper = new AdpfHelper(context, 1_000_000_000L / targetFps);
+        }
+
         return initializeDecoder(false);
     }
 
@@ -1076,6 +1144,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             frameTimeNanos -= activity.getWindowManager().getDefaultDisplay().getAppVsyncOffsetNanos();
         }
 
+        lastVsyncTimeNanos = frameTimeNanos;
+
         // Don't render unless a new frame is due. This prevents microstutter when streaming
         // at a frame rate that doesn't match the display (such as 60 FPS on 120 Hz).
         long actualFrameTimeDeltaNs = frameTimeNanos - lastRenderedFrameTimeNanos;
@@ -1092,9 +1162,14 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         if (preferLowerDelays) {
                             // ULL: present at next VSYNC (no scheduling)
-                            releaseWithPolicy(nextOutputBuffer, System.nanoTime());} else {
+                            releaseWithPolicy(nextOutputBuffer, System.nanoTime());} else if (predictiveVsyncRelease && cachedDisplayVsyncPeriodNs > 0) {
+                            // Schedule 2 vsyncs out so SurfaceFlinger honors the timestamp exactly
+                            videoDecoder.releaseOutputBuffer(nextOutputBuffer, frameTimeNanos + 2 * cachedDisplayVsyncPeriodNs);
+                            pacingStats.recordPresent(System.nanoTime());
+                        } else {
                             // Smooth/Balanced: keep timestamp scheduling
                             videoDecoder.releaseOutputBuffer(nextOutputBuffer, frameTimeNanos);
+                            pacingStats.recordPresent(System.nanoTime());
                         }
 
                     }
@@ -1147,6 +1222,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         choreographerHandler.post(new Runnable() {
             @Override
             public void run() {
+                if (adpfHelper != null) {
+                    adpfHelper.registerCurrentThread();
+                }
                 Choreographer.getInstance().postFrameCallback(MediaCodecDecoderRenderer.this);
             }
         });
@@ -1160,6 +1238,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 // Boost thread priority to reduce decoding latency
                 android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
+                if (adpfHelper != null) {
+                    adpfHelper.registerCurrentThread();
+                }
+
                 // Compute display refresh and vsync period once (fallback 60 Hz if unavailable)
                 long vsyncPeriodNs;
                 float displayHz = 60f;
@@ -1171,6 +1253,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 } catch (Throwable ignored) {}
                 if (displayHz <= 0f) displayHz = 60f;
                 vsyncPeriodNs = (long) (1_000_000_000L / displayHz);
+                cachedDisplayVsyncPeriodNs = vsyncPeriodNs;
 
                 // Stream cadence (targetFps set in setup(...))
                 final int tfps = (targetFps > 0 ? targetFps : 60);
@@ -1639,6 +1722,17 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // status back to true.
             Thread.currentThread().interrupt();
         }
+
+        if (adpfHelper != null) {
+            adpfHelper.close();
+        }
+
+        if (perfCsvWriter != null) {
+            try {
+                perfCsvWriter.close();
+            } catch (java.io.IOException ignored) {}
+            perfCsvWriter = null;
+        }
     }
 
     @Override
@@ -1740,6 +1834,42 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
     }
 
+    // Appends one line per stats window to a session CSV in the app's external
+    // files dir, for offline A/B comparison of pacing/latency changes.
+    private void logPerfCsv(VideoStatsFps fps, float decodeTimeMs, long rttInfo,
+                            float lossPct, PacingStats.Snapshot pacing) {
+        if (perfCsvFailed) {
+            return;
+        }
+        try {
+            if (perfCsvWriter == null) {
+                java.io.File dir = context.getExternalFilesDir(null);
+                if (dir == null) {
+                    perfCsvFailed = true;
+                    return;
+                }
+                java.io.File csv = new java.io.File(dir,
+                        "stream-perf-" + System.currentTimeMillis() + ".csv");
+                perfCsvWriter = new java.io.BufferedWriter(new java.io.FileWriter(csv));
+                perfCsvWriter.write("uptimeMs,receivedFps,renderedFps,totalFps,decodeTimeMs," +
+                        "rttMs,rttVarianceMs,lossPct,pacingP50Ms,pacingP95Ms,pacingP99Ms\n");
+                LimeLog.info("Performance CSV logging to " + csv.getAbsolutePath());
+            }
+            perfCsvWriter.write(String.format(java.util.Locale.US,
+                    "%d,%.1f,%.1f,%.1f,%.2f,%d,%d,%.2f,%.2f,%.2f,%.2f\n",
+                    SystemClock.uptimeMillis(),
+                    fps.receivedFps, fps.renderedFps, fps.totalFps,
+                    decodeTimeMs,
+                    (int)(rttInfo >> 32), (int)rttInfo,
+                    lossPct,
+                    pacing.p50Ms, pacing.p95Ms, pacing.p99Ms));
+            perfCsvWriter.flush();
+        } catch (java.io.IOException e) {
+            LimeLog.warning("Performance CSV logging failed: " + e);
+            perfCsvFailed = true;
+        }
+    }
+
     @SuppressWarnings("deprecation")
     @Override
     public int submitDecodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
@@ -1752,6 +1882,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         if (lastFrameNumber == 0) {
             activeWindowVideoStats.measurementStartTimestamp = SystemClock.uptimeMillis();
+            if (adpfHelper != null) {
+                // This runs on the native depacketizer thread (direct submit) or the
+                // legacy input thread; either way it feeds the decoder, so include it
+                // in the ADPF hint session.
+                adpfHelper.registerCurrentThread();
+            }
         } else if (frameNumber != lastFrameNumber && frameNumber != lastFrameNumber + 1) {
             // We can receive the same "frame" multiple times if it's an IDR frame.
             // In that case, each frame start NALU is submitted independently.
@@ -1790,6 +1926,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                 float decodeTimeMs = (float)lastTwo.decoderTimeMs / lastTwo.totalFramesReceived;
                 long rttInfo = MoonBridge.getEstimatedRttInfo();
+                PacingStats.Snapshot pacing = pacingStats.snapshot();
                 StringBuilder sb = new StringBuilder();
                 if(prefs.enablePerfOverlayLite){
                     if(TrafficStatsHelper.getPackageRxBytes(Process.myUid()) != TrafficStats.UNSUPPORTED){
@@ -1850,6 +1987,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     sb.append(context.getString(R.string.perf_overlay_decoder, decoder)).append('\n');
                     sb.append(context.getString(R.string.perf_overlay_incomingfps, fps.receivedFps)).append('\n');
                     sb.append(context.getString(R.string.perf_overlay_renderingfps, fps.renderedFps)).append('\n');
+                    if (pacing.sampleCount > 0) {
+                        sb.append(context.getString(R.string.perf_overlay_pacing,
+                                pacing.p50Ms, pacing.p95Ms, pacing.p99Ms)).append('\n');
+                    }
                     sb.append(context.getString(R.string.perf_overlay_netdrops,
                             (float)lastTwo.framesLost / lastTwo.totalFrames * 100)).append('\n');
                     if(TrafficStatsHelper.getPackageRxBytes(Process.myUid()) != TrafficStats.UNSUPPORTED){
@@ -1878,6 +2019,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 String fullLog = sb.toString();
                 if(prefs.enablePerfOverlay) {
                     perfListener.onPerfUpdate(fullLog);
+                }
+                if (prefs.enablePerfLogging) {
+                    logPerfCsv(fps, decodeTimeMs, rttInfo,
+                            (float)lastTwo.framesLost / lastTwo.totalFrames * 100, pacing);
                 }
                 // Best latency is only met at requested highest fps, rest can be ignored
                 Boolean targetFpsMatched = ((int) fps.totalFps == (int) prefs.fps);
