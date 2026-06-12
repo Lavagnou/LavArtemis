@@ -575,6 +575,8 @@
     <string name="title_seekbar_max_pending_audio">Max pending audio</string>
     <string name="summary_seekbar_max_pending_audio">Upper bound on queued audio before frames are skipped. Lower values reduce audio latency but may cause crackling on unstable connections.</string>
     <string name="suffix_seekbar_ms">ms</string>
+    <string name="title_checkbox_auto_av1">Allow AV1 in Auto codec mode</string>
+    <string name="summary_checkbox_auto_av1">Advertise AV1 to the host when a whitelisted hardware decoder is available and the stream is low-bitrate or 4K, where AV1\'s efficiency advantage is largest.</string>
     <string name="title_checkbox_use_virtual_display">Use Virtual Display</string>
     <string name="summary_checkbox_use_virtual_display">Use Virtual Display by default.\nVirtual Display can automatically match your client side resolution and frame rate settings, giving you a seamless streaming experience.\nRequires Apollo as host streaming software.</string>
     <string name="title_checkbox_resume_without_confirm">Quick Resume</string>

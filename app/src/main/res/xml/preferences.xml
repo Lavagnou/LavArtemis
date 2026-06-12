@@ -101,6 +101,12 @@
             android:summary="@string/summary_checkbox_paced_ull"
             android:title="@string/title_checkbox_paced_ull"
             app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_auto_av1"
+            android:summary="@string/summary_checkbox_auto_av1"
+            android:title="@string/title_checkbox_auto_av1"
+            app:iconSpaceReserved="false" />
         <com.limelight.preferences.SeekBarPreference
             android:defaultValue="40"
             android:key="seekbar_max_pending_audio_ms"

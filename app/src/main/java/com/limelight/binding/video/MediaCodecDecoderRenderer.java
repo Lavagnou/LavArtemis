@@ -368,7 +368,30 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     }
 
     private MediaCodecInfo findAv1Decoder(PreferenceConfiguration prefs) {
-        // For now, don't use AV1 unless explicitly requested
+        // In auto mode, advertise AV1 only where it clearly pays off: a whitelisted
+        // hardware decoder, and either a low-bitrate stream (where AV1's coding
+        // efficiency advantage over HEVC is largest) or 4K.
+        if (prefs.videoFormat == PreferenceConfiguration.FormatOption.AUTO && prefs.enableAutoAv1) {
+            if (prefs.bitrate > 15000 && Math.max(prefs.width, prefs.height) < 3840) {
+                return null;
+            }
+            MediaCodecInfo decoderInfo = MediaCodecHelper.findProbableSafeDecoder("video/av01", -1);
+            if (decoderInfo == null || !MediaCodecHelper.isDecoderWhitelistedForAv1(decoderInfo)) {
+                return null;
+            }
+            // Don't trade away HEVC's reference frame invalidation (packet loss
+            // recovery without an IDR round-trip) for AV1's better compression.
+            if (hevcDecoder != null
+                    && MediaCodecHelper.decoderSupportsRefFrameInvalidationHevc(hevcDecoder)
+                    && !MediaCodecHelper.decoderSupportsRefFrameInvalidationAv1(decoderInfo)) {
+                LimeLog.info("Not using AV1 in auto mode: would lose HEVC RFI");
+                return null;
+            }
+            LimeLog.info("Enabling AV1 in auto mode: " + decoderInfo.getName());
+            return decoderInfo;
+        }
+
+        // Otherwise, don't use AV1 unless explicitly requested
         if (prefs.videoFormat != PreferenceConfiguration.FormatOption.FORCE_AV1) {
             return null;
         }
