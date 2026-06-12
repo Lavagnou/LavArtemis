@@ -78,6 +78,18 @@
             android:title="@string/title_checkbox_forceTightThresholds"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_enable_adpf"
+            android:summary="@string/summary_checkbox_enable_adpf"
+            android:title="@string/title_checkbox_enable_adpf"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_sustained_performance"
+            android:summary="@string/summary_checkbox_sustained_performance"
+            android:title="@string/title_checkbox_sustained_performance"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_use_virtual_display"
             android:summary="@string/summary_checkbox_use_virtual_display"

@@ -82,11 +82,17 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     }
     private int getOutputDequeueTimeoutUs(){ return preferLowerDelays ? Math.max(250, preferLowerDelaysTimeoutUs) : preferLowerDelaysTimeoutUs; }
 
+    // ADPF performance hint session for the decode/render pipeline threads
+    private AdpfHelper adpfHelper;
+
     // Update stats using real decode time: enqueue->dequeue, instead of uptime - PTS
     private void updateDecodeLatencyStats(long presentationTimeUs) {
         Long enqNs = enqueueNsByPtsUs.get(presentationTimeUs);
         if (enqNs != null) {
             enqueueNsByPtsUs.delete(presentationTimeUs);
+            if (adpfHelper != null) {
+                adpfHelper.reportFrameWorkDuration(System.nanoTime() - enqNs);
+            }
             long decMs = (System.nanoTime() - enqNs) / 1_000_000L;
             if (decMs >= 0 && decMs < 1000) {
                 activeWindowVideoStats.decoderTimeMs += decMs;
@@ -802,6 +808,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         this.videoFormat = format;
         this.refreshRate = redrawRate;
 
+        if (prefs != null && prefs.enableAdpf) {
+            adpfHelper = new AdpfHelper(context, 1_000_000_000L / targetFps);
+        }
+
         return initializeDecoder(false);
     }
 
@@ -1147,6 +1157,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         choreographerHandler.post(new Runnable() {
             @Override
             public void run() {
+                if (adpfHelper != null) {
+                    adpfHelper.registerCurrentThread();
+                }
                 Choreographer.getInstance().postFrameCallback(MediaCodecDecoderRenderer.this);
             }
         });
@@ -1159,6 +1172,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             public void run() {
                 // Boost thread priority to reduce decoding latency
                 android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY);
+
+                if (adpfHelper != null) {
+                    adpfHelper.registerCurrentThread();
+                }
 
                 // Compute display refresh and vsync period once (fallback 60 Hz if unavailable)
                 long vsyncPeriodNs;
@@ -1639,6 +1656,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // status back to true.
             Thread.currentThread().interrupt();
         }
+
+        if (adpfHelper != null) {
+            adpfHelper.close();
+        }
     }
 
     @Override
@@ -1752,6 +1773,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         if (lastFrameNumber == 0) {
             activeWindowVideoStats.measurementStartTimestamp = SystemClock.uptimeMillis();
+            if (adpfHelper != null) {
+                // This runs on the native depacketizer thread (direct submit) or the
+                // legacy input thread; either way it feeds the decoder, so include it
+                // in the ADPF hint session.
+                adpfHelper.registerCurrentThread();
+            }
         } else if (frameNumber != lastFrameNumber && frameNumber != lastFrameNumber + 1) {
             // We can receive the same "frame" multiple times if it's an IDR frame.
             // In that case, each frame start NALU is submitted independently.

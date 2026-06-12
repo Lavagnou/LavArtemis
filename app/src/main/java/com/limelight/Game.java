@@ -368,6 +368,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
 
+        if (prefConfig.enableSustainedPerformance && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            getWindow().setSustainedPerformanceMode(true);
+        }
+
+        registerThermalStatusListener();
+
         // Listen for UI visibility events
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(this);
 
@@ -1698,12 +1704,53 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         hideSystemUi(50);
     }
 
+    private android.os.PowerManager.OnThermalStatusChangedListener thermalStatusListener;
+
+    private void registerThermalStatusListener() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return;
+        }
+
+        android.os.PowerManager powerManager = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (powerManager == null) {
+            return;
+        }
+
+        thermalStatusListener = new android.os.PowerManager.OnThermalStatusChangedListener() {
+            private boolean warned;
+
+            @Override
+            public void onThermalStatusChanged(int status) {
+                if (status >= android.os.PowerManager.THERMAL_STATUS_SEVERE && !warned) {
+                    warned = true;
+                    runOnUiThread(() -> {
+                        if (!isFinishing() && !prefConfig.disableWarnings) {
+                            Toast.makeText(Game.this, R.string.thermal_throttling_warning, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                } else if (status <= android.os.PowerManager.THERMAL_STATUS_MODERATE) {
+                    // Re-arm the warning once the device has cooled back down
+                    warned = false;
+                }
+            }
+        };
+        powerManager.addThermalStatusListener(thermalStatusListener);
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
         instance = null;
         timerHandler.removeCallbacksAndMessages(null);
+
+        if (thermalStatusListener != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            android.os.PowerManager powerManager = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (powerManager != null) {
+                powerManager.removeThermalStatusListener(thermalStatusListener);
+            }
+            thermalStatusListener = null;
+        }
 
         if (prefConfig.enableFullExDisplay) handleDisplayRemoved();
 
