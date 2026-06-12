@@ -93,6 +93,20 @@ android {
         }
     }
 
+    signingConfigs {
+        // Populated from GitHub Actions secrets (see .github/workflows/release.yml).
+        // Local builds without these env vars are unaffected.
+        ci {
+            String ksPath = System.getenv("CI_KEYSTORE_PATH")
+            if (ksPath != null) {
+                storeFile file(ksPath)
+                storePassword System.getenv("CI_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CI_KEY_ALIAS")
+                keyPassword System.getenv("CI_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix ".noirdebug"
@@ -141,6 +155,16 @@ android {
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            // CI signing: use the keystore provided via secrets when available,
+            // otherwise fall back to the debug key so CI artifacts are still
+            // installable (note: debug-signed builds can't update keystore-signed
+            // installs and vice versa).
+            if (System.getenv("CI_KEYSTORE_PATH") != null) {
+                signingConfig signingConfigs.ci
+            } else if (System.getenv("GITHUB_ACTIONS") == "true") {
+                signingConfig signingConfigs.debug
+            }
         }
     }
 
