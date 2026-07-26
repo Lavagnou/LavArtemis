@@ -1725,10 +1725,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private void applyTx15AxisMapping(InputDeviceContext context) {
         context.leftStickXAxis = MotionEvent.AXIS_X;
         context.leftStickYAxis = MotionEvent.AXIS_Y;
-        context.leftStickXInverted = true; // TX15 reports left X reversed
+        context.leftStickXInverted = false; // TX15 reports left X reversed
         context.leftStickYInverted = true; // TX15 reports left Y as positive-up
 
-        context.rightStickXAxis = MotionEvent.AXIS_RX;
+        context.rightStickXAxis = MotionEvent.AXIS_RZ;
         context.rightStickYAxis = MotionEvent.AXIS_RY;
         // rightStickXInverted / rightStickYInverted stay false (RY vertical is standard)
 
