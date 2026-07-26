@@ -1,7 +1,9 @@
 name: Build & Release APK
 
-# Builds the nonRoot_game release APKs (one per ABI) and publishes them as a
-# GitHub release.
+# Builds the release APKs (one per ABI) for both variants and publishes them as a
+# GitHub release:
+#   - LavArtemis      (nonRoot_game flavor, standard controllers)
+#   - LavArtemis-TX15 (tx15_game flavor, RadioMaster TX15 radio)
 #
 # Triggers:
 #   - Pushing a tag like v1.2.3 -> full release under that tag
@@ -59,7 +61,7 @@ jobs:
           CI_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           CI_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           CI_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleNonRoot_gameRelease --no-daemon
+        run: ./gradlew assembleNonRoot_gameRelease assembleTx15_gameRelease --no-daemon
 
       - name: Determine release tag
         id: tag
@@ -77,9 +79,15 @@ jobs:
         run: |
           mkdir -p dist
           shopt -s nullglob
-          for f in app/build/outputs/apk/nonRoot_game/release/*.apk; do
-            abi=$(basename "$f" .apk | sed 's/^app-nonRoot_game-//; s/-release.*$//')
-            cp "$f" "dist/LavArtemis-${{ steps.tag.outputs.tag }}-${abi}.apk"
+          for flavor in nonRoot_game tx15_game; do
+            case "$flavor" in
+              nonRoot_game) prefix="LavArtemis" ;;
+              tx15_game)    prefix="LavArtemis-TX15" ;;
+            esac
+            for f in app/build/outputs/apk/$flavor/release/*.apk; do
+              abi=$(basename "$f" .apk | sed "s/^app-$flavor-//; s/-release.*$//")
+              cp "$f" "dist/$prefix-${{ steps.tag.outputs.tag }}-${abi}.apk"
+            done
           done
           ls -l dist
 
