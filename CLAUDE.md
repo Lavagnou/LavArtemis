@@ -28,7 +28,7 @@ LavArtemis hérite des fonctionnalités Artemis : manettes virtuelles personnali
 | compileSdk / minSdk / targetSdk | 36 / 21 / 34 |
 | Java (source/cible) | 11 (builder avec JDK 17+) |
 | NDK | `27.0.12077973` |
-| versionName / versionCode | `20.2.6` / `57` |
+| versionName / versionCode | `20.2.7` / `58` |
 
 Mono-module : `:app` (pas de version catalog, pas de `buildSrc`).
 
