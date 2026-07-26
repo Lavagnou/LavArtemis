@@ -1725,11 +1725,12 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private void applyTx15AxisMapping(InputDeviceContext context) {
         context.leftStickXAxis = MotionEvent.AXIS_X;
         context.leftStickYAxis = MotionEvent.AXIS_Y;
+        context.leftStickXInverted = true; // TX15 reports left X reversed
         context.leftStickYInverted = true; // TX15 reports left Y as positive-up
 
-        context.rightStickXAxis = MotionEvent.AXIS_RY;
-        context.rightStickYAxis = MotionEvent.AXIS_RZ;
-        // rightStickYInverted stays false (RZ is standard)
+        context.rightStickXAxis = MotionEvent.AXIS_RX;
+        context.rightStickYAxis = MotionEvent.AXIS_RY;
+        // rightStickXInverted / rightStickYInverted stay false (RY vertical is standard)
 
         // No analog triggers on the TX15
         context.leftTriggerAxis = -1;
@@ -1747,7 +1748,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
             handleDeadZone(leftStickVector, context.leftStickDeadzoneRadius);
 
-            context.leftStickX = (short) (leftStickVector.getX() * 0x7FFE);
+            float leftStickXMul = context.leftStickXInverted ? -1f : 1f;
+            context.leftStickX = (short) (leftStickXMul * leftStickVector.getX() * 0x7FFE);
             float leftStickYMul = context.leftStickYInverted ? 1f : -1f;
             context.leftStickY = (short) (leftStickYMul * leftStickVector.getY() * 0x7FFE);
         }
@@ -1757,7 +1759,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
             handleDeadZone(rightStickVector, context.rightStickDeadzoneRadius);
 
-            context.rightStickX = (short) (rightStickVector.getX() * 0x7FFE);
+            float rightStickXMul = context.rightStickXInverted ? -1f : 1f;
+            context.rightStickX = (short) (rightStickXMul * rightStickVector.getX() * 0x7FFE);
             float rightStickYMul = context.rightStickYInverted ? 1f : -1f;
             context.rightStickY = (short) (rightStickYMul * rightStickVector.getY() * 0x7FFE);
         }
@@ -3209,8 +3212,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public boolean hatXAxisUsed, hatYAxisUsed;
 
         // TX15 (RadioMaster) flavor: per-context axis tweaks
+        public boolean leftStickXInverted;  // TX15 reports left X reversed
         public boolean leftStickYInverted;  // TX15 reports left Y as positive-up
-        public boolean rightStickYInverted; // unused for TX15 (RZ is standard)
+        public boolean rightStickXInverted; // unused for TX15
+        public boolean rightStickYInverted; // unused for TX15 (RY vertical is standard)
         public int zAxisButtonFlag = 0;     // 0 = none; else a ControllerPacket.*_FLAG driven by the Z axis
 
         InputDevice.MotionRange touchpadXRange;
