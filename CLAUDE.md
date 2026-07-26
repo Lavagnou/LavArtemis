@@ -92,7 +92,7 @@ Build types :
 | `debug` | `.lavdebug` | LavArtemis (Debug) |
 | `release` | `.lav` | LavArtemis |
 
-→ appId release effectif (nonRoot) : **`com.limelight.lav`** ; TX15 : **`com.limelight.tx15.lav`** (co-installable côte à côte). ABI splits : `x86`, `x86_64`, `armeabi-v7a`, `arm64-v8a` (un APK par ABI).
+→ appId release effectif (nonRoot) : **`com.limelight.lav`** ; TX15 : **`com.limelight.tx15.lav`** (co-installable côte à côte). ABI : **`arm64-v8a` uniquement** (les autres ABI ne sont ni buildés ni release).
 
 > 🎮 **Variante TX15** (`tx15_game`, flag `BuildConfig.TX15_BUILD`) : remappe la RadioMaster TX15 dans `binding/input/ControllerHandler.java` — stick gauche X + Y(**inversé**), stick droit RY/RZ, pas de gâchettes, inter (axe Z)→**R1**, boutons 1/2→**Y/L1**. Gated par `BuildConfig.TX15_BUILD` (build dédié) via `applyTx15AxisMapping()` (surcharge des axes de `InputDeviceContext`), inversion Y dans `handleAxisSet`, synthèse Z→bouton dans `handleMotionEvent`, et remap boutons dans `handleRemapping`. La CI publie les **deux variants** à chaque release.
 
@@ -221,6 +221,6 @@ git submodule update --init --recursive   # native core submodule is required
 
 **Tests** — Robolectric JVM only (no instrumentation). You **must shadow** JNI classes (`MoonBridge`, `GameManager`) or you get `UnsatisfiedLinkError`. See `android_test_setup.md`.
 
-**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`, which builds **both** `nonRoot_game` (LavArtemis) and `tx15_game` (LavArtemis-TX15) and publishes all per-ABI APKs. Signing via `CI_KEYSTORE_*` env vars / `RELEASE_KEYSTORE_BASE64` secret; falls back to debug key otherwise. CI runs **no tests**.
+**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`, which builds **both** `nonRoot_game` (LavArtemis) and `tx15_game` (LavArtemis-TX15) and publishes the 2 arm64-v8a APKs (LavArtemis + LavArtemis-TX15). Signing via `CI_KEYSTORE_*` env vars / `RELEASE_KEYSTORE_BASE64` secret; falls back to debug key otherwise. CI runs **no tests**.
 
 **Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above).
