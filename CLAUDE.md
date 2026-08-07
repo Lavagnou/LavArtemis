@@ -180,16 +180,18 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
 
 ## 🤖 CI/CD & release
 
-- **`.github/workflows/release.yml`** : trigger sur **tag `v*`** (release) ou `workflow_dispatch` (prerelease `v<version>-ci.<run>`). **Une seule release contient Android + Windows.**
+- **`.github/workflows/release.yml`** : trigger sur **tag `v*`** (release) ou `workflow_dispatch` (prerelease `v<version>-ci.<run>`). **Une seule release contient Android + Windows + Linux.**
   - Job `version` : lit `versionName` dans `app/build.gradle`. Sur tag push, **échoue si le tag ≠ versionName** → `versionName` reste la source de vérité unique ; `desktop/app/version.txt` est écrit depuis le tag au build (jamais committé).
   - Job `build-android` : Ubuntu, JDK 17, NDK `27.0.12077973`, `assembleNonRoot_gameRelease assembleTx15_gameRelease`. N'initialise **que** le sous-module natif (pas `desktop/`).
   - Job `build-windows` : `windows-2025`, Qt 6.11, build x64 **et** arm64 dans le même job (l'installeur combiné a besoin des deux MSI), depuis le commit `desktop/` épinglé ici.
-  - Job `publish` : agrège les artefacts et publie via `softprops/action-gh-release@v2`.
+  - Job `build-linux` : `ubuntu-22.04`, AppImage x86_64. **Le plus long de loin** — aucun paquet prébuildé n'existe pour ce dont le client a besoin, donc SDL3, sdl2-compat, SDL_ttf, libva, libplacebo, dav1d et FFmpeg sont compilés depuis les sources avant même de configurer l'app. Les deps sont clonées sous `desktop/deps/` pour que les chemins relatifs des patchs du sous-module continuent de résoudre. Empaquetage par `desktop/scripts/build-appimage.sh` + linuxdeploy.
+  - Job `publish` : agrège les artefacts et publie via `softprops/action-gh-release@v2`. **Bloquant sur les 3 jobs de build** : une plateforme qui casse fait échouer la release entière plutôt que de publier une release incomplète en silence.
   - ⚠️ **Pas de job de test** dans CI (les tests ne tournent pas automatiquement).
-  - Linux (AppImage/Flatpak) **pas encore câblé** : nécessite SDL3/libplacebo/FFmpeg buildés depuis les sources.
+  - **Flatpak non câblé** : demande un manifeste (inexistant) et une soumission Flathub, chantier à part. Le Steam Deck tourne l'AppImage.
 - **`LavArtemis-Qt/.github/workflows/build.yml`** : compile-check du client desktop (Windows x64/arm64 + Linux) à chaque push. Ne produit pas de release.
+  - ⚠️ `build-appimage.yml` y est **orphelin** (`workflow_call` que personne n'appelle) : c'est la référence dont le job `build-linux` ci-dessus est dérivé. Toute correction doit aller dans les deux.
 
-Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-TX15-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`.
+Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-TX15-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`, `LavArtemis-<tag>-linux-x86_64.AppImage`.
 
 ### Signature
 - Aucun keystore committé (`key/` est gitignored).
@@ -294,6 +296,6 @@ git submodule update --init --recursive desktop                                 
 
 **Tests** — Robolectric JVM only (no instrumentation). You **must shadow** JNI classes (`MoonBridge`, `GameManager`) or you get `UnsatisfiedLinkError`. See `android_test_setup.md`.
 
-**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the 2 Android APKs (`nonRoot_game` + `tx15_game`, arm64-v8a) **and** the Windows x64/ARM64 portable zips + combined installer, then publishes them all under one release. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
+**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the 2 Android APKs (`nonRoot_game` + `tx15_game`, arm64-v8a), the Windows x64/ARM64 portable zips + combined installer, **and** the Linux x86_64 AppImage, then publishes them all under one release. The Linux job compiles SDL3/libplacebo/FFmpeg from source and is by far the slowest; `publish` blocks on all three so a broken platform fails the release instead of shipping it half-done. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
 
 **Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (7) the two clients still pin **different** `moonlight-common-c` forks, and the Android one cannot move until `LiSendEmptyPayload` lands on the `lavartemis` branch — see the desktop section.
