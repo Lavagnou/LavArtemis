@@ -1,22 +1,29 @@
-name: Build & Release APK
+name: Build & Release
 
-# Builds the release APKs (one per ABI) for both variants and publishes them as a
-# GitHub release:
-#   - LavArtemis      (nonRoot_game flavor, standard controllers)
-#   - LavArtemis-TX15 (tx15_game flavor, RadioMaster TX15 radio)
+# Builds and publishes LavArtemis for every supported platform under a single
+# tag, so Android and desktop always ship together:
+#   - LavArtemis          (Android, nonRoot_game flavor, standard controllers)
+#   - LavArtemis-TX15     (Android, RadioMaster TX15 radio)
+#   - LavArtemis Windows  (x64 + ARM64 portable, plus a combined installer)
+#
+# The desktop client lives in the `desktop/` submodule (Lavagnou/LavArtemis-Qt).
+# The submodule commit recorded here is what gets built, so a release is always
+# reproducible from this repository's tag alone.
 #
 # Triggers:
 #   - Pushing a tag like v1.2.3 -> full release under that tag
 #   - Manual run (workflow_dispatch) -> prerelease tagged v<versionName>-ci.<run>
 #
 # Signing:
-#   By default the APKs are signed with the runner's debug key, which is fine
-#   for testing but changes on every run (you must uninstall before updating).
-#   For stable signing, add these repository secrets:
-#     RELEASE_KEYSTORE_BASE64   - keystore file encoded with `base64 -w0 keystore.jks`
-#     RELEASE_KEYSTORE_PASSWORD - keystore password
-#     RELEASE_KEY_ALIAS         - key alias
-#     RELEASE_KEY_PASSWORD      - key password
+#   Android is signed with the release keystore when RELEASE_KEYSTORE_BASE64 and
+#   friends are set, and falls back to the runner's debug key otherwise (fine for
+#   testing, but it changes every run so you must uninstall before updating).
+#   Windows binaries are Authenticode-signed only when WINDOWS_CERT_BASE64 is set;
+#   without it they are published unsigned rather than failing the build.
+#
+#   Android secrets: RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD,
+#                    RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+#   Windows secrets: WINDOWS_CERT_BASE64, WINDOWS_CERT_PASSWORD
 
 on:
   push:
@@ -28,15 +35,57 @@ permissions:
   contents: write
 
 jobs:
-  build-release:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' app/build.gradle | head -1)
+          if [ -z "$VERSION" ]; then
+            echo "Could not read versionName from app/build.gradle" >&2
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+
+            # The tag is the source of truth for the desktop version string, so
+            # refuse to publish if it disagrees with the Android versionName.
+            if [ "$TAG" != "v${VERSION}" ]; then
+              echo "Tag $TAG does not match versionName $VERSION in app/build.gradle" >&2
+              echo "Bump versionName (and versionCode) before tagging." >&2
+              exit 1
+            fi
+
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${VERSION}-ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build-android:
+    needs: version
     runs-on: ubuntu-latest
     env:
       RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
     steps:
-      - name: Checkout (with submodules)
+      - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
+
+      # Only the native core is needed here. The desktop submodule is large, so
+      # we deliberately don't pull it into the Android job.
+      - name: Checkout native core submodule
+        run: git submodule update --init --recursive app/src/main/jni/moonlight-core/moonlight-common-c
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -63,18 +112,6 @@ jobs:
           CI_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleNonRoot_gameRelease assembleTx15_gameRelease --no-daemon
 
-      - name: Determine release tag
-        id: tag
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          else
-            VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' app/build.gradle | head -1)
-            echo "tag=v${VERSION}-ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Collect and rename APKs
         run: |
           mkdir -p dist
@@ -86,21 +123,135 @@ jobs:
             esac
             for f in app/build/outputs/apk/$flavor/release/*.apk; do
               abi=$(basename "$f" .apk | sed "s/^app-$flavor-//; s/-release.*$//")
-              cp "$f" "dist/$prefix-${{ steps.tag.outputs.tag }}-${abi}.apk"
+              cp "$f" "dist/$prefix-${{ needs.version.outputs.tag }}-android-${abi}.apk"
             done
           done
           ls -l dist
 
-      - name: Upload build artifacts
+      - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: apks
+          name: android
           path: dist/*.apk
+          if-no-files-found: error
+
+  build-windows:
+    needs: version
+    runs-on: windows-2025
+    env:
+      QT_VERSION: 6.11.1
+      WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Build the exact desktop commit this repository pins, not whatever is on
+      # LavArtemis-Qt's main branch right now.
+      - name: Checkout desktop submodule
+        run: git submodule update --init --recursive desktop
+
+      - name: Stamp desktop version from tag
+        shell: bash
+        run: echo "${{ needs.version.outputs.version }}" > desktop/app/version.txt
+
+      - name: Download prebuilt dependencies
+        working-directory: desktop
+        run: powershell ./setup-deps.ps1
+
+      - name: Install Qt (host x64)
+        uses: jurplel/install-qt-action@v4
+        with:
+          cache: true
+          set-env: false
+          add-tools-to-path: false
+          version: ${{ env.QT_VERSION }}
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@073e34d7c2ab4ae6961ed7cca690b3abd5ba5a7e'
+
+      - name: Install Qt (arm64 cross)
+        uses: jurplel/install-qt-action@v4
+        with:
+          cache: true
+          set-env: false
+          add-tools-to-path: false
+          arch: win64_msvc2022_arm64_cross_compiled
+          version: ${{ env.QT_VERSION }}
+
+      - name: Decode signing certificate
+        if: env.WINDOWS_CERT_BASE64 != ''
+        shell: bash
+        run: |
+          echo "$WINDOWS_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/cert.pfx"
+          echo "SIGN=1" >> "$GITHUB_ENV"
+          echo "SIGNTOOL_PARAMS=sign /fd SHA256 /f $RUNNER_TEMP\\cert.pfx /p ${{ secrets.WINDOWS_CERT_PASSWORD }} /tr http://timestamp.digicert.com /td SHA256" >> "$GITHUB_ENV"
+
+      - name: Build x64
+        shell: cmd
+        working-directory: desktop
+        run: |
+          set "PATH=%QT_PATH%;%PATH%"
+          scripts\build-arch.bat Release x64
+        env:
+          QT_PATH: ${{ runner.workspace }}\Qt\${{ env.QT_VERSION }}\msvc2022_64\bin
+
+      - name: Build ARM64
+        shell: cmd
+        working-directory: desktop
+        run: |
+          set "PATH=%QT_PATH%;%PATH%"
+          scripts\build-arch.bat Release arm64
+        env:
+          QT_PATH: ${{ runner.workspace }}\Qt\${{ env.QT_VERSION }}\msvc2022_arm64\bin
+
+      # Produces the combined installer, so it needs both MSIs built above.
+      - name: Build installer bundle
+        shell: cmd
+        working-directory: desktop
+        run: scripts\generate-bundle.bat Release
+
+      - name: Collect and rename Windows artifacts
+        shell: bash
+        run: |
+          set -e
+          TAG="${{ needs.version.outputs.tag }}"
+          mkdir -p dist
+
+          for arch in x64 arm64; do
+            (cd "desktop/build/deploy-${arch}-release" && \
+              7z a -tzip "$GITHUB_WORKSPACE/dist/LavArtemis-${TAG}-win-${arch}.zip" ./*)
+          done
+
+          # generate-bundle.bat names this LavArtemisSetup-<version>.exe
+          find desktop/build -name 'LavArtemisSetup-*.exe' -exec \
+            cp {} "dist/LavArtemis-${TAG}-win-installer.exe" \;
+
+          ls -l dist
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: [version, build-android, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p dist
+          find artifacts -type f -exec cp {} dist/ \;
+          ls -l dist
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          prerelease: ${{ steps.tag.outputs.prerelease }}
+          tag_name: ${{ needs.version.outputs.tag }}
+          prerelease: ${{ needs.version.outputs.prerelease }}
           generate_release_notes: true
-          files: dist/*.apk
+          files: dist/*

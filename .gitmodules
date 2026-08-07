@@ -1,3 +1,7 @@
 [submodule "app/src/main/jni/moonlight-core/moonlight-common-c"]
 	path = app/src/main/jni/moonlight-core/moonlight-common-c
 	url = https://github.com/ClassicOldSong/moonlight-common-c
+[submodule "desktop"]
+	path = desktop
+	url = https://github.com/Lavagnou/LavArtemis-Qt.git
+	branch = main
