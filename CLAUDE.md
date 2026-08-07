@@ -125,18 +125,61 @@ Toutes ces options sont exposées dans **`app/src/main/res/xml/preferences.xml`*
 - `evdev_reader/` = **exécutable natif** (pas une lib) construit **uniquement en flavor `root`** pour lire `/dev/input/event*`.
 - `LuaScripts/` = dissecteurs Wireshark + `gridctl.lua` (outils de debug, **non embarqués** dans l'APK).
 
+## 🖥️ Client desktop (`desktop/`)
+
+LavArtemis existe aussi en **client desktop Qt**, dans le sous-module `desktop/` → [`Lavagnou/LavArtemis-Qt`](https://github.com/Lavagnou/LavArtemis-Qt) (C++/Qt 6.11, **qmake**, Windows x64/ARM64 + Linux).
+
+**Lignage** : Moonlight-Qt → [wjbeckett/artemis](https://github.com/wjbeckett/artemis) (portage desktop des features Artemis) → LavArtemis-Qt. Remotes dans le sous-module : `upstream-qt` = moonlight-stream/moonlight-qt, `upstream-artemis` = wjbeckett/artemis.
+
+Déjà présent côté desktop (hérité du portage wjbeckett) : clipboard sync, server commands, pairing OTP (`otpauth`), virtual display Apollo, refresh rate fractionnaire, resolution scaling, lancement par UUID d'app, affichage des permissions, quick menu in-stream.
+
+### ⚠️ Invariant : un seul `moonlight-common-c`
+
+Les **deux** clients doivent pointer le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c) (branche `lavartemis`) = `moonlight-stream/master` + cherry-pick de `84af637` (`LiSendExecServerCmd`, extension Apollo). `LiSendEmptyPayload` du fork ClassicOldSong est volontairement **écarté** (keepalive radio mobile, sans valeur desktop).
+> Le sous-module Android pointe encore `ClassicOldSong/moonlight-common-c` — à basculer sur le fork perso pour tenir l'invariant.
+
+### Build desktop
+
+```sh
+git submodule update --init --recursive desktop
+cd desktop && powershell ./setup-deps.ps1        # Windows : libs prébuildées
+scripts\build-arch.bat Release x64               # puis arm64
+scripts\generate-bundle.bat Release              # installeur WiX combiné
+```
+Requiert **Qt 6.11 + MSVC (VS2026)** et **WiX 7**. Sur Linux : `qmake6 lavartemis.pro && make release`.
+
+### Mapping hot path Android ↔ Qt
+
+| LavArtemis Android | Équivalent desktop |
+|---|---|
+| `binding/video/PacingStats.java` | `app/streaming/video/pacingstats.{h,cpp}` (même fenêtre 512, même filtre d'outliers, mêmes percentiles → CSV comparables) |
+| `setpriority(-16)` thread dépacketiseur (`callbacks.c`) | `SDL_SetThreadPriority` one-shot dans `Session::drSubmitDecodeUnit` |
+| `setpriority(-19)` thread audio | déjà fait en amont dans `Session::arDecodeAndPlaySample` |
+| cap audio pending (`seekbar_max_pending_audio_ms`) | `LiGetPendingAudioDuration() > 30` en dur dans `sdlaud.cpp` — **à rendre configurable** |
+| `checkbox_paced_ull` / `checkbox_predictive_pacing` | à porter dans `ffmpeg-renderers/pacer/pacer.cpp` |
+| CSV perf (11 colonnes) | à porter dans `session.cpp` |
+| ADPF, sustained performance, thermal | **pas d'équivalent Windows** (voir plan) |
+
+Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cpp}` (singleton QSettings).
+
 ## 🤖 CI/CD & release
 
-- **`.github/workflows/release.yml`** : trigger sur **tag `v*`** (release) ou `workflow_dispatch` (prerelease `v<version>-ci.<run>`).
-  - Runner Ubuntu, JDK 17 (Temurin), installe le NDK `27.0.12077973`, checkout `submodules: recursive`.
-  - Lance `./gradlew assembleNonRoot_gameRelease --no-daemon`, renomme les APK en `LavArtemis-<tag>-<abi>.apk`, publie un GitHub Release via `softprops/action-gh-release@v2`.
+- **`.github/workflows/release.yml`** : trigger sur **tag `v*`** (release) ou `workflow_dispatch` (prerelease `v<version>-ci.<run>`). **Une seule release contient Android + Windows.**
+  - Job `version` : lit `versionName` dans `app/build.gradle`. Sur tag push, **échoue si le tag ≠ versionName** → `versionName` reste la source de vérité unique ; `desktop/app/version.txt` est écrit depuis le tag au build (jamais committé).
+  - Job `build-android` : Ubuntu, JDK 17, NDK `27.0.12077973`, `assembleNonRoot_gameRelease assembleTx15_gameRelease`. N'initialise **que** le sous-module natif (pas `desktop/`).
+  - Job `build-windows` : `windows-2025`, Qt 6.11, build x64 **et** arm64 dans le même job (l'installeur combiné a besoin des deux MSI), depuis le commit `desktop/` épinglé ici.
+  - Job `publish` : agrège les artefacts et publie via `softprops/action-gh-release@v2`.
   - ⚠️ **Pas de job de test** dans CI (les tests ne tournent pas automatiquement).
-- `appveyor.yml` : CI secondaire / héritée (Windows, `gradlew.bat build connectedCheck`).
+  - Linux (AppImage/Flatpak) **pas encore câblé** : nécessite SDL3/libplacebo/FFmpeg buildés depuis les sources.
+- **`LavArtemis-Qt/.github/workflows/build.yml`** : compile-check du client desktop (Windows x64/arm64 + Linux) à chaque push. Ne produit pas de release.
+
+Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-TX15-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`.
 
 ### Signature
 - Aucun keystore committé (`key/` est gitignored).
-- Release signée via variables d'environnement : `CI_KEYSTORE_PATH`, `CI_KEYSTORE_PASSWORD`, `CI_KEY_ALIAS`, `CI_KEY_PASSWORD` (le secret GitHub `RELEASE_KEYSTORE_BASE64` est décodé vers `CI_KEYSTORE_PATH` dans le workflow).
+- Release Android signée via variables d'environnement : `CI_KEYSTORE_PATH`, `CI_KEYSTORE_PASSWORD`, `CI_KEY_ALIAS`, `CI_KEY_PASSWORD` (le secret GitHub `RELEASE_KEYSTORE_BASE64` est décodé vers `CI_KEYSTORE_PATH` dans le workflow).
 - Sans secret : sur GitHub Actions → fallback **debug key** (artefacts installables mais signature distincte) ; en local → APK **non signé** (signer manuellement avec `apksigner`).
+- Windows : Authenticode **optionnel** via `WINDOWS_CERT_BASE64` / `WINDOWS_CERT_PASSWORD`. Absents → binaires publiés non signés (le build ne casse pas).
 
 ## 🛡️ ProGuard / R8 & lint
 
@@ -192,19 +235,30 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `.../binding/audio/AndroidAudioRenderer.java` | Rendu audio — LavArtemis (fix + cap) |
 | `.../preferences/StreamSettings.java` | Réglages + CSV perf log |
 | `app/src/main/res/xml/preferences.xml` | Toutes les options (dont LavArtemis) |
-| `.github/workflows/release.yml` | CI build & release |
+| `.github/workflows/release.yml` | CI build & release **unifiée** (Android + Windows) |
 | `android_test_setup.md` | Guide de tests JVM / Robolectric |
-| `.gitmodules` | Sous-module `moonlight-common-c` |
+| `.gitmodules` | Sous-modules `moonlight-common-c` **et `desktop/`** |
+| `desktop/` | Client Qt (sous-module `LavArtemis-Qt`) |
+| `desktop/app/app.pro` | Build Qt : TARGET, icônes, métadonnées Windows |
+| `desktop/app/settings/artemissettings.{h,cpp}` | Réglages Artemis/LavArtemis desktop |
+| `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
+| `desktop/scripts/build-arch.bat` | Build Windows par architecture |
+| `desktop/wix/LavArtemis{,Setup}/` | Installeur WiX (⚠️ `UpgradeCode` propre à LavArtemis) |
 
 ---
 
 ## ⚡ Quick reference (English)
 
-**What:** LavArtemis is an Android GameStream client — a fork of Artemis (`ClassicOldSong/moonlight-android`), itself a fork of Moonlight. Targets **Apollo/Sunshine** hosts. Java-only app + C (NDK, ndk-build) via the `moonlight-common-c` submodule. All fork-specific work sits in the streaming hot path: ADPF, frame pacing, native `-O3`/LTO + thread-priority boosts, AV1-auto, an audio-renderer fix, and sustained-performance/thermal handling.
+**What:** LavArtemis is a GameStream client for **Apollo/Sunshine** hosts, shipped for **Android and desktop**:
+- **Android** (this repo) — fork of Artemis (`ClassicOldSong/moonlight-android`), itself a fork of Moonlight. Java-only + C (NDK, ndk-build). Fork-specific work sits in the streaming hot path: ADPF, frame pacing, native `-O3`/LTO + thread-priority boosts, AV1-auto, an audio-renderer fix, sustained-performance/thermal handling.
+- **Desktop** (`desktop/` submodule → `Lavagnou/LavArtemis-Qt`) — C++/Qt 6.11, qmake, Windows x64/ARM64. Fork of `wjbeckett/artemis` (the Artemis→Qt port) rebased onto current moonlight-qt.
+
+One tag builds and releases both. See the "Client desktop" section above.
 
 **First-time setup**
 ```sh
-git submodule update --init --recursive   # native core submodule is required
+git submodule update --init --recursive app/src/main/jni/moonlight-core/moonlight-common-c   # Android only
+git submodule update --init --recursive desktop                                              # desktop client (large)
 # add ndk.dir=<NDK 27.0.12077973 path> to local.properties
 ```
 
@@ -221,6 +275,6 @@ git submodule update --init --recursive   # native core submodule is required
 
 **Tests** — Robolectric JVM only (no instrumentation). You **must shadow** JNI classes (`MoonBridge`, `GameManager`) or you get `UnsatisfiedLinkError`. See `android_test_setup.md`.
 
-**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`, which builds **both** `nonRoot_game` (LavArtemis) and `tx15_game` (LavArtemis-TX15) and publishes the 2 arm64-v8a APKs (LavArtemis + LavArtemis-TX15). Signing via `CI_KEYSTORE_*` env vars / `RELEASE_KEYSTORE_BASE64` secret; falls back to debug key otherwise. CI runs **no tests**.
+**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the 2 Android APKs (`nonRoot_game` + `tx15_game`, arm64-v8a) **and** the Windows x64/ARM64 portable zips + combined installer, then publishes them all under one release. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
 
-**Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above).
+**Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (7) **both clients must pin the same `moonlight-common-c` commit** — see the desktop section.
