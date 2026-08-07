@@ -133,10 +133,20 @@ LavArtemis existe aussi en **client desktop Qt**, dans le sous-module `desktop/`
 
 Déjà présent côté desktop (hérité du portage wjbeckett) : clipboard sync, server commands, pairing OTP (`otpauth`), virtual display Apollo, refresh rate fractionnaire, resolution scaling, lancement par UUID d'app, affichage des permissions, quick menu in-stream.
 
-### ⚠️ Invariant : un seul `moonlight-common-c`
+### ⚠️ Invariant : un seul `moonlight-common-c` — **pas encore tenu**
 
-Les **deux** clients doivent pointer le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c) (branche `lavartemis`) = `moonlight-stream/master` + cherry-pick de `84af637` (`LiSendExecServerCmd`, extension Apollo). `LiSendEmptyPayload` du fork ClassicOldSong est volontairement **écarté** (keepalive radio mobile, sans valeur desktop).
-> Le sous-module Android pointe encore `ClassicOldSong/moonlight-common-c` — à basculer sur le fork perso pour tenir l'invariant.
+Cible : les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c).
+
+État réel :
+
+| Client | Sous-module | Contenu |
+|---|---|---|
+| desktop | `Lavagnou/moonlight-common-c` branche `lavartemis` @ `ebb15ef` | `moonlight-stream/master` + cherry-pick `84af637` (`LiSendExecServerCmd`, extension Apollo) |
+| Android | `ClassicOldSong/moonlight-common-c` | amont + `84af637` + `c999436` (`LiSendEmptyPayload`) |
+
+> 🚧 **Blocage identifié — ne pas basculer l'Android en l'état.** La branche `lavartemis` écarte volontairement `c999436`, mais l'Android **appelle** `LiSendEmptyPayload` (`Game.java:336` → `simplejni.c:25`). Repointer le sous-module Android tel quel casse le build natif.
+>
+> Pour tenir l'invariant il faut d'abord cherry-picker `c999436` sur `lavartemis` (côté desktop c'est du code mort, ~20 lignes, inoffensif), rebumper le desktop, puis basculer l'Android. Tant que ce n'est pas fait, les deux sous-modules divergent.
 
 ### Build desktop
 
@@ -150,17 +160,23 @@ Requiert **Qt 6.11 + MSVC (VS2026)** et **WiX 7**. Sur Linux : `qmake6 lavartemi
 
 ### Mapping hot path Android ↔ Qt
 
-| LavArtemis Android | Équivalent desktop |
-|---|---|
-| `binding/video/PacingStats.java` | `app/streaming/video/pacingstats.{h,cpp}` (même fenêtre 512, même filtre d'outliers, mêmes percentiles → CSV comparables) |
-| `setpriority(-16)` thread dépacketiseur (`callbacks.c`) | `SDL_SetThreadPriority` one-shot dans `Session::drSubmitDecodeUnit` |
-| `setpriority(-19)` thread audio | déjà fait en amont dans `Session::arDecodeAndPlaySample` |
-| cap audio pending (`seekbar_max_pending_audio_ms`) | `LiGetPendingAudioDuration() > 30` en dur dans `sdlaud.cpp` — **à rendre configurable** |
-| `checkbox_paced_ull` / `checkbox_predictive_pacing` | à porter dans `ffmpeg-renderers/pacer/pacer.cpp` |
-| CSV perf (11 colonnes) | à porter dans `session.cpp` |
-| ADPF, sustained performance, thermal | **pas d'équivalent Windows** (voir plan) |
+| LavArtemis Android | Équivalent desktop | État |
+|---|---|---|
+| `binding/video/PacingStats.java` | `app/streaming/video/pacingstats.{h,cpp}` — même fenêtre 512, même filtre d'outliers, mêmes percentiles | ✅ porté |
+| CSV perf (11 colonnes) | `FFmpegVideoDecoder::writePerfCsvRow()` dans `streaming/video/ffmpeg.cpp` → `stream-perf-<epoch>.csv` dans `AppDataLocation`. **Mêmes colonnes** que l'Android, les runs se comparent directement. | ✅ porté |
+| `setpriority(-16)` thread dépacketiseur (`callbacks.c`) | `SDL_SetThreadPriority(HIGH)` one-shot dans `Session::drSubmitDecodeUnit` | ✅ porté |
+| `setpriority(-19)` thread audio | déjà fait en amont dans `Session::arDecodeAndPlaySample` | ✅ amont |
+| cap audio pending (`seekbar_max_pending_audio_ms`) | `ArtemisSettings::maxPendingAudioMs` (10–100 ms, défaut 30), lu par `sdlaud.cpp` **à la construction** → s'applique au stream suivant | ✅ porté |
+| `-O3 -flto` (`Android.mk`) | `moonlight-common-c/moonlight-common-c.pro` : `-GL` (MSVC, `*-msvc` pour couvrir arm64) / `-O3 -flto` (GCC/Clang) | ✅ porté |
+| `checkbox_paced_ull` | ❌ **ne pas porter.** C'est un rattrapage Android : en ULL le renderer présente sans alignement vsync. Le desktop a déjà un vrai `IVsyncSource` (`DxVsyncSource` / Wayland presentation-time) derrière l'option **Frame pacing** de moonlight-qt — activer cette option *est* le mode pacé, en mieux (vsync réel, pas extrapolé). |
+| `checkbox_predictive_pacing` | ❌ **ne pas porter.** L'équivalent supposé (`SetMaximumFrameLatency(1)`) est **délibérément évité** en amont : cf. le commentaire de `d3d11va.cpp` (~l. 551) — avec `SyncInterval 0`, le fixer à 1 fait bloquer `Present()` sur DWM et **augmente** la latence. Le `+2 vsync` Android est un détail SurfaceFlinger sans équivalent. |
+| AV1 auto (≤15 Mbps ou 4K) | ❌ **ne pas porter tel quel.** Le mode Auto amont sonde déjà les décodeurs et *déprioritise* AV1 (sans le retirer) selon la dispo HEVC HW — cf. `session.cpp` ~l. 909-944. Appliquer en plus le seuil Android *retirerait* AV1 à >15 Mbps en <4K et ferait retomber en H.264 les GPU qui ne décodent qu'AV1 en HW : régression. |
+| ADPF | ❌ pas d'équivalent Windows. La partie « inhibition veille » est déjà couverte par `SDL_DisableScreenSaver()` (`session.cpp:2137`) → `SetThreadExecutionState`. |
+| Sustained performance mode, avertissement thermique | ❌ pas d'équivalent Windows — hors périmètre |
 
-Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cpp}` (singleton QSettings).
+Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cpp}` (singleton QSettings, fichier `artemis-settings.ini` dans `AppConfigLocation`), exposés en QML via `qmlRegisterSingletonType` dans `main.cpp` et édités dans le groupe **LavArtemis Features → Streaming Performance** de `gui/SettingsView.qml`.
+
+> ⚠️ Les setters d'`ArtemisSettings` **ne persistent pas** tout seuls : `SettingsView.qml` appelle `ArtemisSettings.save()` dans `StackView.onDeactivating` et `Component.onDestruction`, à côté de `StreamingPreferences.save()`. Tout nouveau point d'édition doit faire pareil.
 
 ## 🤖 CI/CD & release
 
@@ -240,8 +256,11 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `.gitmodules` | Sous-modules `moonlight-common-c` **et `desktop/`** |
 | `desktop/` | Client Qt (sous-module `LavArtemis-Qt`) |
 | `desktop/app/app.pro` | Build Qt : TARGET, icônes, métadonnées Windows |
-| `desktop/app/settings/artemissettings.{h,cpp}` | Réglages Artemis/LavArtemis desktop |
+| `desktop/app/settings/artemissettings.{h,cpp}` | Réglages Artemis/LavArtemis desktop (⚠️ `save()` explicite) |
+| `desktop/app/gui/SettingsView.qml` | UI des réglages, groupe « LavArtemis Features » |
 | `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
+| `desktop/app/streaming/video/ffmpeg.cpp` | Décodeur + `writePerfCsvRow()` (CSV perf) |
+| `desktop/moonlight-common-c/moonlight-common-c.pro` | LTO du cœur natif (release) |
 | `desktop/scripts/build-arch.bat` | Build Windows par architecture |
 | `desktop/wix/LavArtemis{,Setup}/` | Installeur WiX (⚠️ `UpgradeCode` propre à LavArtemis) |
 
@@ -277,4 +296,4 @@ git submodule update --init --recursive desktop                                 
 
 **Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the 2 Android APKs (`nonRoot_game` + `tx15_game`, arm64-v8a) **and** the Windows x64/ARM64 portable zips + combined installer, then publishes them all under one release. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
 
-**Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (7) **both clients must pin the same `moonlight-common-c` commit** — see the desktop section.
+**Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (7) the two clients still pin **different** `moonlight-common-c` forks, and the Android one cannot move until `LiSendEmptyPayload` lands on the `lavartemis` branch — see the desktop section.
