@@ -139,10 +139,15 @@ Déjà présent côté desktop (hérité du portage wjbeckett) : clipboard sync,
 |---|---|---|
 | **Profils de réglages** | `settings/profilemanager.{h,cpp}`, groupe « Settings Profile » en haut de `gui/SettingsView.qml` | `profiles.json` dans `AppConfigLocation`. Un profil est un **snapshot complet**, pas un patch épars : `save()` écrit toutes les clés, donc un profil créé capture l'état courant puis vit sa vie. `language` et `defaultver` **bypassent** les profils (changer de profil ne doit pas changer la langue de l'app). |
 | **Send keys + macros clavier** | `backend/keymacromanager.{h,cpp}`, sous-menu « Send Keys » de `gui/QuickMenu.qml` | 16 presets intégrés + macros utilisateur dans `keyboard-macros.json` (`AppConfigLocation`). **Même format JSON et mêmes noms `VK_` que l'Android** → un fichier marche sur les deux. La table des 174 noms est extraite de `utils/KeyMapper.java`, pas retapée. |
+| **Liens `art://` + fichiers `.art`** | `cli/artlink.{h,cpp}`, enregistrement OS dans `wix/LavArtemis/Product.wxs` (HKCU) et `deploy/linux/com.lavartemis.LavArtemis.{desktop,xml}` | `ArtLink::rewriteArguments()` **traduit le lien en ligne de commande existante** (`stream <host> <app>` / `pair <host> --pin --passphrase`) au lieu d'ajouter un chemin de lancement parallèle → hérite du host seeking, du wake-on-LAN et de l'UI de segue. Formats identiques à l'Android. |
 
 > ⚠️ **Le bug Android des profils n'est pas reproduit.** Côté Android, `OverlaySharedPreferences` lit à travers la map du profil mais `edit()` renvoie l'éditeur de base (`ProfilesManager.java:251`) : les écritures s'échappent du profil et atterrissent dans les prefs globales. Côté Qt, `StreamingPreferences::reload()` **et** `save()` passent tous les deux par `ProfileManager::value()`/`setValue()` — lecture et écriture ne peuvent pas diverger par construction.
 
-Pas encore porté : liens `art://` + fichiers `.art` (D3, demande l'enregistrement du schéma via WiX/`.desktop` + une IPC mono-instance), pan & zoom (D4 — sur desktop ça touche le calcul du rect de destination dans **chaque** renderer, bien plus invasif que le `PanZoomHandler` Android), SBS 3D MiDaS (hors périmètre).
+Deux effets de bord utiles du portage `art://` : le lancement CLI accepte désormais un **UUID ou un id d'app** en plus du nom (`startstream.cpp::getAppIndex`), et `pair` accepte `--passphrase` (routé vers `pairHostWithOTP`, pairing OTP Apollo).
+
+> ⚠️ **Pas d'instance unique.** Cliquer un lien `art://` alors que LavArtemis tourne déjà lance un **second processus**. Ce n'est pas une régression : c'est déjà le comportement de `lavartemis stream <host> <app>`, les commandes CLI amont étant conçues comme des processus indépendants. Une IPC `QLocalServer` serait nécessaire pour changer ça.
+
+Pas encore porté : pan & zoom (D4 — sur desktop ça touche le calcul du rect de destination dans **chaque** renderer et entre en conflit avec la molette déjà transmise à l'hôte, bien plus invasif que le `PanZoomHandler` Android), SBS 3D MiDaS (hors périmètre v1).
 
 ### ⚠️ Invariant : un seul `moonlight-common-c` — **pas encore tenu**
 
@@ -272,6 +277,7 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/app/settings/artemissettings.{h,cpp}` | Réglages Artemis/LavArtemis desktop (⚠️ `save()` explicite) |
 | `desktop/app/settings/profilemanager.{h,cpp}` | Profils de réglages + routage lecture/écriture des prefs |
 | `desktop/app/backend/keymacromanager.{h,cpp}` | Send keys + macros clavier (table `VK_`) |
+| `desktop/app/cli/artlink.{h,cpp}` | Parsing `art://` + `.art` → ligne de commande |
 | `desktop/app/gui/SettingsView.qml` | UI des réglages, groupes « Settings Profile » et « LavArtemis Features » |
 | `desktop/app/gui/QuickMenu.qml` | Menu in-stream (server commands, send keys) |
 | `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
