@@ -133,6 +133,17 @@ LavArtemis existe aussi en **client desktop Qt**, dans le sous-module `desktop/`
 
 Déjà présent côté desktop (hérité du portage wjbeckett) : clipboard sync, server commands, pairing OTP (`otpauth`), virtual display Apollo, refresh rate fractionnaire, resolution scaling, lancement par UUID d'app, affichage des permissions, quick menu in-stream.
 
+### Features Artemis portées côté LavArtemis-Qt
+
+| Feature | Où | Notes |
+|---|---|---|
+| **Profils de réglages** | `settings/profilemanager.{h,cpp}`, groupe « Settings Profile » en haut de `gui/SettingsView.qml` | `profiles.json` dans `AppConfigLocation`. Un profil est un **snapshot complet**, pas un patch épars : `save()` écrit toutes les clés, donc un profil créé capture l'état courant puis vit sa vie. `language` et `defaultver` **bypassent** les profils (changer de profil ne doit pas changer la langue de l'app). |
+| **Send keys + macros clavier** | `backend/keymacromanager.{h,cpp}`, sous-menu « Send Keys » de `gui/QuickMenu.qml` | 16 presets intégrés + macros utilisateur dans `keyboard-macros.json` (`AppConfigLocation`). **Même format JSON et mêmes noms `VK_` que l'Android** → un fichier marche sur les deux. La table des 174 noms est extraite de `utils/KeyMapper.java`, pas retapée. |
+
+> ⚠️ **Le bug Android des profils n'est pas reproduit.** Côté Android, `OverlaySharedPreferences` lit à travers la map du profil mais `edit()` renvoie l'éditeur de base (`ProfilesManager.java:251`) : les écritures s'échappent du profil et atterrissent dans les prefs globales. Côté Qt, `StreamingPreferences::reload()` **et** `save()` passent tous les deux par `ProfileManager::value()`/`setValue()` — lecture et écriture ne peuvent pas diverger par construction.
+
+Pas encore porté : liens `art://` + fichiers `.art` (D3, demande l'enregistrement du schéma via WiX/`.desktop` + une IPC mono-instance), pan & zoom (D4 — sur desktop ça touche le calcul du rect de destination dans **chaque** renderer, bien plus invasif que le `PanZoomHandler` Android), SBS 3D MiDaS (hors périmètre).
+
 ### ⚠️ Invariant : un seul `moonlight-common-c` — **pas encore tenu**
 
 Cible : les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c).
@@ -259,7 +270,10 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/` | Client Qt (sous-module `LavArtemis-Qt`) |
 | `desktop/app/app.pro` | Build Qt : TARGET, icônes, métadonnées Windows |
 | `desktop/app/settings/artemissettings.{h,cpp}` | Réglages Artemis/LavArtemis desktop (⚠️ `save()` explicite) |
-| `desktop/app/gui/SettingsView.qml` | UI des réglages, groupe « LavArtemis Features » |
+| `desktop/app/settings/profilemanager.{h,cpp}` | Profils de réglages + routage lecture/écriture des prefs |
+| `desktop/app/backend/keymacromanager.{h,cpp}` | Send keys + macros clavier (table `VK_`) |
+| `desktop/app/gui/SettingsView.qml` | UI des réglages, groupes « Settings Profile » et « LavArtemis Features » |
+| `desktop/app/gui/QuickMenu.qml` | Menu in-stream (server commands, send keys) |
 | `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
 | `desktop/app/streaming/video/ffmpeg.cpp` | Décodeur + `writePerfCsvRow()` (CSV perf) |
 | `desktop/moonlight-common-c/moonlight-common-c.pro` | LTO du cœur natif (release) |
