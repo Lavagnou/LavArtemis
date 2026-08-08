@@ -280,20 +280,42 @@ jobs:
 
           wix burn extract "$BUNDLE" -o /tmp/burn -oba /tmp/burn/ba -acceptEula wix7 > /dev/null
 
-          # Theme assets are referenced by bare filename; payloads land flat in
-          # the same folder, so presence is the whole test.
-          MISSING=0
-          for ASSET in $(grep -oE '(IconFile|ImageFile)="[^"]+"' /tmp/burn/ba/thm.xml \
-                         | sed 's/.*="//; s/"$//' | sort -u); do
-            if [ -f "/tmp/burn/ba/$ASSET" ]; then
-              echo "  ok       $ASSET"
-            else
-              echo "::error::Installer theme references '$ASSET', which is not among its payloads. Check the Payload names in wix/LavArtemisSetup/Bundle.wxs against wix/LavArtemisSetup/RtfTheme.xml."
-              MISSING=1
-            fi
-          done
+          # Two separate ways this file kills the installer without any build
+          # noticing, so check both. Parse it as XML first: a stray double
+          # hyphen in a comment is enough to make the whole theme unloadable,
+          # and grepping for filenames happily succeeds on a file Burn cannot
+          # even open. Then confirm the assets it names are really payloads,
+          # which are extracted flat into the same folder.
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          from pathlib import Path
 
-          exit $MISSING
+          ba = Path("/tmp/burn/ba")
+          theme = ba / "thm.xml"
+
+          try:
+              root = ET.parse(theme).getroot()
+          except ET.ParseError as e:
+              print(f"::error::Installer theme is not valid XML ({e}). "
+                    "Check wix/LavArtemisSetup/RtfTheme.xml -- note XML comments "
+                    "may not contain a double hyphen.")
+              sys.exit(1)
+
+          assets = sorted({v for el in root.iter()
+                             for k, v in el.attrib.items()
+                             if k in ("IconFile", "ImageFile")})
+          missing = False
+          for name in assets:
+              if (ba / name).is_file():
+                  print(f"  ok       {name}")
+              else:
+                  print(f"::error::Installer theme references '{name}', which is "
+                        "not among its payloads. Check the Payload names in "
+                        "wix/LavArtemisSetup/Bundle.wxs against RtfTheme.xml.")
+                  missing = True
+
+          sys.exit(1 if missing else 0)
+          PY
 
       - name: Collect and rename Windows artifacts
         shell: bash
