@@ -118,7 +118,7 @@ Toutes ces options sont exposées dans **`app/src/main/res/xml/preferences.xml`*
 ## 🔧 Code natif / JNI
 
 - Build : **ndk-build** (`app/src/main/jni/Android.mk` aggregator ; `Application.mk` : `APP_PLATFORM android-21`, support des pages 16 KB).
-- `libmoonlight-core.so` est compilé depuis le **sous-module `moonlight-common-c`** (fork ClassicOldSong), à `app/src/main/jni/moonlight-core/moonlight-common-c/`.
+- `libmoonlight-core.so` est compilé depuis le **sous-module `moonlight-common-c`** ([`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c) branche `lavartemis`, **partagé avec le client desktop**), à `app/src/main/jni/moonlight-core/moonlight-common-c/`. La FEC vient de **nanors** (sous-module imbriqué), pas de reedsolomon.
 - Pont JNI : **`simplejni.c`** (côté C, fonctions `Java_com_limelight_nvstream_jni_MoonBridge_*`) ↔ **`MoonBridge.java`** (côté Java, déclare aussi les constantes de stream : formats H264/H265/AV1, erreurs, ports).
 - `callbacks.c` : callbacks C → Java.
 - Bibliothèques statiques prébuildées **committées** : `libopus`, `openssl` (sous `app/src/main/jni/moonlight-core/{libopus,openssl}/<abi>/`).
@@ -147,22 +147,23 @@ Deux effets de bord utiles du portage `art://` : le lancement CLI accepte désor
 
 > ⚠️ **Pas d'instance unique.** Cliquer un lien `art://` alors que LavArtemis tourne déjà lance un **second processus**. Ce n'est pas une régression : c'est déjà le comportement de `lavartemis stream <host> <app>`, les commandes CLI amont étant conçues comme des processus indépendants. Une IPC `QLocalServer` serait nécessaire pour changer ça.
 
-Pas encore porté : pan & zoom (D4 — sur desktop ça touche le calcul du rect de destination dans **chaque** renderer et entre en conflit avec la molette déjà transmise à l'hôte, bien plus invasif que le `PanZoomHandler` Android), SBS 3D MiDaS (hors périmètre v1).
+**Pan & zoom (D4)** est porté : `streaming/panzoom.{h,cpp}`, piloté par les combos Ctrl+Alt+Shift (`+`/`-`/`0`, flèches). Tous les renderers passaient déjà par un seul helper — la géométrie tient donc dans une fonction, `StreamUtils::scaleSourceToDestinationSurfaceWithPanZoom()`, et pas dans chaque backend. Le mapping des coordonnées souris passe par le **même** helper, donc le pointeur suit le zoom sans code supplémentaire.
 
-### ⚠️ Invariant : un seul `moonlight-common-c` — **pas encore tenu**
+> ⚠️ **Un seul appelant reste sur l'ancien helper** : `Session::getWindowDimensions()` (`session.cpp:1538`) réutilise l'ajustement d'aspect pour dimensionner la fenêtre. Y appliquer le zoom **redimensionnerait la fenêtre** au lieu d'agrandir la vidéo. C'est pour ça que c'est une seconde fonction et pas un flag dans la première.
 
-Cible : les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c).
+**Export de fichiers `.art`** : `AppModel::exportArtFile()`, entrée « Export Shortcut File… » du menu contextuel d'`AppView.qml`. Même format `[clé] valeur` que `ShortcutHelper.java:243` → un fichier écrit ici s'ouvre sur Android et inversement.
 
-État réel :
+Pas encore porté : **SBS 3D MiDaS** (hors périmètre v1).
 
-| Client | Sous-module | Contenu |
-|---|---|---|
-| desktop | `Lavagnou/moonlight-common-c` branche `lavartemis` @ `ebb15ef` | `moonlight-stream/master` + cherry-pick `84af637` (`LiSendExecServerCmd`, extension Apollo) |
-| Android | `ClassicOldSong/moonlight-common-c` | amont + `84af637` + `c999436` (`LiSendEmptyPayload`) |
+### ✅ Invariant : un seul `moonlight-common-c` — **tenu**
 
-> 🚧 **Blocage identifié — ne pas basculer l'Android en l'état.** La branche `lavartemis` écarte volontairement `c999436`, mais l'Android **appelle** `LiSendEmptyPayload` (`Game.java:336` → `simplejni.c:25`). Repointer le sous-module Android tel quel casse le build natif.
->
-> Pour tenir l'invariant il faut d'abord cherry-picker `c999436` sur `lavartemis` (côté desktop c'est du code mort, ~20 lignes, inoffensif), rebumper le desktop, puis basculer l'Android. Tant que ce n'est pas fait, les deux sous-modules divergent.
+Les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c), branche `lavartemis` @ `0da9626` = `moonlight-stream/master` (juillet 2026) + `84af637` (`LiSendExecServerCmd`) + `c999436` (`LiSendEmptyPayload`).
+
+`LiSendEmptyPayload` est du code mort côté desktop ; il est là pour que l'Android (`Game.java:336`) puisse partager la branche.
+
+> ⚠️ **La bascule de l'Android a coûté deux ajustements**, à connaître avant de rebumper :
+> - **FEC : reedsolomon → nanors.** Sous-module différent, avec ses propres sources `deps/obl/`. `Android.mk` liste `nanors/deps/obl/oblas_common.c`, `oblas_lite.c`, `nanors/rs.c` et les trois include paths correspondants (mêmes que le `.pro` desktop).
+> - **Timestamps des decode units : ms → µs.** `receiveTimeMs` → `receiveTimeUs`. Le renommage est la partie visible, **le changement d'unité est la partie dangereuse** : le Java travaille toujours en ms (`MediaCodecDecoderRenderer` accumule `enqueue - receive` dans `totalTimeMs` et multiplie `enqueue` par 1000 pour le timestamp MediaCodec). Passer les µs telles quelles gonflerait les deux ×1000, silencieusement. La conversion se fait dans `callbacks.c` (`usToMs()`), le contrat Java est inchangé. Récupérer la précision supplémentaire est souhaitable mais mérite un commit isolé, bisectable.
 
 ### Build desktop
 
@@ -178,7 +179,8 @@ Requiert **Qt 6.11 + MSVC (VS2026)** et **WiX 7**. Sur Linux : `qmake6 lavartemi
 
 | LavArtemis Android | Équivalent desktop | État |
 |---|---|---|
-| `binding/video/PacingStats.java` | `app/streaming/video/pacingstats.{h,cpp}` — même fenêtre 512, même filtre d'outliers, mêmes percentiles | ✅ porté |
+| `binding/video/PacingStats.java` | `app/streaming/video/pacingstats.{h,cpp}` — même fenêtre 512, même filtre d'outliers, mêmes percentiles | ✅ porté **et amélioré** |
+| *(pas d'équivalent Android)* | **Scanout réel sur D3D11** : `IFFmpegRenderer::getLastPresentTimeUs()` (virtuelle, défaut 0) surchargée dans `d3d11va.cpp` via `GetFrameStatistics()`/`SyncQPCTime` — le vblank où la frame est *réellement* sortie, pas l'instant du hand-off. L'Android mesure le hand-off faute de mieux (SurfaceFlinger), ce qui mélange le jitter de soumission du client aux percentiles censés décrire l'écran. ⚠️ **Époques différentes** : `LiGetMicroseconds()` compte depuis le démarrage du cœur, `SyncQPCTime` est du QPC brut → basculer entre les deux sources produit un intervalle aberrant, que `PacingStats` rejette déjà dans les deux sens (test d'ordre / plafond 1 s). Coût : 1 échantillon sur 512. | ✅ desktop only |
 | CSV perf (11 colonnes) | `FFmpegVideoDecoder::writePerfCsvRow()` dans `streaming/video/ffmpeg.cpp` → `stream-perf-<epoch>.csv` dans `AppDataLocation`. **Mêmes colonnes** que l'Android, les runs se comparent directement. | ✅ porté |
 | `setpriority(-16)` thread dépacketiseur (`callbacks.c`) | `SDL_SetThreadPriority(HIGH)` one-shot dans `Session::drSubmitDecodeUnit` | ✅ porté |
 | `setpriority(-19)` thread audio | déjà fait en amont dans `Session::arDecodeAndPlaySample` | ✅ amont |
@@ -202,7 +204,9 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
   - Job `build-windows` : `windows-2025`, Qt 6.11, build x64 **et** arm64 dans le même job (l'installeur combiné a besoin des deux MSI), depuis le commit `desktop/` épinglé ici.
   - Job `build-linux` : `ubuntu-22.04`, AppImage x86_64. **Le plus long de loin** — aucun paquet prébuildé n'existe pour ce dont le client a besoin, donc SDL3, sdl2-compat, SDL_ttf, libva, libplacebo, dav1d et FFmpeg sont compilés depuis les sources avant même de configurer l'app. Les deps sont clonées sous `desktop/deps/` pour que les chemins relatifs des patchs du sous-module continuent de résoudre. Empaquetage par `desktop/scripts/build-appimage.sh` + linuxdeploy.
   - Job `publish` : agrège les artefacts et publie via `softprops/action-gh-release@v2`. **Bloquant sur les 3 jobs de build** : une plateforme qui casse fait échouer la release entière plutôt que de publier une release incomplète en silence.
-  - ⚠️ **Pas de job de test** dans CI (les tests ne tournent pas automatiquement).
+  - Job `version` : signale aussi **de combien le pointeur `desktop/` est en retard** sur le dernier commit vert de LavArtemis-Qt, en listant les commits manqués. Il **signale sans corriger** — un tag doit reconstruire la même chose à chaque fois, donc avancer le pointeur en cours de release casserait la reproductibilité. En `continue-on-error` : un hoquet de l'API GitHub annote le run, il ne fait pas échouer la release.
+  - ⚠️ **Pas de job de test** dans CI (les tests ne tournent pas automatiquement). ⚠️ **5 tests JVM échouent déjà** sur `main` (`LayoutInflationTest`, `SimpleStartupTest`, `StartupTest`, `ProfilesNavigationTest` ×2) — problèmes de setup Robolectric préexistants, sans rapport avec le portage desktop.
+- **`.github/workflows/update-desktop-pointer.yml`** : avance le sous-module `desktop/` vers le dernier commit **vert** de LavArtemis-Qt. **Manuel** (`workflow_dispatch`, avec SHA optionnel) — pas de cron, le pointeur ne comptant qu'au moment de couper un tag. Tourne **dans** LavArtemis et écrit **dans** LavArtemis, donc le `GITHUB_TOKEN` intégré suffit : aucun PAT à provisionner. Réécrit le gitlink via `git update-index --cacheinfo` plutôt que de checkouter le sous-module (économise un clone de ~250 Mo).
   - **Flatpak non câblé** : demande un manifeste (inexistant) et une soumission Flathub, chantier à part. Le Steam Deck tourne l'AppImage.
 - **`LavArtemis-Qt/.github/workflows/build.yml`** : compile-check du client desktop (Windows x64/arm64 + Linux) à chaque push. Ne produit pas de release.
   - ⚠️ `build-appimage.yml` y est **orphelin** (`workflow_call` que personne n'appelle) : c'est la référence dont le job `build-linux` ci-dessus est dérivé. Toute correction doit aller dans les deux.
@@ -269,7 +273,8 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `.../binding/audio/AndroidAudioRenderer.java` | Rendu audio — LavArtemis (fix + cap) |
 | `.../preferences/StreamSettings.java` | Réglages + CSV perf log |
 | `app/src/main/res/xml/preferences.xml` | Toutes les options (dont LavArtemis) |
-| `.github/workflows/release.yml` | CI build & release **unifiée** (Android + Windows) |
+| `.github/workflows/release.yml` | CI build & release **unifiée** (Android + Windows + Linux) |
+| `.github/workflows/update-desktop-pointer.yml` | Avance le sous-module `desktop/` vers le dernier commit vert (manuel) |
 | `android_test_setup.md` | Guide de tests JVM / Robolectric |
 | `.gitmodules` | Sous-modules `moonlight-common-c` **et `desktop/`** |
 | `desktop/` | Client Qt (sous-module `LavArtemis-Qt`) |
@@ -278,6 +283,7 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/app/settings/profilemanager.{h,cpp}` | Profils de réglages + routage lecture/écriture des prefs |
 | `desktop/app/backend/keymacromanager.{h,cpp}` | Send keys + macros clavier (table `VK_`) |
 | `desktop/app/cli/artlink.{h,cpp}` | Parsing `art://` + `.art` → ligne de commande |
+| `desktop/app/streaming/panzoom.{h,cpp}` | Zoom & pan client (D4) — ⚠️ ne pas l'appliquer au dimensionnement de fenêtre |
 | `desktop/app/gui/SettingsView.qml` | UI des réglages, groupes « Settings Profile » et « LavArtemis Features » |
 | `desktop/app/gui/QuickMenu.qml` | Menu in-stream (server commands, send keys) |
 | `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
@@ -318,4 +324,4 @@ git submodule update --init --recursive desktop                                 
 
 **Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the 2 Android APKs (`nonRoot_game` + `tx15_game`, arm64-v8a), the Windows x64/ARM64 portable zips + combined installer, **and** the Linux x86_64 AppImage, then publishes them all under one release. The Linux job compiles SDL3/libplacebo/FFmpeg from source and is by far the slowest; `publish` blocks on all three so a broken platform fails the release instead of shipping it half-done. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
 
-**Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (7) the two clients still pin **different** `moonlight-common-c` forks, and the Android one cannot move until `LiSendEmptyPayload` lands on the `lavartemis` branch — see the desktop section.
+**Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (7) both clients now share **one** `moonlight-common-c` (`Lavagnou/moonlight-common-c`, branch `lavartemis`) — when rebumping it, remember FEC is nanors (not reedsolomon) and decode-unit timestamps are microseconds converted to milliseconds at the JNI boundary; see the desktop section.
