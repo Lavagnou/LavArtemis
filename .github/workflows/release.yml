@@ -278,7 +278,11 @@ jobs:
             exit 1
           fi
 
-          wix burn extract "$BUNDLE" -o /tmp/burn -oba /tmp/burn/ba -acceptEula wix7 > /dev/null
+          # Relative, not /tmp: this runs under Git Bash but python and wix are
+          # native Windows binaries, and they read "/tmp/x" as "\tmp\x" on the
+          # current drive. A relative path resolves the same way for all three.
+          rm -rf theme-check
+          wix burn extract "$BUNDLE" -o theme-check -oba theme-check/ba -acceptEula wix7 > /dev/null
 
           # Two separate ways this file kills the installer without any build
           # noticing, so check both. Parse it as XML first: a stray double
@@ -290,7 +294,7 @@ jobs:
           import sys, xml.etree.ElementTree as ET
           from pathlib import Path
 
-          ba = Path("/tmp/burn/ba")
+          ba = Path("theme-check/ba")
           theme = ba / "thm.xml"
 
           try:
