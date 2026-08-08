@@ -28,7 +28,7 @@ LavArtemis hérite des fonctionnalités Artemis : manettes virtuelles personnali
 | compileSdk / minSdk / targetSdk | 36 / 21 / 34 |
 | Java (source/cible) | 11 (builder avec JDK 17+) |
 | NDK | `27.0.12077973` |
-| versionName / versionCode | `20.2.8` / `59` |
+| versionName / versionCode | `20.3.0` / `60` |
 
 Mono-module : `:app` (pas de version catalog, pas de `buildSrc`).
 
@@ -250,7 +250,7 @@ Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-TX15-
 ## 🧹 Renommages incomplets / Dette technique (Artemis → LavArtemis)
 
 Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
-- `README.md` ligne 1 : titre toujours **« Artemis Android »**.
+- ✅ ~~`README.md`~~ réécrit pour LavArtemis (deux clients, lignage, liens Obtainium corrigés). Le « Disclaimer » de ClassicOldSong, un témoignage personnel à la première personne, a été retiré — il n'avait pas à figurer sous le nom d'un autre mainteneur ; son travail est crédité dans « Lineage and credits ».
 - Classe **`ArtemisApplication.java`** non renommée (référencée par `AndroidManifest.xml` et par `StartupTest`/`SimpleStartupTest`).
 - Identifiant clipboard **`"ArtemisStreaming"`** dans `Game.java`.
 - Email/branding dans `res/values/strings.xml` : `artemistics.logs@gmail.com`, « Artemistics - Performance Log », `https://tinyurl.com/artemis-performance`.
