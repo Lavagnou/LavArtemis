@@ -1,0 +1,151 @@
+---
+# Advances the desktop/ submodule pointer to the newest commit of
+# Lavagnou/LavArtemis-Qt that actually built green.
+#
+# The desktop client lives in its own repository so upstream moonlight-qt stays
+# mergeable with a plain `git merge`; it is still actively developed, so keeping
+# that path cheap matters. The cost of the split is that this repository has to
+# be told when the desktop client moves -- which is what this removes.
+#
+# It pulls rather than being pushed to on purpose. A workflow here writing here
+# can use the built-in GITHUB_TOKEN; the reverse direction would need a personal
+# access token provisioned by hand, purely to cross a repository boundary.
+name: Update desktop pointer
+
+# Writing to this repository's own main branch.
+permissions:
+  contents: write
+
+on:
+  schedule:
+    # Daily. The pointer only has to be current when a release is cut, and
+    # `workflow_dispatch` below covers "I want it now".
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Desktop commit to pin (default: newest green commit on main)'
+        required: false
+        type: string
+
+concurrency:
+  group: update-desktop-pointer
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Advance desktop/ to the newest green commit
+    runs-on: ubuntu-latest
+
+    env:
+      DESKTOP_REPO: Lavagnou/LavArtemis-Qt
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          # The pointer is rewritten as a gitlink; the contents are never
+          # needed, and fetching them would clone a few hundred megabytes.
+          submodules: false
+
+      - name: Resolve the target commit
+        id: target
+        run: |
+          set -euo pipefail
+
+          REQUESTED='${{ inputs.sha }}'
+          if [ -n "$REQUESTED" ]; then
+            # Manual override: confirm it exists before pinning it. A gitlink to
+            # a nonexistent commit is accepted silently by git and only breaks
+            # later, when someone clones.
+            if ! gh api "repos/$DESKTOP_REPO/commits/$REQUESTED" --jq .sha > /dev/null 2>&1; then
+              echo "::error::$REQUESTED does not exist in $DESKTOP_REPO."
+              exit 1
+            fi
+            SHA=$(gh api "repos/$DESKTOP_REPO/commits/$REQUESTED" --jq .sha)
+            echo "::warning::Pinning $SHA by hand; its build status was not checked."
+          else
+            # `event=push` excludes pull request runs, whose head commit may
+            # live only in a fork and never reach main.
+            SHA=$(gh api \
+              "repos/$DESKTOP_REPO/actions/workflows/build.yml/runs?branch=main&status=success&event=push&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // empty')
+
+            if [ -z "$SHA" ]; then
+              echo "::error::No successful build found on $DESKTOP_REPO main."
+              exit 1
+            fi
+          fi
+
+          SUBJECT=$(gh api "repos/$DESKTOP_REPO/commits/$SHA" --jq '.commit.message' | head -1)
+
+          {
+            echo "sha=$SHA"
+            echo "short=${SHA:0:8}"
+            echo "subject=$SUBJECT"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Move the pointer
+        id: bump
+        run: |
+          set -euo pipefail
+
+          SHA='${{ steps.target.outputs.sha }}'
+          OLD=$(git rev-parse HEAD:desktop)
+
+          if [ "$OLD" = "$SHA" ]; then
+            echo "Already pinned at $SHA."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git update-index --cacheinfo "160000,$SHA,desktop"
+
+          if git diff --cached --quiet; then
+            echo "::error::No change recorded; is desktop still a submodule?"
+            exit 1
+          fi
+
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "Bump desktop to ${{ steps.target.outputs.short }}: ${{ steps.target.outputs.subject }}" \
+                     -m "Automated. Pins the newest commit of $DESKTOP_REPO whose build passed on Windows x64/arm64 and Linux, so a release cut from this tag always contains a desktop client that compiled." \
+                     -m "Previous: ${OLD:0:8}"
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "old=${OLD:0:8}" >> "$GITHUB_OUTPUT"
+
+      - name: Push
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt); rebasing onto the new main..."
+            git fetch origin main
+            git rebase origin/main
+          done
+          echo "::error::Could not push after 3 attempts."
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            if [ "${{ steps.bump.outputs.changed }}" = "true" ]; then
+              echo "### desktop/ advanced"
+              echo ""
+              echo "\`${{ steps.bump.outputs.old }}\` → \`${{ steps.target.outputs.short }}\`"
+              echo ""
+              echo "> ${{ steps.target.outputs.subject }}"
+            else
+              echo "### Already up to date"
+              echo ""
+              echo "\`desktop\` already pins \`${{ steps.target.outputs.short }}\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
