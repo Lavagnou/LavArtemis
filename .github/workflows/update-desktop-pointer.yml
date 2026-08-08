@@ -16,11 +16,11 @@ name: Update desktop pointer
 permissions:
   contents: write
 
+# Deliberately manual. The pinned commit only matters when a release is cut, so
+# a schedule would spend most of its runs discovering there is nothing to do.
+# Instead the release workflow reports how far behind the pointer is, at the one
+# moment that is worth knowing, and this is run in response.
 on:
-  schedule:
-    # Daily. The pointer only has to be current when a release is cut, and
-    # `workflow_dispatch` below covers "I want it now".
-    - cron: '17 4 * * *'
   workflow_dispatch:
     inputs:
       sha:

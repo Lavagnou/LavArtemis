@@ -74,6 +74,51 @@ jobs:
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      # The desktop pointer is advanced by hand (Actions -> Update desktop
+      # pointer), so it can silently fall behind between releases. Report the
+      # gap here rather than closing it: what gets released must stay exactly
+      # what the tag records, and moving the pointer mid-run would break that.
+      - name: Report desktop pointer freshness
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DESKTOP_REPO: Lavagnou/LavArtemis-Qt
+        run: |
+          set -uo pipefail
+
+          PINNED=$(git rev-parse HEAD:desktop)
+          LATEST=$(gh api \
+            "repos/$DESKTOP_REPO/actions/workflows/build.yml/runs?branch=main&status=success&event=push&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty')
+
+          if [ -z "$LATEST" ]; then
+            echo "Could not reach $DESKTOP_REPO; skipping the freshness check."
+            exit 0
+          fi
+
+          if [ "$PINNED" = "$LATEST" ]; then
+            echo "### Desktop client is current" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Pinned at \`${PINNED:0:8}\`, the newest green commit." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          BEHIND=$(gh api "repos/$DESKTOP_REPO/compare/$PINNED...$LATEST" --jq '.ahead_by // empty')
+
+          echo "::warning::This release pins desktop ${PINNED:0:8}, but ${LATEST:0:8} is newer and green (${BEHIND:-?} commits ahead). Run 'Update desktop pointer' and re-tag if you meant to ship it."
+          {
+            echo "### Desktop client is behind"
+            echo ""
+            echo "This release pins \`${PINNED:0:8}\`, but \`${LATEST:0:8}\` has built green since"
+            echo "— **${BEHIND:-an unknown number of} commits** ahead."
+            echo ""
+            echo "The pointer was left alone on purpose: a tag must build the same thing every time."
+            echo "To ship the newer client, run **Update desktop pointer**, then re-tag."
+            echo ""
+            gh api "repos/$DESKTOP_REPO/compare/$PINNED...$LATEST" \
+              --jq '.commits[] | "- \(.sha[0:8]) \(.commit.message | split("\n")[0])"' 2>/dev/null || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build-android:
     needs: version
     runs-on: ubuntu-latest
