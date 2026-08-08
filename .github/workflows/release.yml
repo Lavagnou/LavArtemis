@@ -254,6 +254,47 @@ jobs:
         working-directory: desktop
         run: scripts\generate-bundle.bat Release
 
+      # v20.3.0 shipped an installer that exited silently on every machine: the
+      # bootstrapper theme referenced `artemis.ico` while the rebrand had
+      # renamed the payload to `lavartemis.ico`. Burn resolves theme assets by
+      # name at runtime, so a missing one fails theme parsing before any window
+      # exists -- nothing appears, no error, and the build stays green because
+      # WiX is perfectly happy to embed a theme whose references do not resolve.
+      #
+      # Cracking the bundle open and checking that every asset the theme asks
+      # for is actually in it takes seconds and turns that into a failed build.
+      - name: Verify installer theme assets resolve
+        shell: bash
+        working-directory: desktop
+        run: |
+          set -euo pipefail
+
+          dotnet tool install --global wix --version 7.0.0 > /dev/null
+          export PATH="$PATH:$HOME/.dotnet/tools"
+
+          BUNDLE=$(find build/installer-release -name 'LavArtemisSetup*.exe' | head -1)
+          if [ -z "$BUNDLE" ]; then
+            echo "::error::No installer bundle found to verify."
+            exit 1
+          fi
+
+          wix burn extract "$BUNDLE" -o /tmp/burn -oba /tmp/burn/ba -acceptEula wix7 > /dev/null
+
+          # Theme assets are referenced by bare filename; payloads land flat in
+          # the same folder, so presence is the whole test.
+          MISSING=0
+          for ASSET in $(grep -oE '(IconFile|ImageFile)="[^"]+"' /tmp/burn/ba/thm.xml \
+                         | sed 's/.*="//; s/"$//' | sort -u); do
+            if [ -f "/tmp/burn/ba/$ASSET" ]; then
+              echo "  ok       $ASSET"
+            else
+              echo "::error::Installer theme references '$ASSET', which is not among its payloads. Check the Payload names in wix/LavArtemisSetup/Bundle.wxs against wix/LavArtemisSetup/RtfTheme.xml."
+              MISSING=1
+            fi
+          done
+
+          exit $MISSING
+
       - name: Collect and rename Windows artifacts
         shell: bash
         run: |
