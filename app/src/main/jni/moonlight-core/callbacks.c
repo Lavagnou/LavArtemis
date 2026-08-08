@@ -13,6 +13,20 @@
 
 #include <cpu-features.h>
 
+// moonlight-common-c moved the decode unit timestamps from milliseconds to
+// microseconds (receiveTimeMs -> receiveTimeUs). The Java side still works in
+// milliseconds: MediaCodecDecoderRenderer accumulates enqueue-minus-receive
+// into totalTimeMs and multiplies the enqueue time by 1000 to get MediaCodec's
+// presentation timestamp, so handing it microseconds would inflate both by
+// 1000x. Convert at the boundary and leave the Java contract alone.
+//
+// The extra precision is genuinely useful for frame pacing and is worth
+// picking up later, but not in the same change as a year-long jump of the
+// native core -- a pacing regression has to stay bisectable.
+static jlong usToMs(uint64_t us) {
+    return (jlong)(us / 1000);
+}
+
 static OpusMSDecoder* Decoder;
 static OPUS_MULTISTREAM_CONFIGURATION OpusConfig;
 
@@ -181,7 +195,7 @@ int BridgeDrSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
             ret = (*env)->CallStaticIntMethod(env, GlobalBridgeClass, BridgeDrSubmitDecodeUnitMethod,
                                               DecodedFrameBuffer, currentEntry->length, currentEntry->bufferType,
                                               decodeUnit->frameNumber, decodeUnit->frameType, (jchar)decodeUnit->frameHostProcessingLatency,
-                                              (jlong)decodeUnit->receiveTimeMs, (jlong)decodeUnit->enqueueTimeMs);
+                                              usToMs(decodeUnit->receiveTimeUs), usToMs(decodeUnit->enqueueTimeUs));
             if ((*env)->ExceptionCheck(env)) {
                 // We will crash here
                 (*JVM)->DetachCurrentThread(JVM);
@@ -202,7 +216,7 @@ int BridgeDrSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
     ret = (*env)->CallStaticIntMethod(env, GlobalBridgeClass, BridgeDrSubmitDecodeUnitMethod,
                                        DecodedFrameBuffer, offset, BUFFER_TYPE_PICDATA,
                                        decodeUnit->frameNumber, decodeUnit->frameType, (jchar)decodeUnit->frameHostProcessingLatency,
-                                       (jlong)decodeUnit->receiveTimeMs, (jlong)decodeUnit->enqueueTimeMs);
+                                       usToMs(decodeUnit->receiveTimeUs), usToMs(decodeUnit->enqueueTimeUs));
     if ((*env)->ExceptionCheck(env)) {
         // We will crash here
         (*JVM)->DetachCurrentThread(JVM);
