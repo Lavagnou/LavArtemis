@@ -2,8 +2,7 @@ name: Build & Release
 
 # Builds and publishes LavArtemis for every supported platform under a single
 # tag, so Android and desktop always ship together:
-#   - LavArtemis          (Android, nonRoot_game flavor, standard controllers)
-#   - LavArtemis-TX15     (Android, RadioMaster TX15 radio)
+#   - LavArtemis          (Android, nonRoot_game flavor)
 #   - LavArtemis Windows  (x64 + ARM64 portable, plus a combined installer)
 #   - LavArtemis Linux    (x86_64 AppImage, which is also how Steam Deck runs it)
 #
@@ -156,21 +155,15 @@ jobs:
           CI_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           CI_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           CI_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleNonRoot_gameRelease assembleTx15_gameRelease --no-daemon
+        run: ./gradlew assembleNonRoot_gameRelease --no-daemon
 
       - name: Collect and rename APKs
         run: |
           mkdir -p dist
           shopt -s nullglob
-          for flavor in nonRoot_game tx15_game; do
-            case "$flavor" in
-              nonRoot_game) prefix="LavArtemis" ;;
-              tx15_game)    prefix="LavArtemis-TX15" ;;
-            esac
-            for f in app/build/outputs/apk/$flavor/release/*.apk; do
-              abi=$(basename "$f" .apk | sed "s/^app-$flavor-//; s/-release.*$//")
-              cp "$f" "dist/$prefix-${{ needs.version.outputs.tag }}-android-${abi}.apk"
-            done
+          for f in app/build/outputs/apk/nonRoot_game/release/*.apk; do
+            abi=$(basename "$f" .apk | sed "s/^app-nonRoot_game-//; s/-release.*$//")
+            cp "$f" "dist/LavArtemis-${{ needs.version.outputs.tag }}-android-${abi}.apk"
           done
           ls -l dist
 

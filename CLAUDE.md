@@ -55,8 +55,6 @@ Commandes Gradle (depuis la racine) :
 ```sh
 ./gradlew assembleNonRoot_gameDebug      # APK debug (flavor publié)
 ./gradlew assembleNonRoot_gameRelease    # APK release
-./gradlew assembleTx15_gameDebug         # APK debug TX15 (RadioMaster TX15)
-./gradlew assembleTx15_gameRelease       # APK release TX15
 ./gradlew assembleRootDebug              # flavor root (dev only, maxSdk 25)
 
 ./gradlew :app:testNonRoot_gameDebugUnitTest   # tests JVM, flavor nonRoot
@@ -81,8 +79,7 @@ Dimension `root` :
 
 | Flavor | applicationId | maxSdk | Détails |
 |---|---|---|---|
-| `nonRoot_game` | `com.limelight` | — | Flavor **publié** par CI (LavArtemis, manettes standard) |
-| `tx15_game` | `com.limelight.tx15` | — | Variante **LavArtemis-TX15** (RadioMaster TX15), `TX15_BUILD=true` |
+| `nonRoot_game` | `com.limelight` | — | Flavor **publié** par CI, le seul |
 | `root` | `com.limelight.root` | 25 | Binaire natif `evdev_reader`, `ROOT_BUILD=true`, **dev-only** |
 
 Build types :
@@ -92,9 +89,11 @@ Build types :
 | `debug` | `.lavdebug` | LavArtemis (Debug) |
 | `release` | `.lav` | LavArtemis |
 
-→ appId release effectif (nonRoot) : **`com.limelight.lav`** ; TX15 : **`com.limelight.tx15.lav`** (co-installable côte à côte). ABI : **`arm64-v8a` uniquement** (les autres ABI ne sont ni buildés ni release).
+→ appId release effectif (nonRoot) : **`com.limelight.lav`**. ABI : **`arm64-v8a` uniquement** (les autres ABI ne sont ni buildés ni release).
 
-> 🎮 **Variante TX15** (`tx15_game`, flag `BuildConfig.TX15_BUILD`) : remappe la RadioMaster TX15 dans `binding/input/ControllerHandler.java` — stick gauche X + Y(**inversé**), stick droit RY/RZ, pas de gâchettes, inter (axe Z)→**R1**, boutons 1/2→**Y/L1**. Gated par `BuildConfig.TX15_BUILD` (build dédié) via `applyTx15AxisMapping()` (surcharge des axes de `InputDeviceContext`), inversion Y dans `handleAxisSet`, synthèse Z→bouton dans `handleMotionEvent`, et remap boutons dans `handleRemapping`. La CI publie les **deux variants** à chaque release.
+> 🎮 **Manettes exotiques : rien de spécifique côté Android.** `ControllerHandler.java` détecte les axes **par heuristique** à partir des `MotionRange` déclarés (stick gauche X/Y, stick droit RX/RY sinon Z/RZ, croix HAT_X/HAT_Y). C'est ce qui fait marcher des périphériques HID génériques — dont la RadioMaster TX15 — sans une ligne de code dédiée.
+> Un variant `tx15_game` a existé (remap explicite des axes, `BuildConfig.TX15_BUILD`) : c'était un essai, **retiré** — le chemin standard fait déjà le travail. Ne pas le réintroduire sans preuve qu'un appareil résiste à l'heuristique.
+> ⚠️ Côté **desktop**, SDL refuse au contraire de deviner : sans entrée dans `gamecontrollerdb.txt`, un périphérique reste un simple joystick et le client l'ignore (`SDL_IsGameController`). C'est la différence de fond entre les deux plateformes.
 
 > ⚠️ **Ne jamais retirer le suffixe `.lav`.** Long commentaire dans `app/build.gradle` (release) : un APK release publié avec l'applicationId Moonlight officiel pollue la Play Console du projet amont — Google attribue les crashs par appId, indépendamment de la signature.
 
@@ -200,7 +199,7 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
 
 - **`.github/workflows/release.yml`** : trigger sur **tag `v*`** (release) ou `workflow_dispatch` (prerelease `v<version>-ci.<run>`). **Une seule release contient Android + Windows + Linux.**
   - Job `version` : lit `versionName` dans `app/build.gradle`. Sur tag push, **échoue si le tag ≠ versionName** → `versionName` reste la source de vérité unique ; `desktop/app/version.txt` est écrit depuis le tag au build (jamais committé).
-  - Job `build-android` : Ubuntu, JDK 17, NDK `27.0.12077973`, `assembleNonRoot_gameRelease assembleTx15_gameRelease`. N'initialise **que** le sous-module natif (pas `desktop/`).
+  - Job `build-android` : Ubuntu, JDK 17, NDK `27.0.12077973`, `assembleNonRoot_gameRelease`. N'initialise **que** le sous-module natif (pas `desktop/`).
   - Job `build-windows` : `windows-2025`, Qt 6.11, build x64 **et** arm64 dans le même job (l'installeur combiné a besoin des deux MSI), depuis le commit `desktop/` épinglé ici.
   - Job `build-linux` : `ubuntu-22.04`, AppImage x86_64. **Le plus long de loin** — aucun paquet prébuildé n'existe pour ce dont le client a besoin, donc SDL3, sdl2-compat, SDL_ttf, libva, libplacebo, dav1d et FFmpeg sont compilés depuis les sources avant même de configurer l'app. Les deps sont clonées sous `desktop/deps/` pour que les chemins relatifs des patchs du sous-module continuent de résoudre. Empaquetage par `desktop/scripts/build-appimage.sh` + linuxdeploy.
   - Job `publish` : agrège les artefacts et publie via `softprops/action-gh-release@v2`. **Bloquant sur les 3 jobs de build** : une plateforme qui casse fait échouer la release entière plutôt que de publier une release incomplète en silence.
@@ -211,7 +210,7 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
 - **`LavArtemis-Qt/.github/workflows/build.yml`** : compile-check du client desktop (Windows x64/arm64 + Linux) à chaque push. Ne produit pas de release.
   - ⚠️ `build-appimage.yml` y est **orphelin** (`workflow_call` que personne n'appelle) : c'est la référence dont le job `build-linux` ci-dessus est dérivé. Toute correction doit aller dans les deux.
 
-Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-TX15-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`, `LavArtemis-<tag>-linux-x86_64.AppImage`.
+Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`, `LavArtemis-<tag>-linux-x86_64.AppImage`.
 
 ### Signature
 - Aucun keystore committé (`key/` est gitignored).
@@ -314,14 +313,13 @@ git submodule update --init --recursive desktop                                 
 |---|---|
 | Debug build | `./gradlew assembleNonRoot_gameDebug` |
 | Release build | `./gradlew assembleNonRoot_gameRelease` |
-| TX15 debug/release | `./gradlew assembleTx15_gameDebug` / `assembleTx15_gameRelease` |
 | Unit tests (nonRoot) | `./gradlew :app:testNonRoot_gameDebugUnitTest` |
 | All unit tests | `./gradlew test` |
 
-**applicationId** — `namespace` is `com.limelight` (unchanged); shipping release appIds are **`com.limelight.lav`** (LavArtemis) and **`com.limelight.tx15.lav`** (LavArtemis-TX15, the RadioMaster TX15 variant — `BuildConfig.TX15_BUILD` remaps its axes in `ControllerHandler.java`). Suffix `.lav`, do not remove. Debug = `.lavdebug`. Root flavor = `com.limelight.root` (dev-only, maxSdk 25).
+**applicationId** — `namespace` is `com.limelight` (unchanged); the shipping release appId is **`com.limelight.lav`**. Suffix `.lav`, do not remove. Debug = `.lavdebug`. Root flavor = `com.limelight.root` (dev-only, maxSdk 25).
 
 **Tests** — Robolectric JVM only (no instrumentation). You **must shadow** JNI classes (`MoonBridge`, `GameManager`) or you get `UnsatisfiedLinkError`. See `android_test_setup.md`.
 
-**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the 2 Android APKs (`nonRoot_game` + `tx15_game`, arm64-v8a), the Windows x64/ARM64 portable zips + combined installer, **and** the Linux x86_64 AppImage, then publishes them all under one release. The Linux job compiles SDL3/libplacebo/FFmpeg from source and is by far the slowest; `publish` blocks on all three so a broken platform fails the release instead of shipping it half-done. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
+**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the Android APK (`nonRoot_game`, arm64-v8a), the Windows x64/ARM64 portable zips + combined installer, **and** the Linux x86_64 AppImage, then publishes them all under one release. The Linux job compiles SDL3/libplacebo/FFmpeg from source and is by far the slowest; `publish` blocks on all three so a broken platform fails the release instead of shipping it half-done. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
 
 **Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (7) both clients now share **one** `moonlight-common-c` (`Lavagnou/moonlight-common-c`, branch `lavartemis`) — when rebumping it, remember FEC is nanors (not reedsolomon) and decode-unit timestamps are microseconds converted to milliseconds at the JNI boundary; see the desktop section.

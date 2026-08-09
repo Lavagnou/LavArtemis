@@ -33,7 +33,6 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.widget.Toast;
 
-import com.limelight.BuildConfig;
 import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.R;
@@ -193,9 +192,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         defaultContext.rightTriggerAxis = MotionEvent.AXIS_GAS;
         defaultContext.hatXAxis = MotionEvent.AXIS_HAT_X;
         defaultContext.hatYAxis = MotionEvent.AXIS_HAT_Y;
-        if (BuildConfig.TX15_BUILD) {
-            applyTx15AxisMapping(defaultContext);
-        }
         defaultContext.controllerNumber = (short) 0;
         defaultContext.assignedControllerNumber = true;
         defaultContext.external = false;
@@ -920,13 +916,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             context.hatYAxis = MotionEvent.AXIS_HAT_Y;
         }
 
-        // TX15 (RadioMaster) flavor: override the axis roles to match the radio's
-        // non-standard Bluetooth joystick layout. Must run after the auto-detection
-        // above so it wins over the wrong defaults (e.g. Z/RZ as triggers).
-        if (BuildConfig.TX15_BUILD) {
-            applyTx15AxisMapping(context);
-        }
-
         if (context.leftStickXAxis != -1 && context.leftStickYAxis != -1) {
             context.leftStickDeadzoneRadius = (float) stickDeadzone;
         }
@@ -1373,17 +1362,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     // Return a valid keycode, -2 to consume, or -1 to not consume the event
     // Device MAY BE NULL
     private int handleRemapping(InputDeviceContext context, KeyEvent event) {
-        // TX15 (RadioMaster) flavor: expose the radio's generic buttons 1 and 2 as
-        // classic gamepad buttons Y and L1.
-        if (BuildConfig.TX15_BUILD) {
-            switch (event.getKeyCode()) {
-                case KeyEvent.KEYCODE_BUTTON_1:
-                    return KeyEvent.KEYCODE_BUTTON_Y;
-                case KeyEvent.KEYCODE_BUTTON_2:
-                    return KeyEvent.KEYCODE_BUTTON_L1;
-            }
-        }
-
         // Don't capture the back button if configured
         if (context.ignoreBack) {
             if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
@@ -1719,27 +1697,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
     }
 
-    // TX15 (RadioMaster) Bluetooth joystick uses a non-standard axis layout. Override the
-    // auto-detected axis roles so the two sticks map correctly and the Z switch axis is
-    // exposed as a button (R1). Only active in the tx15_game flavor (BuildConfig.TX15_BUILD).
-    private void applyTx15AxisMapping(InputDeviceContext context) {
-        context.leftStickXAxis = MotionEvent.AXIS_X;
-        context.leftStickYAxis = MotionEvent.AXIS_Y;
-        context.leftStickXInverted = false; // TX15 reports left X reversed
-        context.leftStickYInverted = true; // TX15 reports left Y as positive-up
-
-        context.rightStickXAxis = MotionEvent.AXIS_RZ;
-        context.rightStickYAxis = MotionEvent.AXIS_RY;
-        // rightStickXInverted / rightStickYInverted stay false (RY vertical is standard)
-
-        // No analog triggers on the TX15
-        context.leftTriggerAxis = -1;
-        context.rightTriggerAxis = -1;
-
-        // The Z axis is a 2-position switch (arm/etc.); expose it as R1
-        context.zAxisButtonFlag = ControllerPacket.RB_FLAG;
-    }
-
     private void handleAxisSet(InputDeviceContext context, float lsX, float lsY, float rsX,
                                float rsY, float lt, float rt, float hatX, float hatY) {
 
@@ -1748,10 +1705,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
             handleDeadZone(leftStickVector, context.leftStickDeadzoneRadius);
 
-            float leftStickXMul = context.leftStickXInverted ? -1f : 1f;
-            context.leftStickX = (short) (leftStickXMul * leftStickVector.getX() * 0x7FFE);
-            float leftStickYMul = context.leftStickYInverted ? 1f : -1f;
-            context.leftStickY = (short) (leftStickYMul * leftStickVector.getY() * 0x7FFE);
+            context.leftStickX = (short) (leftStickVector.getX() * 0x7FFE);
+            context.leftStickY = (short) (-leftStickVector.getY() * 0x7FFE);
         }
 
         if (context.rightStickXAxis != -1 && context.rightStickYAxis != -1) {
@@ -1759,10 +1714,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
             handleDeadZone(rightStickVector, context.rightStickDeadzoneRadius);
 
-            float rightStickXMul = context.rightStickXInverted ? -1f : 1f;
-            context.rightStickX = (short) (rightStickXMul * rightStickVector.getX() * 0x7FFE);
-            float rightStickYMul = context.rightStickYInverted ? 1f : -1f;
-            context.rightStickY = (short) (rightStickYMul * rightStickVector.getY() * 0x7FFE);
+            context.rightStickX = (short) (rightStickVector.getX() * 0x7FFE);
+            context.rightStickY = (short) (-rightStickVector.getY() * 0x7FFE);
         }
 
         if (context.leftTriggerAxis != -1 && context.rightTriggerAxis != -1) {
@@ -1993,17 +1946,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         if (context.hatXAxis != -1 && context.hatYAxis != -1) {
             hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X);
             hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
-        }
-
-        // TX15: the Z axis is a switch (min = off, max = on). Expose it as a classic
-        // button by toggling the configured flag on the input map (clear-then-set,
-        // mirroring the HAT/D-pad synthesis in handleAxisSet).
-        if (context.zAxisButtonFlag != 0) {
-            float zVal = event.getAxisValue(MotionEvent.AXIS_Z);
-            context.inputMap &= ~context.zAxisButtonFlag;
-            if (zVal > 0.5f) {
-                context.inputMap |= context.zAxisButtonFlag;
-            }
         }
 
         handleAxisSet(context, lsX, lsY, rsX, rsY, lt, rt, hatX, hatY);
@@ -3210,13 +3152,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public int hatXAxis = -1;
         public int hatYAxis = -1;
         public boolean hatXAxisUsed, hatYAxisUsed;
-
-        // TX15 (RadioMaster) flavor: per-context axis tweaks
-        public boolean leftStickXInverted;  // TX15 reports left X reversed
-        public boolean leftStickYInverted;  // TX15 reports left Y as positive-up
-        public boolean rightStickXInverted; // unused for TX15
-        public boolean rightStickYInverted; // unused for TX15 (RY vertical is standard)
-        public int zAxisButtonFlag = 0;     // 0 = none; else a ControllerPacket.*_FLAG driven by the Z axis
 
         InputDevice.MotionRange touchpadXRange;
         InputDevice.MotionRange touchpadYRange;

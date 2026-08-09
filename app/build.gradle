@@ -43,7 +43,6 @@ android {
             applicationId "com.limelight.root"
             dimension "root"
             buildConfigField "boolean", "ROOT_BUILD", "true"
-            buildConfigField "boolean", "TX15_BUILD", "false"
         }
 
         nonRoot_game {
@@ -60,24 +59,6 @@ android {
             applicationId "com.limelight"
             dimension "root"
             buildConfigField "boolean", "ROOT_BUILD", "false"
-            buildConfigField "boolean", "TX15_BUILD", "false"
-        }
-
-        tx15_game {
-            externalNativeBuild {
-                ndkBuild {
-                    arguments "PRODUCT_FLAVOR=nonRoot"
-                }
-            }
-
-            resValue "string",
-                    "obtainium_app_url",
-                    "https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.limelight.tx15.lav%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FLavagnou%2FLavArtemis%22%2C%22author%22%3A%22Lavagnou%22%2C%22name%22%3A%22LavArtemis-TX15%22%2C%22additionalSettings%22%3A%22%7B%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELavArtemis-TX15-.*%5B.%5Dapk%24%5C%22%2C%5C%22matchGroutToUse%5C%22%3A%5C%22%241%5C%22%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22v(.%2B)%5C%22%7D%22%7D"
-
-            applicationId "com.limelight.tx15"
-            dimension "root"
-            buildConfigField "boolean", "ROOT_BUILD", "false"
-            buildConfigField "boolean", "TX15_BUILD", "true"
         }
     }
 
@@ -132,7 +113,6 @@ android {
             resValue "string", "app_label", "LavArtemis (Debug)"
             resValue "string", "app_label_root", "LavArtemis (Debug Root)"
             resValue "string", "app_label_game", "LavArtemis (Debug Game)"
-            resValue "string", "app_label_tx15", "LavArtemis-TX15 (Debug)"
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -172,7 +152,6 @@ android {
             resValue "string", "app_label", "LavArtemis"
             resValue "string", "app_label_root", "LavArtemis (Root)"
             resValue "string", "app_label_game", "LavArtemis (Game)"
-            resValue "string", "app_label_tx15", "LavArtemis-TX15"
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

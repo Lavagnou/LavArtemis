@@ -9,7 +9,6 @@ the internet. One release ships every platform, built from the same tag.
 | Platform | Artifact |
 |---|---|
 | Android | `LavArtemis-<version>-android-arm64-v8a.apk` |
-| Android (RadioMaster TX15) | `LavArtemis-TX15-<version>-android-arm64-v8a.apk` |
 | Windows x64 / ARM64 | portable `.zip`, plus a combined `.exe` installer |
 | Linux x86_64 | `.AppImage` (this is also how the Steam Deck runs it) |
 
@@ -18,7 +17,6 @@ the internet. One release ships every platform, built from the same tag.
 * [All releases](https://github.com/Lavagnou/LavArtemis/releases)
 * Android via Obtainium (recommended — auto-updates):
   * [LavArtemis](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.limelight.lav%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FLavagnou%2FLavArtemis%22%2C%22author%22%3A%22Lavagnou%22%2C%22name%22%3A%22LavArtemis%22%2C%22additionalSettings%22%3A%22%7B%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELavArtemis-v.*android.*%5B.%5Dapk%24%5C%22%2C%5C%22matchGroutToUse%5C%22%3A%5C%22%241%5C%22%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22v(.%2B)%5C%22%7D%22%7D)
-  * [LavArtemis-TX15](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.limelight.tx15.lav%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FLavagnou%2FLavArtemis%22%2C%22author%22%3A%22Lavagnou%22%2C%22name%22%3A%22LavArtemis-TX15%22%2C%22additionalSettings%22%3A%22%7B%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELavArtemis-TX15-.*%5B.%5Dapk%24%5C%22%2C%5C%22matchGroutToUse%5C%22%3A%5C%22%241%5C%22%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22v(.%2B)%5C%22%7D%22%7D)
 
 The Android build installs alongside stock Moonlight — it uses its own application ID, so you can keep both.
 
