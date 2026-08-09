@@ -154,6 +154,34 @@ Deux effets de bord utiles du portage `art://` : le lancement CLI accepte désor
 
 Pas encore porté : **SBS 3D MiDaS** (hors périmètre v1).
 
+### 🎮 Manettes tierces — la divergence Android / desktop
+
+Le point de friction le plus profond entre les deux clients, et il n'est pas dans le code de LavArtemis :
+
+| | Android | Desktop (SDL) |
+|---|---|---|
+| Périphérique inconnu | **Deviné.** `ControllerHandler` attribue les rôles d'axes à partir des `MotionRange` déclarés : stick gauche X/Y, stick droit RX/RY sinon **Z/RZ**, croix HAT_X/HAT_Y | **Ignoré.** Sans entrée dans `gamecontrollerdb.txt`, le périphérique reste un joystick nu et tous les appels filtrent sur `SDL_IsGameController()` |
+
+C'est pourquoi une RadioMaster TX15 (HID générique, 4 axes X/Y/Z/RZ + 8 boutons) marchait sur Android et était **muette** sur desktop.
+
+Trois pièces côté Qt :
+
+1. **Repli générique** — `MappingManager::applyFallbackMappings()` synthétise un mapping pour tout joystick ignoré, en reprenant le raisonnement Android (première paire d'axes = stick gauche ; la suivante = stick droit à 4 axes, gâchettes à 6+). Le **critère d'éligibilité est celui de l'amont** (`4-8 axes, ≥8 boutons, ≤1 hat`, cf. `getUnmappedGamepads()`) : l'appareil dont on avertit et celui qu'on répare sont le même par construction.
+   - Appelé **à la fin d'`applyMappings()`**, donc une entrée réelle gagne toujours, et les trois appelants en héritent sans duplication.
+   - Les suppositions **ne sont pas persistées** (recalculées à chaque lancement) et **s'annoncent** via un launch warning nommant l'appareil — sinon un succès silencieux serait indiscernable d'une disposition silencieusement fausse.
+   - Réglage `genericGamepadFallback` (défaut **on**) dans *LavArtemis Features → Input*.
+2. **Mapper** — `gui/sdlgamepadmapper.{h,cpp}` + `gui/GamepadMapper.qml`. Le bouton existait en amont derrière `visible: false` et un TODO, pointant sur un stub de 5 lignes.
+3. **Dialogue** des manettes non mappées : ouvre le mapper au lieu d'un lien wiki.
+
+> ⚠️ **Trois invariants du mapper**, dont dépend la justesse des captures :
+> - **Écart au repos, pas valeur absolue.** Un interrupteur ou une gâchette peut reposer en butée ; le repos est relevé au démarrage du mapping.
+> - **Le sens de l'écart pilote l'inversion** (`~` de SDL). Les prompts demandent une direction précise pour que l'inversion soit *détectée*, pas codée en dur.
+> - **Boutons déjà enfoncés ignorés jusqu'au relâchement**, sinon un bouton maintenu valide plusieurs étapes.
+>
+> ⚠️ La navigation UI à la manette est **suspendue** pendant l'assistant (`SdlGamepadKeyNavigation.disable()`) : elle lit les mêmes boutons.
+
+> 📋 **Choix assumé : pas de notification au démarrage pour un appareil deviné.** Il *fonctionne* ; un modal à chaque lancement serait du harcèlement. L'information est donnée là où elle est actionnable — au lancement d'un stream, et dans la liste du mapper (« Layout guessed — may be wrong »).
+
 ### ✅ Invariant : un seul `moonlight-common-c` — **tenu**
 
 Les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c), branche `lavartemis` @ `0da9626` = `moonlight-stream/master` (juillet 2026) + `84af637` (`LiSendExecServerCmd`) + `c999436` (`LiSendEmptyPayload`).
@@ -283,6 +311,9 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/app/backend/keymacromanager.{h,cpp}` | Send keys + macros clavier (table `VK_`) |
 | `desktop/app/cli/artlink.{h,cpp}` | Parsing `art://` + `.art` → ligne de commande |
 | `desktop/app/streaming/panzoom.{h,cpp}` | Zoom & pan client (D4) — ⚠️ ne pas l'appliquer au dimensionnement de fenêtre |
+| `desktop/app/settings/mappingmanager.{h,cpp}` | Mappings manettes + **repli générique** pour les périphériques ignorés par SDL |
+| `desktop/app/gui/sdlgamepadmapper.{h,cpp}` | Capture d'un mapping (API joystick brute) — ⚠️ écart au repos, pas valeur absolue |
+| `desktop/app/gui/GamepadMapper.qml` | Assistant de mapping — ⚠️ suspend `SdlGamepadKeyNavigation` |
 | `desktop/app/gui/SettingsView.qml` | UI des réglages, groupes « Settings Profile » et « LavArtemis Features » |
 | `desktop/app/gui/QuickMenu.qml` | Menu in-stream (server commands, send keys) |
 | `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
