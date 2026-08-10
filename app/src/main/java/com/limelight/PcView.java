@@ -29,6 +29,8 @@ import com.limelight.utils.HelpLauncher;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
+import com.limelight.utils.UpdateChecker;
+import com.limelight.utils.UpdateDialogHelper;
 
 import android.app.ActivityManager;
 import android.app.AlertDialog;
@@ -281,6 +283,30 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         pcGridAdapter = new PcGridAdapter(this, PreferenceConfiguration.readPreferences(this));
 
         initializeViews();
+
+        checkForUpdates();
+    }
+
+    private void checkForUpdates() {
+        if (!UpdateChecker.isAutoUpdateEnabled(this)) {
+            return;
+        }
+        UpdateChecker.check(this, new UpdateChecker.Callback() {
+            @Override
+            public void onUpdateAvailable(UpdateChecker.UpdateInfo info) {
+                UpdateDialogHelper.showUpdateDialog(PcView.this, info);
+            }
+
+            @Override
+            public void onUpToDate() {
+                // Nothing to do on the happy path
+            }
+
+            @Override
+            public void onError(Exception e) {
+                // Stay silent at startup; the manual check in settings reports errors
+            }
+        });
     }
 
     private void startComputerUpdates() {

@@ -1049,8 +1049,28 @@
             android:title="@string/title_debug_info"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="option_check_update"
+            android:summary="@string/summary_check_update"
+            android:title="@string/title_check_update"
+            app:iconSpaceReserved="false" />
+
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_auto_update"
+            android:summary="@string/summary_auto_update"
+            android:title="@string/title_auto_update"
+            app:iconSpaceReserved="false" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_update_prerelease"
+            android:summary="@string/summary_update_prerelease"
+            android:title="@string/title_update_prerelease"
+            app:iconSpaceReserved="false" />
+
         <com.limelight.preferences.WebLauncherPreference
-            url="https://github.com/ClassicOldSong/moonlight-android/releases"
+            url="https://github.com/Lavagnou/LavArtemis/releases"
             android:key="option_software_release"
             android:summary="@string/summary_software_update"
             android:title="@string/title_software_update"

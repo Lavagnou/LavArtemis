@@ -56,6 +56,8 @@ import com.limelight.utils.Dialog;
 import com.limelight.utils.FileUriUtils;
 import com.limelight.utils.PerformanceDataTracker;
 import com.limelight.utils.UiHelper;
+import com.limelight.utils.UpdateChecker;
+import com.limelight.utils.UpdateDialogHelper;
 import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -858,6 +860,17 @@ public class StreamSettings extends AppCompatActivity {
                 });
             }
 
+            _pref = findPreference("option_check_update");
+            if (_pref != null) {
+                _pref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+                    @Override
+                    public boolean onPreferenceClick(@NonNull Preference preference) {
+                        checkForUpdates();
+                        return true;
+                    }
+                });
+            }
+
             EditTextPreference bitrateEditPref = findPreference(PreferenceConfiguration.CUSTOM_BITRATE_PREF_STRING);
             if (bitrateEditPref != null) {
                 bitrateEditPref.setOnBindEditTextListener((EditText editText) -> {
@@ -956,6 +969,32 @@ public class StreamSettings extends AppCompatActivity {
                     }
                 });
             }
+        }
+
+        private void checkForUpdates() {
+            final Activity activity = requireActivity();
+            Toast.makeText(activity, R.string.update_checking, Toast.LENGTH_SHORT).show();
+            UpdateChecker.check(activity, new UpdateChecker.Callback() {
+                @Override
+                public void onUpdateAvailable(UpdateChecker.UpdateInfo info) {
+                    UpdateDialogHelper.showUpdateDialog(activity, info);
+                }
+
+                @Override
+                public void onUpToDate() {
+                    if (!activity.isFinishing() && !activity.isDestroyed()) {
+                        Toast.makeText(activity, activity.getString(R.string.update_none,
+                                BuildConfig.VERSION_NAME), Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    if (!activity.isFinishing() && !activity.isDestroyed()) {
+                        Toast.makeText(activity, R.string.update_check_failed, Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
         }
 
         private void removeEntryFromListAndSetValue(String resolutionPrefString, String entryToRemove, String nextDefault) {
