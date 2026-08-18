@@ -454,7 +454,22 @@ jobs:
         env:
           DAV1D_VER: 1.5.4
         run: |
-          git clone --branch $DAV1D_VER --depth 1 https://code.videolan.org/videolan/dav1d.git
+          # code.videolan.org is the only place dav1d is published, and it goes down often
+          # enough to have failed a release on its own. When it does it serves an HTML error
+          # page, so git fails with "could not determine hash algorithm" rather than a
+          # network error. Retry rather than lose a whole release to someone else's outage.
+          for attempt in 1 2 3 4 5; do
+            rm -rf dav1d
+            if git clone --branch $DAV1D_VER --depth 1 https://code.videolan.org/videolan/dav1d.git; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then
+              echo "code.videolan.org unreachable after $attempt attempts" >&2
+              exit 1
+            fi
+            echo "dav1d clone failed, retrying in $((attempt * 20))s..."
+            sleep $((attempt * 20))
+          done
           pushd dav1d
           meson setup build -Ddefault_library=static -Dbuildtype=release -Denable_tools=false -Denable_tests=false
           ninja -C build
