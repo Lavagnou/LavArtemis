@@ -241,7 +241,8 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
 Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`, `LavArtemis-<tag>-linux-x86_64.AppImage`.
 
 ### Signature
-- Aucun keystore committé (`key/` est gitignored).
+- Aucun keystore committé (`key/` + `*.keystore`/`*.jks`/`*.b64` sont gitignored).
+- **Mise en place initiale : voir `SIGNING.md`** (script `scripts/generate-release-keystore.ps1` + secrets GitHub à créer). Sans ça, chaque release CI est signée avec une debug key éphémère → les mises à jour sont refusées (« package en conflit »).
 - Release Android signée via variables d'environnement : `CI_KEYSTORE_PATH`, `CI_KEYSTORE_PASSWORD`, `CI_KEY_ALIAS`, `CI_KEY_PASSWORD` (le secret GitHub `RELEASE_KEYSTORE_BASE64` est décodé vers `CI_KEYSTORE_PATH` dans le workflow).
 - Sans secret : sur GitHub Actions → fallback **debug key** (artefacts installables mais signature distincte) ; en local → APK **non signé** (signer manuellement avec `apksigner`).
 - Windows : Authenticode **optionnel** via `WINDOWS_CERT_BASE64` / `WINDOWS_CERT_PASSWORD`. Absents → binaires publiés non signés (le build ne casse pas).

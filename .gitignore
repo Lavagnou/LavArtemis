@@ -21,6 +21,10 @@ gen/
 local.properties
 .claude/*
 key/
+# Signing material must never be committed (see SIGNING.md)
+*.keystore
+*.jks
+*.b64
 
 # Windows thumbnail db
 Thumbs.db
