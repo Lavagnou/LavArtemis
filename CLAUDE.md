@@ -154,6 +154,29 @@ Deux effets de bord utiles du portage `art://` : le lancement CLI accepte désor
 
 Pas encore porté : **SBS 3D MiDaS** (hors périmètre v1).
 
+### 🖥️ Multi-écran émulé (desktop uniquement, v20.7.0)
+
+Quand le PC client a plusieurs moniteurs, l'hôte **LavApollo** en émule un écran virtuel chacun, aux
+bonnes résolutions et à la bonne disposition, et le client réaffiche chaque écran hôte sur le
+moniteur correspondant. Réglage « Mirror all displays », désactivé par défaut et grisé si l'écran
+virtuel de base est désactivé. **Exclusivement desktop** — l'Android est hors périmètre.
+
+Le protocole ne transporte qu'**un seul flux vidéo** (`LiStartConnection` est un singleton global,
+`cmd_announce` ne lit que `x-nv-video[0]`), donc le flux porte **une toile** unique = la bounding box
+de la disposition, et l'hôte y compose ses écrans à leur position réelle.
+
+> ⚠️ **L'invariant à ne jamais casser** : la toile doit rester géométriquement identique à la région
+> de bureau qu'elle couvre. C'est ce qui fait que souris absolue, touch et stylet marchent **sans
+> aucune modification du protocole** — `make_port()` (`LavApollo/src/video.cpp`) dérive le plan de
+> coordonnées client de l'offset et de la taille du display capturé. Compacter la toile pour
+> économiser des pixels casserait ça et imposerait un nouveau message de contrôle.
+
+Une seule addition au protocole : `&displayLayout=<x>,<y>,<w>,<h>,<primary>;…` sur `launch`/`resume`,
+plus `MultiDisplayCapable` dans `serverinfo`. Rétrocompatible : un hôte qui ignore le paramètre crée
+un unique grand écran de la taille de la toile, et le client avertit au lieu de laisser deviner.
+
+Détails côté client dans `desktop/CLAUDE.md`, côté hôte dans `LavApollo/CLAUDE.md`.
+
 ### 🎮 Manettes tierces — la divergence Android / desktop
 
 Le point de friction le plus profond entre les deux clients, et il n'est pas dans le code de LavArtemis :
