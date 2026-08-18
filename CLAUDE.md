@@ -158,7 +158,7 @@ Pas encore porté : **SBS 3D MiDaS** (hors périmètre v1).
 
 Quand le PC client a plusieurs moniteurs, l'hôte **LavApollo** en émule un écran virtuel chacun, aux
 bonnes résolutions et à la bonne disposition, et le client réaffiche chaque écran hôte sur le
-moniteur correspondant. Réglage « Mirror all displays », désactivé par défaut et grisé si l'écran
+moniteur correspondant. Réglage « Virtual Display Multi-Screen », désactivé par défaut et grisé si l'écran
 virtuel de base est désactivé. **Exclusivement desktop** — l'Android est hors périmètre.
 
 Le protocole ne transporte qu'**un seul flux vidéo** (`LiStartConnection` est un singleton global,
