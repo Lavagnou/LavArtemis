@@ -175,6 +175,16 @@ Une seule addition au protocole : `&displayLayout=<x>,<y>,<w>,<h>,<primary>;…`
 plus `MultiDisplayCapable` dans `serverinfo`. Rétrocompatible : un hôte qui ignore le paramètre crée
 un unique grand écran de la taille de la toile, et le client avertit au lieu de laisser deviner.
 
+Un bouton de bascule est aussi posé dans la barre d'outils de l'accueil du client, à côté des
+autres — c'est le réglage qu'on change selon l'endroit où l'on est assis, pas selon ses goûts.
+
+> ⚠️ **Deux pièges déjà payés, à ne pas réintroduire.** Une préférence QML écrite depuis
+> `onCheckedChanged` s'efface toute seule (le signal suit le binding, pas le clic) — utiliser
+> `onToggled`. Et côté hôte, Windows **ré-origine tout le bureau** quand l'écran principal change :
+> les écrans émulés gardent leurs positions relatives, mais toutes les coordonnées absolues
+> glissent, sans que rien ne le signale ; la capture composite le détecte elle-même et se
+> reconstruit.
+
 Détails côté client dans `desktop/CLAUDE.md`, côté hôte dans `LavApollo/CLAUDE.md`.
 
 ### 🎮 Manettes tierces — la divergence Android / desktop
