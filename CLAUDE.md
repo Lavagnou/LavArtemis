@@ -203,17 +203,25 @@ Trois pièces côté Qt :
    - Appelé **à la fin d'`applyMappings()`**, donc une entrée réelle gagne toujours, et les trois appelants en héritent sans duplication.
    - Les suppositions **ne sont pas persistées** (recalculées à chaque lancement) et **s'annoncent** via un launch warning nommant l'appareil — sinon un succès silencieux serait indiscernable d'une disposition silencieusement fausse.
    - Réglage `genericGamepadFallback` (défaut **on**) dans *LavArtemis Features → Input*.
-2. **Mapper** — `gui/sdlgamepadmapper.{h,cpp}` + `gui/GamepadMapper.qml`. Le bouton existait en amont derrière `visible: false` et un TODO, pointant sur un stub de 5 lignes.
+2. **Mapper** — `gui/sdlgamepadmapper.{h,cpp}` + `gui/GamepadMapper.qml` + `gui/ControllerDiagram.qml` + `gui/GamepadControl.qml`. Le bouton existait en amont derrière `visible: false` et un TODO, pointant sur un stub de 5 lignes. **On clique le contrôle sur un schéma de manette, puis on l'actionne** : une seule cible à la fois, et une file (`selectElements()`) qui sert aux trois usages — un bouton, une paire d'axes de stick, ou les 21 éléments à la suite.
 3. **Dialogue** des manettes non mappées : ouvre le mapper au lieu d'un lien wiki.
 
-> ⚠️ **Trois invariants du mapper**, dont dépend la justesse des captures :
-> - **Écart au repos, pas valeur absolue.** Un interrupteur ou une gâchette peut reposer en butée ; le repos est relevé au démarrage du mapping.
-> - **Le sens de l'écart pilote l'inversion** (`~` de SDL). Les prompts demandent une direction précise pour que l'inversion soit *détectée*, pas codée en dur.
-> - **Boutons déjà enfoncés ignorés jusqu'au relâchement**, sinon un bouton maintenu valide plusieurs étapes.
->
-> ⚠️ La navigation UI à la manette est **suspendue** pendant l'assistant (`SdlGamepadKeyNavigation.disable()`) : elle lit les mêmes boutons.
+> ⚠️ **L'invariant qui a coûté le plus cher : toute entrée doit revenir au repos avant de compter à nouveau.** Les boutons avaient ce verrou, les axes et les hats **non** — et comme les quatre étapes d'axe se suivaient dans l'ancien assistant linéaire, avec un timer à 20 ms, une seule poussée du stick liait `leftx`, `lefty`, `rightx` **et** `righty` au même `a0`. La croix recevait `h0.1` sur ses quatre directions. `beginListening()` désarme désormais tout ce qui est actif quand l'écoute commence, sur les trois familles.
 
-> 📋 **Choix assumé : pas de notification au démarrage pour un appareil deviné.** Il *fonctionne* ; un modal à chaque lancement serait du harcèlement. L'information est donnée là où elle est actionnable — au lancement d'un stream, et dans la liste du mapper (« Layout guessed — may be wrong »).
+> ⚠️ **Les autres invariants du mapper**, dont dépend la justesse des captures :
+> - **Écart au repos, pas valeur absolue.** Un interrupteur ou une gâchette peut reposer en butée. Le repos est relevé à l'ouverture, puis ré-échantillonné à chaque sélection **pour les axes calmes seulement** — un axe qu'on tient ne peut ni devenir le nouveau repos, ni déclencher.
+> - **Le plus grand écart gagne**, pas le premier index : sinon un seul axe qui dérive rafle tous les éléments.
+> - **Le sens de l'écart pilote l'inversion** (`~` de SDL). Les prompts demandent une direction précise pour que l'inversion soit *détectée*, pas codée en dur.
+> - **Le repos décide de la syntaxe d'un axe**, pas la nature de l'élément — `MappingManager::axisSourceToken()`, partagé avec le repli deviné. Repos en butée ⇒ axe plein `a2` ; repos au centre ⇒ demi-axe `+a2`. À l'envers, une gâchette perd la moitié de sa course ou lit **50 % en permanence au repos**.
+> - **Hat : cardinales uniquement.** SDL teste `(valeur & masque) == masque`, donc un `h0.3` capturé en diagonale ne se déclencherait qu'avec deux directions tenues.
+>
+> ⚠️ La navigation UI à la manette est **suspendue** pendant le mapping (`SdlGamepadKeyNavigation.disable()`) : elle lit les mêmes boutons. Et `Escape` doit être **consommé** tant qu'une capture attend, sinon le `StackView` dépile la page sous la capture.
+
+> 📋 **Le retour visuel est un outil de diagnostic.** Le schéma réévalue les liaisons posées contre l'état brut à chaque tick : les sticks bougent, les gâchettes se remplissent, les boutons s'allument. Un axe inversé ou une gâchette à moitié enfoncée se voit **avant** la sauvegarde, au lieu de se découvrir en jeu.
+
+> ⚠️ **La sauvegarde n'est pas destructive** : le schéma se préremplit depuis `SDL_GameControllerMappingForGUID()` et conserve verbatim les champs non modélisés (paddles, touchpad, sorties demi-axe, `crc:`). Sans ça, corriger un stick effacerait le reste d'une entrée de la base.
+
+> 📋 **Choix assumé : pas de notification au démarrage pour un appareil deviné.** Il *fonctionne* ; un modal à chaque lancement serait du harcèlement. L'information est donnée là où elle est actionnable — au lancement d'un stream, et dans la liste du mapper (« Layout guessed — may be wrong »), badge lu par **GUID** et non par nom (deux manettes du même modèle portent le même nom).
 
 ### ✅ Invariant : un seul `moonlight-common-c` — **tenu**
 
@@ -346,8 +354,10 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/app/cli/artlink.{h,cpp}` | Parsing `art://` + `.art` → ligne de commande |
 | `desktop/app/streaming/panzoom.{h,cpp}` | Zoom & pan client (D4) — ⚠️ ne pas l'appliquer au dimensionnement de fenêtre |
 | `desktop/app/settings/mappingmanager.{h,cpp}` | Mappings manettes + **repli générique** pour les périphériques ignorés par SDL |
-| `desktop/app/gui/sdlgamepadmapper.{h,cpp}` | Capture d'un mapping (API joystick brute) — ⚠️ écart au repos, pas valeur absolue |
-| `desktop/app/gui/GamepadMapper.qml` | Assistant de mapping — ⚠️ suspend `SdlGamepadKeyNavigation` |
+| `desktop/app/gui/sdlgamepadmapper.{h,cpp}` | Capture d'un mapping (API joystick brute) — ⚠️ écart au repos, pas valeur absolue ; désarmement jusqu'au retour au repos |
+| `desktop/app/gui/GamepadMapper.qml` | Page du mapper — ⚠️ suspend `SdlGamepadKeyNavigation`, consomme `Escape` pendant une capture |
+| `desktop/app/gui/ControllerDiagram.qml` | Schéma cliquable de la manette (repère 1000×620, `res/gamepad_body.svg` en fond) |
+| `desktop/app/gui/GamepadControl.qml` | Un contrôle du schéma : cliquable, coloré par état, animé par l'entrée live |
 | `desktop/app/gui/SettingsView.qml` | UI des réglages, groupes « Settings Profile » et « LavArtemis Features » |
 | `desktop/app/gui/QuickMenu.qml` | Menu in-stream (server commands, send keys) |
 | `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
