@@ -175,8 +175,9 @@ Une seule addition au protocole : `&displayLayout=<x>,<y>,<w>,<h>,<primary>;…`
 plus `MultiDisplayCapable` dans `serverinfo`. Rétrocompatible : un hôte qui ignore le paramètre crée
 un unique grand écran de la taille de la toile, et le client avertit au lieu de laisser deviner.
 
-Un bouton de bascule est aussi posé dans la barre d'outils de l'accueil du client, à côté des
-autres — c'est le réglage qu'on change selon l'endroit où l'on est assis, pas selon ses goûts.
+Un bouton de bascule est aussi posé dans la barre d'outils du client, à côté des autres — c'est le
+réglage qu'on change selon l'endroit où l'on est assis, pas selon ses goûts. Il suit jusqu'à la liste
+des applications d'un hôte, l'écran d'où l'on lance réellement un jeu.
 
 > ⚠️ **Deux pièges déjà payés, à ne pas réintroduire.** Une préférence QML écrite depuis
 > `onCheckedChanged` s'efface toute seule (le signal suit le binding, pas le clic) — utiliser
