@@ -224,6 +224,28 @@ Trois pièces côté Qt :
 
 > 📋 **Choix assumé : pas de notification au démarrage pour un appareil deviné.** Il *fonctionne* ; un modal à chaque lancement serait du harcèlement. L'information est donnée là où elle est actionnable — au lancement d'un stream, et dans la liste du mapper (« Layout guessed — may be wrong »), badge lu par **GUID** et non par nom (deux manettes du même modèle portent le même nom).
 
+### 🔄 Mise à jour in-app (desktop, Windows)
+
+`desktop/app/backend/autoupdatechecker.{h,cpp}` interroge les releases GitHub de **LavArtemis** et,
+sous Windows, télécharge et lance l'installeur lui-même — les autres plateformes ouvrent la page de
+release. Deux canaux : stable (`/releases/latest`) ou CI (`/releases`, les builds CI étant publiés en
+prerelease). Sous Windows, l'asset est **`-win-installer.exe` quelle que soit l'architecture** : le
+bundle WiX embarque les MSI x64 et arm64 et choisit par `NativeMachine`, alors que les zips par arch
+sont des builds portables sans installeur dedans.
+
+> ⚠️ **Trois invariants payés en 20.8.1, détaillés dans `desktop/CLAUDE.md`.** Un `Dialog` Qt Quick se
+> ferme dès qu'on presse un bouton standard, donc le téléchargement a son propre dialogue au lieu de
+> dessiner sa progression sur une boîte déjà refermée. Tout check se termine par exactement un signal
+> (`onUpdateAvailable`, `noUpdateAvailable`, `updateCheckFailed`), sinon « Checking… » tourne
+> indéfiniment sur les deux issues les plus fréquentes. Et le `QNetworkAccessManager` est reconstruit
+> à chaque check, sans quoi celui du démarrage consomme l'unique instance et tous les suivants
+> repartent sans rien envoyer.
+
+> 📋 **Une correction de l'updater ne se livre pas par l'updater** — la version cassée est celle qui
+> télécharge. Le dire dans les notes de release et prévoir une installation manuelle.
+
+**L'Android n'a pas d'updater in-app** : la distribution passe par Obtainium / l'APK de la release.
+
 ### ✅ Invariant : un seul `moonlight-common-c` — **tenu**
 
 Les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c), branche `lavartemis` @ `0da9626` = `moonlight-stream/master` (juillet 2026) + `84af637` (`LiSendExecServerCmd`) + `c999436` (`LiSendEmptyPayload`).
@@ -360,6 +382,7 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/app/gui/ControllerDiagram.qml` | Schéma cliquable de la manette (repère 1000×620, `res/gamepad_body.svg` en fond) |
 | `desktop/app/gui/GamepadControl.qml` | Un contrôle du schéma : cliquable, coloré par état, animé par l'entrée live |
 | `desktop/app/gui/SettingsView.qml` | UI des réglages, groupes « Settings Profile » et « LavArtemis Features » |
+| `desktop/app/backend/autoupdatechecker.{h,cpp}` | Vérification, téléchargement et lancement de l'installeur (⚠️ un signal terminal par check ; NAM recréé à chaque fois) |
 | `desktop/app/gui/QuickMenu.qml` | Menu in-stream (server commands, send keys) |
 | `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
 | `desktop/app/streaming/video/ffmpeg.cpp` | Décodeur + `writePerfCsvRow()` (CSV perf) |
