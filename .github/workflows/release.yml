@@ -86,6 +86,28 @@ jobs:
           set -uo pipefail
 
           PINNED=$(git rev-parse HEAD:desktop)
+
+          # First question, and the one that actually matters: does the commit
+          # being shipped have a green compile check of its own? The freshness
+          # comparison below only means anything once the answer is yes.
+          PINNED_STATE=$(gh api \
+            "repos/$DESKTOP_REPO/actions/workflows/build.yml/runs?head_sha=$PINNED&per_page=1" \
+            --jq '.workflow_runs[0] as $r
+                  | if $r == null then ""
+                    elif $r.status != "completed" then $r.status
+                    else ($r.conclusion // "") end' 2>/dev/null || true)
+
+          case "${PINNED_STATE:-}" in
+            success)
+              ;;
+            "")
+              echo "::warning::No compile-check result could be read for desktop ${PINNED:0:8}, so nothing has confirmed it builds."
+              ;;
+            *)
+              echo "::warning::Desktop ${PINNED:0:8} is being released with its compile check in state '${PINNED_STATE}'."
+              ;;
+          esac
+
           LATEST=$(gh api \
             "repos/$DESKTOP_REPO/actions/workflows/build.yml/runs?branch=main&status=success&event=push&per_page=1" \
             --jq '.workflow_runs[0].head_sha // empty')
@@ -96,20 +118,45 @@ jobs:
           fi
 
           if [ "$PINNED" = "$LATEST" ]; then
-            echo "### Desktop client is current" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Pinned at \`${PINNED:0:8}\`, the newest green commit." >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "### Desktop client is current"
+              echo ""
+              echo "Pinned at \`${PINNED:0:8}\`, the newest green commit."
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
-          BEHIND=$(gh api "repos/$DESKTOP_REPO/compare/$PINNED...$LATEST" --jq '.ahead_by // empty')
+          # `compare/BASE...HEAD` describes HEAD relative to BASE, so `ahead` is
+          # the only status meaning the pointer is genuinely behind. `behind`
+          # means the newest green commit is an *ancestor* of what we pin --
+          # which is what you get whenever the pinned commit's own check has not
+          # gone green -- and announcing that as "0 commits ahead" was noise
+          # that fired on every release for weeks while the Linux check was red.
+          # One call, two fields, and no dependency on a jq binary: gh does the
+          # filtering itself, as everywhere else in this workflow.
+          CMP=$(gh api "repos/$DESKTOP_REPO/compare/$PINNED...$LATEST" \
+            --jq '"\(.status // "unknown") \(.ahead_by // 0)"' 2>/dev/null || true)
+          STATUS=${CMP%% *}
+          AHEAD=${CMP##* }
+          STATUS=${STATUS:-unknown}
+          AHEAD=${AHEAD:-0}
 
-          echo "::warning::This release pins desktop ${PINNED:0:8}, but ${LATEST:0:8} is newer and green (${BEHIND:-?} commits ahead). Run 'Update desktop pointer' and re-tag if you meant to ship it."
+          if [ "$STATUS" != "ahead" ]; then
+            {
+              echo "### Desktop client is not behind"
+              echo ""
+              echo "Pinned at \`${PINNED:0:8}\`; the newest green commit is \`${LATEST:0:8}\` (\`$STATUS\`)."
+              echo "Nothing newer is waiting to ship."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "::warning::This release pins desktop ${PINNED:0:8}, but ${LATEST:0:8} is newer and green (${AHEAD} commits ahead). Run 'Update desktop pointer' and re-tag if you meant to ship it."
           {
             echo "### Desktop client is behind"
             echo ""
             echo "This release pins \`${PINNED:0:8}\`, but \`${LATEST:0:8}\` has built green since"
-            echo "— **${BEHIND:-an unknown number of} commits** ahead."
+            echo "— **${AHEAD} commits** ahead."
             echo ""
             echo "The pointer was left alone on purpose: a tag must build the same thing every time."
             echo "To ship the newer client, run **Update desktop pointer**, then re-tag."
@@ -117,7 +164,6 @@ jobs:
             gh api "repos/$DESKTOP_REPO/compare/$PINNED...$LATEST" \
               --jq '.commits[] | "- \(.sha[0:8]) \(.commit.message | split("\n")[0])"' 2>/dev/null || true
           } >> "$GITHUB_STEP_SUMMARY"
-
   build-android:
     needs: version
     runs-on: ubuntu-latest
