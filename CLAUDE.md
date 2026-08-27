@@ -244,6 +244,12 @@ sont des builds portables sans installeur dedans.
 > 📋 **Une correction de l'updater ne se livre pas par l'updater** — la version cassée est celle qui
 > télécharge. Le dire dans les notes de release et prévoir une installation manuelle.
 
+> ⚠️ **L'installeur téléchargé est nettoyé au démarrage suivant**, pas après l'installation : `installAndRestart()`
+> passe le fichier à l'installeur puis quitte, donc le processus qui pourrait le supprimer est celui
+> qu'on remplace. Le tri se fait **par version, pas par date** — un installeur plus récent que la
+> version qui tourne peut être un téléchargement en cours dans une autre instance, et il n'y a pas de
+> verrou d'instance unique côté desktop.
+
 **L'Android n'a pas d'updater in-app** : la distribution passe par Obtainium / l'APK de la release.
 
 ### ✅ Invariant : un seul `moonlight-common-c` — **tenu**
