@@ -11,8 +11,8 @@ android {
         minSdk 21
         targetSdk 34
 
-        versionName "20.8.4"
-        versionCode = 73
+        versionName "20.8.5"
+        versionCode = 74
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
@@ -178,10 +178,18 @@ android {
         abi {
             enable true
             reset()
-            // LavArtemis releases only arm64-v8a (modern 64-bit devices).
-            // Re-add x86 / x86_64 / armeabi-v7a here if you ever need them
-            // (e.g. emulators, old 32-bit / Fire TV devices).
-            include "arm64-v8a"
+            // One APK per ABI, all published side by side.
+            //
+            // armeabi-v7a is not legacy baggage here: Android TV sticks ship
+            // 32-bit userspace on 64-bit silicon. A Fire TV Stick 4K Max
+            // (AFTKRT, 2023) reports "armeabi-v7a,armeabi" and nothing else,
+            // so an arm64-only release fails to install on it with
+            // INSTALL_FAILED_NO_MATCHING_ABIS. Dropping it would silently
+            // lock out the whole Fire TV / Chromecast-with-Google-TV family.
+            //
+            // Add "x86" / "x86_64" here if you ever need emulators or the
+            // rare x86 TV box.
+            include "arm64-v8a", "armeabi-v7a"
         }
     }
 

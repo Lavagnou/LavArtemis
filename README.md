@@ -8,7 +8,7 @@ the internet. One release ships every platform, built from the same tag.
 
 | Platform | Artifact |
 |---|---|
-| Android | `LavArtemis-<version>-android-arm64-v8a.apk` |
+| Android | `LavArtemis-<version>-android-arm64-v8a.apk`, or `-armeabi-v7a.apk` on 32-bit devices |
 | Windows x64 / ARM64 | portable `.zip`, plus a combined `.exe` installer |
 | Linux x86_64 | `.AppImage` (this is also how the Steam Deck runs it) |
 
@@ -17,6 +17,16 @@ the internet. One release ships every platform, built from the same tag.
 * [All releases](https://github.com/Lavagnou/LavArtemis/releases)
 * Android via Obtainium (recommended — auto-updates):
   * [LavArtemis](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.limelight.lav%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FLavagnou%2FLavArtemis%22%2C%22author%22%3A%22Lavagnou%22%2C%22name%22%3A%22LavArtemis%22%2C%22additionalSettings%22%3A%22%7B%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELavArtemis-v.*android.*%5B.%5Dapk%24%5C%22%2C%5C%22matchGroutToUse%5C%22%3A%5C%22%241%5C%22%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22v(.%2B)%5C%22%7D%22%7D)
+
+### Which Android APK?
+
+Take `arm64-v8a` unless the device is 32-bit. Android TV hardware often is, even on 64-bit silicon:
+a Fire TV Stick 4K Max reports `armeabi-v7a` and nothing else, so the arm64 APK refuses to install
+there with `INSTALL_FAILED_NO_MATCHING_ABIS`. When in doubt, `adb shell getprop
+ro.product.cpu.abilist` tells you what the device accepts.
+
+Obtainium matches both APKs and will ask which one to install; to stop being asked, narrow the app's
+APK filter to your ABI (for example `.*arm64-v8a[.]apk$`).
 
 The Android build installs alongside stock Moonlight — it uses its own application ID, so you can keep both.
 

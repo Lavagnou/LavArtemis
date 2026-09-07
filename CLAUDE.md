@@ -89,7 +89,15 @@ Build types :
 | `debug` | `.lavdebug` | LavArtemis (Debug) |
 | `release` | `.lav` | LavArtemis |
 
-→ appId release effectif (nonRoot) : **`com.limelight.lav`**. ABI : **`arm64-v8a` uniquement** (les autres ABI ne sont ni buildés ni release).
+→ appId release effectif (nonRoot) : **`com.limelight.lav`**. ABI buildés et publiés : **`arm64-v8a` et `armeabi-v7a`**, un APK par ABI (x86 / x86_64 ne sont ni buildés ni publiés).
+
+> ⚠️ **Ne pas retirer `armeabi-v7a`.** Beaucoup d'appareils Android TV font tourner un userspace
+> **32 bits sur du silicium 64 bits** : un Fire TV Stick 4K Max (`AFTKRT`, 2023) déclare
+> `armeabi-v7a,armeabi` et rien d'autre, comme la famille Chromecast with Google TV. Une release
+> arm64-only y échoue à l'installation avec `INSTALL_FAILED_NO_MATCHING_ABIS`, et **rien ne le
+> signale au build** — les libs prébuildées (`libopus`, `openssl`) existent pour les 4 ABI, le
+> natif compile, seul le `splits { abi { include ... } }` décide. Vérifier un appareil avec
+> `adb shell getprop ro.product.cpu.abilist`.
 
 > 🎮 **Manettes exotiques : rien de spécifique côté Android.** `ControllerHandler.java` détecte les axes **par heuristique** à partir des `MotionRange` déclarés (stick gauche X/Y, stick droit RX/RY sinon Z/RZ, croix HAT_X/HAT_Y). C'est ce qui fait marcher des périphériques HID génériques — dont la RadioMaster TX15 — sans une ligne de code dédiée.
 > Un variant `tx15_game` a existé (remap explicite des axes, `BuildConfig.TX15_BUILD`) : c'était un essai, **retiré** — le chemin standard fait déjà le travail. Ne pas le réintroduire sans preuve qu'un appareil résiste à l'heuristique.
@@ -310,7 +318,7 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
 - **`LavArtemis-Qt/.github/workflows/build.yml`** : compile-check du client desktop (Windows x64/arm64 + Linux) à chaque push. Ne produit pas de release.
   - ⚠️ `build-appimage.yml` y est **orphelin** (`workflow_call` que personne n'appelle) : c'est la référence dont le job `build-linux` ci-dessus est dérivé. Toute correction doit aller dans les deux.
 
-Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`, `LavArtemis-<tag>-linux-x86_64.AppImage`.
+Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-android-armeabi-v7a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`, `LavArtemis-<tag>-linux-x86_64.AppImage`.
 
 ### Signature
 - Aucun keystore committé (`key/` + `*.keystore`/`*.jks`/`*.b64` sont gitignored).
@@ -346,6 +354,7 @@ Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>
 4. **Dossier `app/src/root/java/com.limelight/`** — nom littéral **à points** (un seul dossier, pas `com/limelight/`), spécifique à la flavor root.
 5. **`applicationId` ≠ namespace** — le namespace Java reste `com.limelight` ; seul l'appId varie.
 6. **`minifyEnabled` actif même en debug** (avec `-dontobfuscate`) — R8 tourne toujours.
+7. **ABI : arm64-v8a *et* armeabi-v7a** — le 32 bits n'est pas du legacy ici, c'est ce que parlent les Fire TV / Chromecast with Google TV (voir ci-dessus).
 
 ## 🧹 Renommages incomplets / Dette technique (Artemis → LavArtemis)
 
@@ -427,6 +436,6 @@ git submodule update --init --recursive desktop                                 
 
 **Tests** — Robolectric JVM only (no instrumentation). You **must shadow** JNI classes (`MoonBridge`, `GameManager`) or you get `UnsatisfiedLinkError`. See `android_test_setup.md`.
 
-**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the Android APK (`nonRoot_game`, arm64-v8a), the Windows x64/ARM64 portable zips + combined installer, **and** the Linux x86_64 AppImage, then publishes them all under one release. The Linux job compiles SDL3/libplacebo/FFmpeg from source and is by far the slowest; `publish` blocks on all three so a broken platform fails the release instead of shipping it half-done. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
+**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the Android APKs (`nonRoot_game`, one per ABI: arm64-v8a and armeabi-v7a), the Windows x64/ARM64 portable zips + combined installer, **and** the Linux x86_64 AppImage, then publishes them all under one release. The Linux job compiles SDL3/libplacebo/FFmpeg from source and is by far the slowest; `publish` blocks on all three so a broken platform fails the release instead of shipping it half-done. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). CI runs **no tests**.
 
-**Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (7) both clients now share **one** `moonlight-common-c` (`Lavagnou/moonlight-common-c`, branch `lavartemis`) — when rebumping it, remember FEC is nanors (not reedsolomon) and decode-unit timestamps are microseconds converted to milliseconds at the JNI boundary; see the desktop section.
+**Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (6b) ship **both** ABIs — Android TV sticks (Fire TV, Chromecast with Google TV) are 32-bit, and an arm64-only release only fails at install time with `INSTALL_FAILED_NO_MATCHING_ABIS`; (7) both clients now share **one** `moonlight-common-c` (`Lavagnou/moonlight-common-c`, branch `lavartemis`) — when rebumping it, remember FEC is nanors (not reedsolomon) and decode-unit timestamps are microseconds converted to milliseconds at the JNI boundary; see the desktop section.
