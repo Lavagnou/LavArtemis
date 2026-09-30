@@ -111,9 +111,10 @@ Build types :
 
 C'est ici que réside l'essentiel du travail spécifique au fork (performances / fluidité du stream) :
 
-- **ADPF** — `binding/video/AdpfHelper.java` : `PerformanceHintManager` (API 31+) crée une hint session sur les threads decode/render et reporte la durée réelle des frames pour éviter le downclock CPU sur les scènes calmes.
+- **ADPF** — `binding/video/AdpfHelper.java` : `PerformanceHintManager` (API 31+) crée une hint session sur les threads decode/render et reporte, par frame, le **temps CPU réel de ces threads** : `submitDecodeUnit()` moins l'attente d'un buffer d'entrée, plus dequeue → release en sortie. ⚠️ Ne pas y remettre la latence du décodeur matériel (enqueue → dequeue) : les threads dorment pendant ce temps, et une valeur basse peut au contraire faire baisser les fréquences. API 34+ : `setThreads()` au lieu de recréer la session.
 - **Pacing & fluidité** — `binding/video/PacingStats.java` : fenêtre roulante de 512 frames, expose p50/p95/p99 des intervalles present-to-present. Deux modes dans `MediaCodecDecoderRenderer.java` : `checkbox_paced_ull` (aligne les frames sur le vsync en ULL) et `checkbox_predictive_pacing` (timestamp BALANCED 2 vsyncs à l'avance).
-- **CSV perf logging** — `StreamSettings.java` + renderer écrivent un CSV par seconde (decode time, RTT, loss, percentiles) pour A/B offline.
+- **CSV perf logging** — `StreamSettings.java` + renderer écrivent un CSV par seconde (decode time, RTT, loss, percentiles) pour A/B offline. ⚠️ La ligne est formatée sur le thread qui alimente MediaCodec mais **écrite sur un `HandlerThread` dédié** (`PerfCsv`) : aucune E/S fichier sur le hot path. 20 fichiers au plus.
+- **Table PTS → instant d'enqueue** (`enqueueNsByPtsUs`) — écrite par le thread dépacketiseur, lue par le thread de rendu : **tout accès sous son moniteur**. Chaque lookup purge les PTS plus anciens (frames abandonnées par le drain « latest only »), sinon elle grossit toute la session.
 - **Natif `-O3 -flto`** — `jni/moonlight-core/Android.mk` optimise les hot paths (FEC Reed-Solomon, dépacketisation) en release.
 - **Boost priorité threads** — `jni/moonlight-core/callbacks.c` : `setpriority(-16)` sur le thread dépacketiseur vidéo, `-19` sur l'audio.
 - **AV1 en mode Auto** — `checkbox_auto_av1` (défaut on) n'annonce l'AV1 à l'hôte que si un décodeur HW whitelisté **et** ≤15 Mbps ou 4K.
@@ -258,7 +259,17 @@ sont des builds portables sans installeur dedans.
 > version qui tourne peut être un téléchargement en cours dans une autre instance, et il n'y a pas de
 > verrou d'instance unique côté desktop.
 
-**L'Android n'a pas d'updater in-app** : la distribution passe par Obtainium / l'APK de la release.
+### 🔄 Mise à jour in-app (Android)
+
+`utils/UpdateChecker.java` + `UpdateDownloader.java` + `UpdateDialogHelper.java`, en plus d'Obtainium.
+
+> ⚠️ **L'APK se choisit par ABI** (`UpdateChecker.pickAsset()` sur `Build.SUPPORTED_ABIS`) : un Fire TV ou un Chromecast with Google TV ne peut pas installer l'APK arm64. Sans asset compatible, le dialogue ouvre la page de release.
+>
+> ⚠️ **L'APK téléchargé est vérifié avant l'installeur système** (`UpdateDownloader.verifyApk()`) : même package, `versionCode` supérieur, signé par la clé de l'app installée (rotation acceptée via l'historique). Un rejet supprime le fichier et ouvre la page de release.
+
+- Check automatique au plus toutes les 12 h (1 h après un échec), bouton « Ignorer cette version » (le check manuel des réglages la propose toujours).
+- Les APK de versions ≤ installée sont supprimés au démarrage ; un téléchargement qui finit après la destruction de l'activité donne une notification « mise à jour prête ».
+- `res/xml/provider_file_paths.xml` n'expose que `updates/`, `export_settings/` et la racine du cache : tout nouveau `getUriForFile()` sur un autre dossier doit l'y ajouter.
 
 ### ✅ Invariant : un seul `moonlight-common-c` — **tenu**
 
@@ -312,7 +323,7 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
   - Job `version` : contrôle aussi la santé du pointeur `desktop/`, en deux temps. **1)** Le commit épinglé a-t-il un compile-check vert *à lui* — c'est la question qui compte, puisque c'est ce commit-là qu'on publie. **2)** Seulement ensuite, est-il en retard sur le dernier commit vert, avec la liste des commits manqués. Il **signale sans corriger** — un tag doit reconstruire la même chose à chaque fois, donc avancer le pointeur en cours de release casserait la reproductibilité. En `continue-on-error` : un hoquet de l'API GitHub annote le run, il ne fait pas échouer la release.
   - ⚠️ **`compare/BASE...HEAD` décrit HEAD *par rapport à* BASE** : seul le statut `ahead` veut dire que le pointeur est réellement en retard. `behind` signifie que le dernier commit vert est un **ancêtre** de ce qu'on épingle — ce qui arrive dès que le commit épinglé n'a pas de build vert. Se contenter d'un `!=` faisait annoncer « 0 commits ahead » à chaque release, une alerte qui a crié dans le vide pendant 17 jours (v20.7.x → v20.8.2).
   - ⚠️ **Le compile-check et la release ne compilent pas le même code.** `build.yml` côté LavArtemis-Qt construit Linux **sans** `APP_IMAGE`, le job `build-linux` d'ici le construit **avec**. Les branches `#ifdef` diffèrent donc, et une erreur qui ne touche qu'un chemin peut laisser la release verte pendant que le compile-check est rouge — exactement ce qui est arrivé à `findAssetDownloadUrl()`. **Un compile-check rouge n'est pas cosmétique même quand la release passe.**
-  - ⚠️ **Pas de job de test** dans CI (les tests ne tournent pas automatiquement). ⚠️ **5 tests JVM échouent déjà** sur `main` (`LayoutInflationTest`, `SimpleStartupTest`, `StartupTest`, `ProfilesNavigationTest` ×2) — problèmes de setup Robolectric préexistants, sans rapport avec le portage desktop.
+  - Les tests JVM tournent dans **`.github/workflows/unit-tests.yml`** (push sur `main` et PR), en **`continue-on-error`** : non bloquant tant que ces tests-ci sont rouges. ⚠️ **5 tests JVM échouent déjà** sur `main` (`LayoutInflationTest`, `SimpleStartupTest`, `StartupTest`, `ProfilesNavigationTest` ×2) — problèmes de setup Robolectric préexistants, sans rapport avec le portage desktop.
 - **`.github/workflows/update-desktop-pointer.yml`** : avance le sous-module `desktop/` vers le dernier commit **vert** de LavArtemis-Qt. **Manuel** (`workflow_dispatch`, avec SHA optionnel) — pas de cron, le pointeur ne comptant qu'au moment de couper un tag. Tourne **dans** LavArtemis et écrit **dans** LavArtemis, donc le `GITHUB_TOKEN` intégré suffit : aucun PAT à provisionner. Réécrit le gitlink via `git update-index --cacheinfo` plutôt que de checkouter le sous-module (économise un clone de ~250 Mo).
   - **Flatpak non câblé** : demande un manifeste (inexistant) et une soumission Flathub, chantier à part. Le Steam Deck tourne l'AppImage.
 - **`LavArtemis-Qt/.github/workflows/build.yml`** : compile-check du client desktop (Windows x64/arm64 + Linux) à chaque push. Ne produit pas de release.
@@ -362,7 +373,7 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 - ✅ ~~`README.md`~~ réécrit pour LavArtemis (deux clients, lignage, liens Obtainium corrigés). Le « Disclaimer » de ClassicOldSong, un témoignage personnel à la première personne, a été retiré — il n'avait pas à figurer sous le nom d'un autre mainteneur ; son travail est crédité dans « Lineage and credits ».
 - Classe **`ArtemisApplication.java`** non renommée (référencée par `AndroidManifest.xml` et par `StartupTest`/`SimpleStartupTest`).
 - Identifiant clipboard **`"ArtemisStreaming"`** dans `Game.java`.
-- Email/branding dans `res/values/strings.xml` : `artemistics.logs@gmail.com`, « Artemistics - Performance Log », `https://tinyurl.com/artemis-performance`.
+- ✅ ~~Email/branding du partage des logs de perf~~ : plus de destinataire imposé (c'était la boîte de collecte de l'amont), sujet « LavArtemis - Performance Log ».
 - Typo **« Nior »** (devrait être « Noir ») dans `summary_software_update` (`strings.xml`) + mention résiduelle de ClassicOldSong.
 - **Icônes launcher et couleurs thème inchangées** (toujours celles d'Artemis : `#1A1A1A` / `#000000`).
 - `fastlane/metadata/android/en-US/title.txt` = « Moonlight Game Streaming ».
