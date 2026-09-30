@@ -55,8 +55,8 @@ public final class AdpfHelper {
     }
 
     /**
-     * Reports the time spent producing the current frame (decode unit enqueue
-     * to render release). Lazily (re)creates the hint session as threads join.
+     * Reports the CPU time the pipeline threads spent on the current frame. Lazily
+     * (re)creates the hint session as threads join.
      */
     public void reportFrameWorkDuration(long actualWorkDurationNs) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
@@ -67,6 +67,19 @@ public final class AdpfHelper {
         }
         synchronized (lock) {
             try {
+                if (tidsDirty) {
+                    if (session != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && tids.length > 0) {
+                        // Android 14+ can retarget an existing session, which keeps the
+                        // governor's history instead of starting a cold session each time a
+                        // pipeline thread joins.
+                        try {
+                            session.setThreads(tids);
+                            tidsDirty = false;
+                        } catch (RuntimeException e) {
+                            LimeLog.warning("ADPF setThreads failed, recreating the session: " + e);
+                        }
+                    }
+                }
                 if (tidsDirty) {
                     if (session != null) {
                         session.close();

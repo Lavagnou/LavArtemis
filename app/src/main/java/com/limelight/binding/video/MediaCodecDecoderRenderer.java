@@ -111,10 +111,30 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
         pacingStats.recordPresent(System.nanoTime());
     }
+    // Every output dequeue on the renderer thread goes through here, to time the output work.
+    private int dequeueOutputBufferTimed(BufferInfo info, long timeoutUs) {
+        int index = videoDecoder.dequeueOutputBuffer(info, timeoutUs);
+        if (index >= 0) {
+            lastOutputDequeuedNs = System.nanoTime();
+        }
+        return index;
+    }
+
     private int getOutputDequeueTimeoutUs(){ return preferLowerDelays ? Math.max(250, preferLowerDelaysTimeoutUs) : preferLowerDelaysTimeoutUs; }
 
     // ADPF performance hint session for the decode/render pipeline threads
     private AdpfHelper adpfHelper;
+
+    // CPU work spent on the pipeline threads for the frame being reported to ADPF.
+    //
+    // ADPF sizes CPU clocks from how long the *threads in the session* work per frame. The
+    // hardware decode time (enqueue -> dequeue) used to be reported instead; the threads sleep
+    // through it, so it said nothing about their load and could just as well talk the governor
+    // into lowering clocks. What is reported now: time in submitDecodeUnit() minus waiting for
+    // an input buffer, plus time from an output buffer's dequeue to its release.
+    private final java.util.concurrent.atomic.AtomicLong pendingInputWorkNs = new java.util.concurrent.atomic.AtomicLong();
+    private long inputBufferWaitNs; // submitting thread only
+    private long lastOutputDequeuedNs; // renderer thread only
 
     // Frame pacing fluidity metrics (present-to-present interval percentiles)
     private final PacingStats pacingStats = new PacingStats();
@@ -135,10 +155,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 enqueueNsByPtsUs.removeAt(0);
             }
         }
+        if (adpfHelper != null) {
+            long outputWorkNs = lastOutputDequeuedNs > 0 ? Math.max(0, System.nanoTime() - lastOutputDequeuedNs) : 0;
+            adpfHelper.reportFrameWorkDuration(pendingInputWorkNs.getAndSet(0) + outputWorkNs);
+        }
         if (enqNs != null) {
-            if (adpfHelper != null) {
-                adpfHelper.reportFrameWorkDuration(System.nanoTime() - enqNs);
-            }
             long decMs = (System.nanoTime() - enqNs) / 1_000_000L;
             if (decMs >= 0 && decMs < 1000) {
                 activeWindowVideoStats.decoderTimeMs += decMs;
@@ -1307,7 +1328,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     if (!preferLowerDelays) {
                         try {
                             android.media.MediaCodec.BufferInfo __tmpInfo = new android.media.MediaCodec.BufferInfo();
-                            int __idx = videoDecoder.dequeueOutputBuffer(__tmpInfo, 0);
+                            int __idx = dequeueOutputBufferTimed(__tmpInfo, 0);
                             int __last = -1;
                             long __lastPtsUs = -1L;
 
@@ -1318,7 +1339,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                 }
                                 __last = __idx;
                                 __lastPtsUs = __tmpInfo.presentationTimeUs;
-                                __idx = videoDecoder.dequeueOutputBuffer(__tmpInfo, 0);
+                                __idx = dequeueOutputBufferTimed(__tmpInfo, 0);
                             }
 
                             if (__last >= 0) {
@@ -1343,13 +1364,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                     try {
                         // Try to output a frame
-                        int outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs());
+                        int outIndex = dequeueOutputBufferTimed(info, getOutputDequeueTimeoutUs());
 
                         if (outIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                             // reduced backoff 0–500 µs
                             tryAgainStreak++;
                             int backoffUs = (tryAgainStreak <= 2) ? 250 : 500;
-                            outIndex = videoDecoder.dequeueOutputBuffer(info, backoffUs);
+                            outIndex = dequeueOutputBufferTimed(info, backoffUs);
                         } else {
                             tryAgainStreak = 0;
                         }
@@ -1377,7 +1398,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                             // Render the latest frame now if frame pacing isn't in balanced mode
                             if (prefs.framePacing != PreferenceConfiguration.FRAME_PACING_BALANCED) {
                                 // Get the last output buffer in the queue
-                                while ((outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs())) >= 0) {
+                                while ((outIndex = dequeueOutputBufferTimed(info, getOutputDequeueTimeoutUs())) >= 0) {
                                     videoDecoder.releaseOutputBuffer(lastIndex, false);
                                     frameDropped = true; // we're discarding the oldest one
 
@@ -1605,9 +1626,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         try {
             // If we don't have an input buffer index yet, fetch one now
+            long waitStartNs = System.nanoTime();
             while (nextInputBufferIndex < 0 && !stopping) {
                 nextInputBufferIndex = videoDecoder.dequeueInputBuffer(10000);
             }
+            inputBufferWaitNs += System.nanoTime() - waitStartNs;
 
             // Get the backing ByteBuffer for the input buffer index
             if (nextInputBufferIndex >= 0) {
@@ -1883,11 +1906,29 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public int submitDecodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
                                 int frameNumber, int frameType, char frameHostProcessingLatency,
                                 long receiveTimeMs, long enqueueTimeMs) {
+        if (adpfHelper == null) {
+            return submitDecodeUnitInternal(decodeUnitData, decodeUnitLength, decodeUnitType, frameNumber,
+                    frameType, frameHostProcessingLatency, receiveTimeMs, enqueueTimeMs);
+        }
+
+        long startNs = System.nanoTime();
+        inputBufferWaitNs = 0;
+        try {
+            return submitDecodeUnitInternal(decodeUnitData, decodeUnitLength, decodeUnitType, frameNumber,
+                    frameType, frameHostProcessingLatency, receiveTimeMs, enqueueTimeMs);
+        } finally {
+            pendingInputWorkNs.addAndGet(Math.max(0, System.nanoTime() - startNs - inputBufferWaitNs));
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private int submitDecodeUnitInternal(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
+                                         int frameNumber, int frameType, char frameHostProcessingLatency,
+                                         long receiveTimeMs, long enqueueTimeMs) {
         if (stopping) {
             // Don't bother if we're stopping
             return MoonBridge.DR_OK;
