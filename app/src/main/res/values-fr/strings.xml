@@ -612,4 +612,5 @@
     <string name="update_channel_name">Mises à jour de l\'application</string>
     <string name="update_ready_title">Mise à jour de LavArtemis prête</string>
     <string name="update_ready_text">Touchez pour installer la version %1$s.</string>
+    <string name="update_ready_message">LavArtemis %1$s a été téléchargée. L\'installer maintenant ?</string>
 </resources>

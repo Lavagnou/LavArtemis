@@ -64,6 +64,39 @@ public class UpdateDialogHelper {
         builder.show();
     }
 
+    /**
+     * Offers to install an update that was downloaded but never installed; runs
+     * {@code otherwise} when there is none (or it is skipped). This is the path that does not
+     * depend on notifications, which Android 13+ suppresses without POST_NOTIFICATIONS.
+     */
+    public static void offerDownloadedUpdateOr(Activity activity, Runnable otherwise) {
+        final Context appContext = activity.getApplicationContext();
+        final android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        Thread thread = new Thread(() -> {
+            UpdateDownloader.DownloadedUpdate update = UpdateDownloader.findDownloadedUpdate(appContext);
+            mainHandler.post(() -> {
+                if (update == null || UpdateChecker.isSkipped(appContext, update.version)) {
+                    otherwise.run();
+                    return;
+                }
+                if (!isAlive(activity)) {
+                    return;
+                }
+                new AlertDialog.Builder(activity)
+                        .setTitle(R.string.update_ready_title)
+                        .setMessage(activity.getString(R.string.update_ready_message, update.version))
+                        .setNegativeButton(R.string.update_later, null)
+                        .setNeutralButton(R.string.update_skip,
+                                (dialog, which) -> UpdateChecker.skipVersion(activity, update.version))
+                        .setPositiveButton(R.string.update_install,
+                                (dialog, which) -> UpdateDownloader.installApk(activity, update.apk))
+                        .show();
+            });
+        }, "UpdatePending");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
     private static boolean isAlive(Activity activity) {
         return !activity.isFinishing() && !activity.isDestroyed();
     }
@@ -137,6 +170,8 @@ public class UpdateDialogHelper {
                 });
     }
 
+    // Best effort: on Android 13+ without POST_NOTIFICATIONS this is silently dropped, and the
+    // next app launch offers the download instead (offerDownloadedUpdateOr).
     private static void notifyUpdateReady(Context context, File apkFile, String version) {
         try {
             NotificationManager notificationManager =
@@ -166,8 +201,8 @@ public class UpdateDialogHelper {
 
             notificationManager.notify(UPDATE_READY_NOTIFICATION_ID, builder.build());
         } catch (RuntimeException e) {
-            // No notification permission (Android 13+) or no provider path: the APK stays
-            // downloaded and the next update check offers it again.
+            // No provider path, or the system refused: the APK stays downloaded and
+            // offerDownloadedUpdateOr() offers it the next time the app opens.
             LimeLog.warning("Could not post the update-ready notification: " + e);
         }
     }

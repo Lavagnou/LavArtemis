@@ -254,6 +254,61 @@ public class UpdateDownloader {
         thread.start();
     }
 
+    /** Result of {@link #findDownloadedUpdate}: a verified APK and the version it carries. */
+    public static class DownloadedUpdate {
+        public final File apk;
+        public final String version;
+
+        DownloadedUpdate(File apk, String version) {
+            this.apk = apk;
+            this.version = version;
+        }
+    }
+
+    /**
+     * Looks for an update that was downloaded but never installed -- typically because it
+     * finished after the screen that started it was gone and the "update ready" notification
+     * could not be shown (no POST_NOTIFICATIONS permission on Android 13+). Blocking: call it
+     * off the main thread. The APK is verified again, since it sat on storage in the meantime.
+     *
+     * @return the newest such update, or null
+     */
+    public static DownloadedUpdate findDownloadedUpdate(Context context) {
+        File dir = context.getExternalFilesDir("updates");
+        File[] files = dir != null ? dir.listFiles() : null;
+        if (files == null) {
+            return null;
+        }
+
+        File best = null;
+        String bestVersion = null;
+        for (File file : files) {
+            String name = file.getName();
+            if (!name.startsWith("LavArtemis-") || !name.endsWith(".apk")) {
+                continue;
+            }
+            String version = name.substring("LavArtemis-".length(), name.length() - ".apk".length());
+            if (UpdateChecker.compareVersions(version, BuildConfig.VERSION_NAME) > 0
+                    && (bestVersion == null || UpdateChecker.compareVersions(version, bestVersion) > 0)) {
+                best = file;
+                bestVersion = version;
+            }
+        }
+        if (best == null) {
+            return null;
+        }
+
+        try {
+            verifyApk(context, best);
+        } catch (VerificationException e) {
+            LimeLog.warning("Discarding downloaded update " + best.getName() + ": " + e.getMessage());
+            //noinspection ResultOfMethodCallIgnored
+            best.delete();
+            return null;
+        }
+        return new DownloadedUpdate(best, bestVersion);
+    }
+
     /**
      * Returns true if this app is allowed to install APKs. On API 26+ the user must
      * grant the "install unknown apps" permission per-app.

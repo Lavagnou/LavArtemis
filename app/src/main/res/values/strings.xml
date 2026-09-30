@@ -493,6 +493,7 @@
     <string name="update_channel_name">App updates</string>
     <string name="update_ready_title">LavArtemis update ready</string>
     <string name="update_ready_text">Tap to install version %1$s.</string>
+    <string name="update_ready_message">LavArtemis %1$s has been downloaded. Install it now?</string>
     <string name="title_special_key_layout">Special Key Layout</string>
     <string name="title_show_virtual_key">Display virtual keys on screen</string>
     <string name="summary_show_virtual_key">Display a layer of virtual special keys on the touchscreen.\nKey opacity is shared with the virtual gamepad above.</string>

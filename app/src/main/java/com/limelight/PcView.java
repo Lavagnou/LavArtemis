@@ -292,13 +292,20 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         // Downloads of versions already installed or superseded have no further use.
         UpdateDownloader.cleanupOldDownloads(this);
 
-        if (!UpdateChecker.shouldAutoCheck(this)) {
+        // An update already downloaded but never installed comes first, and needs no network.
+        UpdateDialogHelper.offerDownloadedUpdateOr(this, this::checkForUpdatesOnline);
+    }
+
+    private void checkForUpdatesOnline() {
+        if (isFinishing() || !UpdateChecker.shouldAutoCheck(this)) {
             return;
         }
+        // Reserve the slot before the request: PcView is recreated on rotation, and a new
+        // instance must not start a second check while this one is still in flight.
+        UpdateChecker.recordAutoCheck(this, true);
         UpdateChecker.check(this, new UpdateChecker.Callback() {
             @Override
             public void onUpdateAvailable(UpdateChecker.UpdateInfo info) {
-                UpdateChecker.recordAutoCheck(PcView.this, true);
                 // The manual check in settings still offers a skipped version.
                 if (!UpdateChecker.isSkipped(PcView.this, info.version)) {
                     UpdateDialogHelper.showUpdateDialog(PcView.this, info);
@@ -307,12 +314,13 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
 
             @Override
             public void onUpToDate() {
-                UpdateChecker.recordAutoCheck(PcView.this, true);
+                // Nothing to do on the happy path
             }
 
             @Override
             public void onError(Exception e) {
-                // Stay silent at startup; the manual check in settings reports errors
+                // Stay silent at startup; the manual check in settings reports errors.
+                // Move the reservation back so the next attempt comes after the short retry.
                 UpdateChecker.recordAutoCheck(PcView.this, false);
             }
         });
