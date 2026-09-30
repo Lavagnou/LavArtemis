@@ -2,6 +2,7 @@ package com.limelight.utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -15,7 +16,8 @@ import com.limelight.BuildConfig;
 import com.limelight.LimeLog;
 
 import java.io.IOException;
-import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -39,7 +41,13 @@ public class UpdateChecker {
     public static final String PREF_AUTO_UPDATE = "checkbox_auto_update";
     public static final String PREF_UPDATE_PRERELEASE = "checkbox_update_prerelease";
 
-    private static final String APK_ASSET_SUFFIX = "-android-arm64-v8a.apk";
+    /**
+     * Release APKs are published one per ABI as {@code LavArtemis-<tag>-android-<abi>.apk}.
+     * The asset has to match what the device can run: a Fire TV Stick or a Chromecast with
+     * Google TV runs a 32-bit userspace, and the arm64 APK fails there with
+     * INSTALL_FAILED_NO_MATCHING_ABIS -- after a full download and an install screen.
+     */
+    private static final String APK_ASSET_ABI_MARKER = "-android-";
 
     public static class UpdateInfo {
         public final String version;
@@ -141,20 +149,47 @@ public class UpdateChecker {
         String pageUrl = release.get("html_url").getAsString();
         boolean prerelease = release.get("prerelease").getAsBoolean();
 
-        String downloadUrl = null;
+        List<String> names = new ArrayList<>();
+        List<String> urls = new ArrayList<>();
         JsonArray assets = release.getAsJsonArray("assets");
         if (assets != null) {
             for (JsonElement assetElement : assets) {
                 JsonObject asset = assetElement.getAsJsonObject();
-                String name = asset.get("name").getAsString();
-                if (name.endsWith(APK_ASSET_SUFFIX)) {
-                    downloadUrl = asset.get("browser_download_url").getAsString();
-                    break;
-                }
+                names.add(asset.get("name").getAsString());
+                urls.add(asset.get("browser_download_url").getAsString());
             }
         }
 
+        // No asset for this device's ABIs leaves downloadUrl null, and the dialog falls back
+        // to the release page rather than downloading something that cannot be installed.
+        String downloadUrl = null;
+        int picked = pickAsset(names, Build.SUPPORTED_ABIS);
+        if (picked >= 0) {
+            downloadUrl = urls.get(picked);
+        }
+
         return new UpdateInfo(latestVersion, pageUrl, downloadUrl, prerelease);
+    }
+
+    /**
+     * Picks the APK asset for the first ABI in {@code abis} (most preferred first, as in
+     * {@link Build#SUPPORTED_ABIS}) that has one.
+     *
+     * @return the index of the chosen asset in {@code names}, or -1 if none fits.
+     */
+    public static int pickAsset(List<String> names, String[] abis) {
+        if (abis == null) {
+            return -1;
+        }
+        for (String abi : abis) {
+            String suffix = APK_ASSET_ABI_MARKER + abi + ".apk";
+            for (int i = 0; i < names.size(); i++) {
+                if (names.get(i).endsWith(suffix)) {
+                    return i;
+                }
+            }
+        }
+        return -1;
     }
 
     /**
