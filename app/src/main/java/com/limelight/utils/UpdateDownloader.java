@@ -131,10 +131,13 @@ public class UpdateDownloader {
      * before the system installer is ever shown.
      *
      * The package installer enforces the signature too, but only after the user has confirmed,
-     * and with an error that does not say why. More importantly, a build signed with the
-     * shared Android debug key (CI builds without the release keystore fall back to it) can be
-     * "updated" by any APK signed with that same public key; comparing against what is
-     * installed keeps the updater from ever offering such a file.
+     * and with an error that does not say why. This check rejects a different package, an older
+     * or equal version, and a different signer up front.
+     *
+     * It cannot do better than the key it compares against: if the installed build is signed
+     * with the shared Android debug key (CI falls back to it without the release keystore), any
+     * APK signed with that same key passes, exactly as it would pass the system installer. Only
+     * release-keystore builds get real protection; that is what SIGNING.md sets up.
      */
     @SuppressWarnings("deprecation")
     static void verifyApk(Context context, File apk) throws VerificationException {
@@ -148,10 +151,6 @@ public class UpdateDownloader {
         if (archive == null) {
             throw new VerificationException("the download is not a valid APK");
         }
-        if (!packageName.equals(archive.packageName)) {
-            throw new VerificationException("the APK is for " + archive.packageName + ", not " + packageName);
-        }
-
         PackageInfo installed;
         try {
             installed = pm.getPackageInfo(packageName, flags);
@@ -159,15 +158,27 @@ public class UpdateDownloader {
             throw new VerificationException("cannot read the installed package");
         }
 
-        if (versionCode(archive) <= versionCode(installed)) {
+        checkUpdateCandidate(packageName, versionCode(installed), certificateDigests(installed, false),
+                archive.packageName, versionCode(archive), certificateDigests(archive, true));
+    }
+
+    /**
+     * The decision behind {@link #verifyApk}, free of PackageManager so it can be tested.
+     *
+     * @param installedCerts digests of the installed app's current signers
+     * @param candidateCerts digests of the candidate's signers, including its signing history
+     *                       (a key rotation keeps the old signer there)
+     */
+    public static void checkUpdateCandidate(String installedPackage, long installedVersion, Set<String> installedCerts,
+                                            String candidatePackage, long candidateVersion, Set<String> candidateCerts)
+            throws VerificationException {
+        if (!installedPackage.equals(candidatePackage)) {
+            throw new VerificationException("the APK is for " + candidatePackage + ", not " + installedPackage);
+        }
+        if (candidateVersion <= installedVersion) {
             throw new VerificationException("the APK is not newer than the installed version");
         }
-
-        // A key rotation keeps the old signer in the new APK's history, so the installed
-        // signer must appear among the new APK's certificates, current or past.
-        Set<String> archiveCerts = certificateDigests(archive, true);
-        Set<String> installedCerts = certificateDigests(installed, false);
-        if (archiveCerts.isEmpty() || installedCerts.isEmpty() || !archiveCerts.containsAll(installedCerts)) {
+        if (candidateCerts.isEmpty() || installedCerts.isEmpty() || !candidateCerts.containsAll(installedCerts)) {
             throw new VerificationException("the APK is signed with a different key");
         }
     }

@@ -265,7 +265,7 @@ sont des builds portables sans installeur dedans.
 
 > ⚠️ **L'APK se choisit par ABI** (`UpdateChecker.pickAsset()` sur `Build.SUPPORTED_ABIS`) : un Fire TV ou un Chromecast with Google TV ne peut pas installer l'APK arm64. Sans asset compatible, le dialogue ouvre la page de release.
 >
-> ⚠️ **L'APK téléchargé est vérifié avant l'installeur système** (`UpdateDownloader.verifyApk()`) : même package, `versionCode` supérieur, signé par la clé de l'app installée (rotation acceptée via l'historique). Un rejet supprime le fichier et ouvre la page de release.
+> ⚠️ **L'APK téléchargé est vérifié avant l'installeur système** (`UpdateDownloader.verifyApk()`) : même package, `versionCode` supérieur, signé par la clé de l'app installée (rotation acceptée via l'historique). Un rejet supprime le fichier et ouvre la page de release. La règle elle-même est `checkUpdateCandidate()`, testée dans `UpdateVerificationTest`. ⚠️ Elle ne vaut que ce que vaut la clé : une app installée signée avec la clé de debug partagée accepte tout APK signé avec cette même clé, comme l'installeur système.
 
 - Check automatique au plus toutes les 12 h (1 h après un échec), bouton « Ignorer cette version » (le check manuel des réglages la propose toujours).
 - Les APK de versions ≤ installée sont supprimés au démarrage ; un téléchargement qui finit après la destruction de l'activité donne une notification « mise à jour prête ».
