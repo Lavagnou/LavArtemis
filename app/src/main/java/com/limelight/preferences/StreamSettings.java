@@ -785,14 +785,13 @@ public class StreamSettings extends AppCompatActivity {
                         }
 
                         String prefixMessage = context.getString(R.string.email_prefix_message);
-                        String emailRecipient = context.getString(R.string.email_recipient);
                         String emailSubject = context.getString(R.string.email_subject);
                         String chooserTitle = context.getString(R.string.email_chooser_title);
                         String noEmailClientsMsg = context.getString(R.string.toast_no_email_clients);
 
                         try {
                             File cacheDir = context.getCacheDir();
-                            File logFile = new File(cacheDir, "artemistics_logs.txt");
+                            File logFile = new File(cacheDir, "lavartemis_performance_log.txt");
                             try (FileOutputStream fos = new FileOutputStream(logFile)) {
                                 fos.write(logs.getBytes(StandardCharsets.UTF_8));
                             }
@@ -803,7 +802,8 @@ public class StreamSettings extends AppCompatActivity {
 
                             Intent emailIntent = new Intent(Intent.ACTION_SEND);
                             emailIntent.setType("text/plain");
-                            emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[]{emailRecipient});
+                            // No preset recipient: the user decides who gets their log. It used to be
+                            // addressed to the upstream maintainer's collection mailbox.
                             emailIntent.putExtra(Intent.EXTRA_SUBJECT, emailSubject);
                             emailIntent.putExtra(Intent.EXTRA_TEXT, prefixMessage);
                             emailIntent.putExtra(Intent.EXTRA_STREAM, logFileUri);

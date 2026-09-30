@@ -136,14 +136,11 @@
     <string name="perf_overlay_drawdelay"> Delay: %1$.2f ms</string>
 
     <!-- Performance Report Sharing -->
-    <string name="email_prefix_message">
-        Please send this email as-is to artemistics.logs@gmail.com to support the community.\n
-        Your shared performance data will help improve and expand the dataset available at:\n
-        https://tinyurl.com/artemis-performance\n\n
-    </string>
+    <string name="email_prefix_message">LavArtemis performance log attached.
 
-    <string name="email_recipient">artemistics.logs@gmail.com</string>
-    <string name="email_subject">Artemistics - Performance Log</string>
+</string>
+
+    <string name="email_subject">LavArtemis - Performance Log</string>
     <string name="email_chooser_title">Send performance log...</string>
     <string name="toast_no_email_clients">No email clients installed.</string>
     <string name="toast_no_logs">There is no performance data stored yet.</string>
