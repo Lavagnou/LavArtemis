@@ -54,7 +54,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     /** Toggle tight frame pacing thresholds globally. */
     public void setForceTightThresholds(boolean v) { this.forceTightThresholds = v; }
     // Toggle at runtime if needed
-    // Decode latency tracking: map PTS(us) -> enqueue time (ns)
+    // Decode latency tracking: map PTS(us) -> enqueue time (ns).
+    // Written by the thread feeding the decoder (the native depacketizer with direct submit),
+    // read and pruned by the renderer thread. LongSparseArray is not thread-safe, so every
+    // access holds its monitor.
     private final LongSparseArray<Long> enqueueNsByPtsUs = new LongSparseArray<>();
 
     // When preferLowerDelays=true we use this configurable timeout (µs) for output dequeue.
@@ -122,9 +125,17 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     // Update stats using real decode time: enqueue->dequeue, instead of uptime - PTS
     private void updateDecodeLatencyStats(long presentationTimeUs) {
-        Long enqNs = enqueueNsByPtsUs.get(presentationTimeUs);
+        Long enqNs;
+        synchronized (enqueueNsByPtsUs) {
+            enqNs = enqueueNsByPtsUs.get(presentationTimeUs);
+            // Frames are output in PTS order, so anything older than this one was dropped
+            // without ever being rendered (the latest-only drain releases them unseen) and will
+            // never be looked up. Without pruning them the map grew for the whole session.
+            while (enqueueNsByPtsUs.size() > 0 && enqueueNsByPtsUs.keyAt(0) <= presentationTimeUs) {
+                enqueueNsByPtsUs.removeAt(0);
+            }
+        }
         if (enqNs != null) {
-            enqueueNsByPtsUs.delete(presentationTimeUs);
             if (adpfHelper != null) {
                 adpfHelper.reportFrameWorkDuration(System.nanoTime() - enqNs);
             }
@@ -1320,7 +1331,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                 if (__lastPtsUs >= 0) {
                                     long __d2pNs = __nowNs - (__lastPtsUs * 1000L);
                                     ewmaDecodeToPresentNs += EWMA_ALPHA * (__d2pNs - ewmaDecodeToPresentNs);
-                                    try { updateDecodeLatencyStats(__lastPtsUs); } catch (Throwable ignored) {}
+                                    updateDecodeLatencyStats(__lastPtsUs);
                                 }
 
                                 continue; // handled this iteration
@@ -1779,7 +1790,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     timestampUs, codecFlags);
 
             // Track enqueue time for this PTS
-            try { enqueueNsByPtsUs.put(timestampUs, System.nanoTime()); } catch (Throwable ignored) {}
+            synchronized (enqueueNsByPtsUs) {
+                enqueueNsByPtsUs.put(timestampUs, System.nanoTime());
+            }
 
             // We need a new buffer now
             nextInputBufferIndex = -1;
