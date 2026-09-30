@@ -1,18 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Only the folders the app actually shares. Every entry used to be "." -
+    the whole external storage, and all of the app's internal and external
+    files - which turned any leaked content URI into a door to all of them.
+    Callers of FileProvider.getUriForFile():
+      updates/          downloaded update APKs (UpdateDownloader, UpdateDialogHelper)
+      export_settings/  exported keyboard profiles (StreamSettings)
+      cache root        performance log shared by email (StreamSettings)
+-->
 <paths>
-    <external-path
-        name="external"
-        path="." />
     <external-files-path
-        name="external_files"
-        path="." />
+        name="updates"
+        path="updates/" />
+    <external-cache-path
+        name="export_settings"
+        path="export_settings/" />
     <cache-path
         name="cache"
-        path="." />
-    <external-cache-path
-        name="external_cache"
-        path="." />
-    <files-path
-        name="files"
         path="." />
 </paths>
