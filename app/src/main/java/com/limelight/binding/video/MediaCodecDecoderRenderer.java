@@ -131,8 +131,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     // hardware decode time (enqueue -> dequeue) used to be reported instead; the threads sleep
     // through it, so it said nothing about their load and could just as well talk the governor
     // into lowering clocks. What is reported now: time in submitDecodeUnit() minus waiting for
-    // an input buffer, plus time from an output buffer's dequeue to its release.
+    // an input buffer, plus time from an output buffer's dequeue to its release, plus -- in the
+    // paced modes, where the renderer thread only queues the buffer -- the Choreographer
+    // thread's release work. That last part lands in the report of the following frame, since
+    // the release happens after this frame was reported; ADPF works on averages, so a one-frame
+    // lag is harmless, while leaving it out underreported the default balanced mode.
     private final java.util.concurrent.atomic.AtomicLong pendingInputWorkNs = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong pendingReleaseWorkNs = new java.util.concurrent.atomic.AtomicLong();
     private long inputBufferWaitNs; // submitting thread only
     private long lastOutputDequeuedNs; // renderer thread only
 
@@ -163,7 +168,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
         if (adpfHelper != null) {
             long outputWorkNs = lastOutputDequeuedNs > 0 ? Math.max(0, System.nanoTime() - lastOutputDequeuedNs) : 0;
-            adpfHelper.reportFrameWorkDuration(pendingInputWorkNs.getAndSet(0) + outputWorkNs);
+            adpfHelper.reportFrameWorkDuration(pendingInputWorkNs.getAndSet(0) + pendingReleaseWorkNs.getAndSet(0) + outputWorkNs);
         }
         if (enqNs != null) {
             long decMs = (System.nanoTime() - enqNs) / 1_000_000L;
@@ -1196,6 +1201,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // frame of buffer to smooth over network/rendering jitter.
             Integer nextOutputBuffer = outputBufferQueue.poll();
             if (nextOutputBuffer != null) {
+                final long releaseStartNs = System.nanoTime();
                 try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         if (preferLowerDelays) {
@@ -1224,6 +1230,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                     lastRenderedFrameTimeNanos = frameTimeNanos;
                     activeWindowVideoStats.totalFramesRendered++;
+                    if (adpfHelper != null) {
+                        pendingReleaseWorkNs.addAndGet(System.nanoTime() - releaseStartNs);
+                    }
                 } catch (IllegalStateException ignored) {
                     try {
                         // Try to avoid leaking the output buffer by releasing it without rendering
