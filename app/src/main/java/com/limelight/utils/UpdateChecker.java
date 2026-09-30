@@ -41,6 +41,21 @@ public class UpdateChecker {
     public static final String PREF_AUTO_UPDATE = "checkbox_auto_update";
     public static final String PREF_UPDATE_PRERELEASE = "checkbox_update_prerelease";
 
+    // Bookkeeping for the automatic check (not user-visible settings)
+    private static final String PREF_LAST_AUTO_CHECK_MS = "update_last_auto_check_ms";
+    private static final String PREF_SKIPPED_VERSION = "update_skipped_version";
+
+    /**
+     * The automatic check runs from PcView.onCreate(), which fires on every rotation, every
+     * return from a stream and every time a TV box evicts the activity. Unthrottled, that is
+     * dozens of GitHub API calls a day against a 60-per-hour limit shared with the whole NAT,
+     * and the same dialog over and over.
+     */
+    private static final long AUTO_CHECK_INTERVAL_MS = 12L * 60 * 60 * 1000;
+
+    /** After a failed automatic check (offline, rate-limited), try again sooner than that. */
+    private static final long AUTO_CHECK_RETRY_MS = 60L * 60 * 1000;
+
     /**
      * Release APKs are published one per ABI as {@code LavArtemis-<tag>-android-<abi>.apk}.
      * The asset has to match what the device can run: a Fire TV Stick or a Chromecast with
@@ -75,6 +90,43 @@ public class UpdateChecker {
     public static boolean isAutoUpdateEnabled(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return prefs.getBoolean(PREF_AUTO_UPDATE, true);
+    }
+
+    /** Whether the automatic check is enabled and due. The manual check is never throttled. */
+    public static boolean shouldAutoCheck(Context context) {
+        if (!isAutoUpdateEnabled(context)) {
+            return false;
+        }
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return isDue(prefs.getLong(PREF_LAST_AUTO_CHECK_MS, 0), System.currentTimeMillis());
+    }
+
+    /** Records the outcome of an automatic check, for {@link #shouldAutoCheck(Context)}. */
+    public static void recordAutoCheck(Context context, boolean succeeded) {
+        long now = System.currentTimeMillis();
+        // A failure is recorded as if the last check were older, so the next one comes after
+        // AUTO_CHECK_RETRY_MS instead of the full interval.
+        long recorded = succeeded ? now : now - AUTO_CHECK_INTERVAL_MS + AUTO_CHECK_RETRY_MS;
+        PreferenceManager.getDefaultSharedPreferences(context).edit()
+                .putLong(PREF_LAST_AUTO_CHECK_MS, recorded)
+                .apply();
+    }
+
+    public static boolean isDue(long lastCheckMs, long nowMs) {
+        // A clock that went backwards must not suppress checks until it catches up again.
+        return nowMs < lastCheckMs || nowMs - lastCheckMs >= AUTO_CHECK_INTERVAL_MS;
+    }
+
+    /** The user chose to skip this version; the automatic check will not offer it again. */
+    public static void skipVersion(Context context, String version) {
+        PreferenceManager.getDefaultSharedPreferences(context).edit()
+                .putString(PREF_SKIPPED_VERSION, version)
+                .apply();
+    }
+
+    public static boolean isSkipped(Context context, String version) {
+        String skipped = PreferenceManager.getDefaultSharedPreferences(context).getString(PREF_SKIPPED_VERSION, null);
+        return version != null && version.equals(skipped);
     }
 
     public static void check(Context context, Callback callback) {

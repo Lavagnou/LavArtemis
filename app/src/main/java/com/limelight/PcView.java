@@ -31,6 +31,7 @@ import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
 import com.limelight.utils.UpdateChecker;
 import com.limelight.utils.UpdateDialogHelper;
+import com.limelight.utils.UpdateDownloader;
 
 import android.app.ActivityManager;
 import android.app.AlertDialog;
@@ -288,23 +289,31 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     }
 
     private void checkForUpdates() {
-        if (!UpdateChecker.isAutoUpdateEnabled(this)) {
+        // Downloads of versions already installed or superseded have no further use.
+        UpdateDownloader.cleanupOldDownloads(this);
+
+        if (!UpdateChecker.shouldAutoCheck(this)) {
             return;
         }
         UpdateChecker.check(this, new UpdateChecker.Callback() {
             @Override
             public void onUpdateAvailable(UpdateChecker.UpdateInfo info) {
-                UpdateDialogHelper.showUpdateDialog(PcView.this, info);
+                UpdateChecker.recordAutoCheck(PcView.this, true);
+                // The manual check in settings still offers a skipped version.
+                if (!UpdateChecker.isSkipped(PcView.this, info.version)) {
+                    UpdateDialogHelper.showUpdateDialog(PcView.this, info);
+                }
             }
 
             @Override
             public void onUpToDate() {
-                // Nothing to do on the happy path
+                UpdateChecker.recordAutoCheck(PcView.this, true);
             }
 
             @Override
             public void onError(Exception e) {
                 // Stay silent at startup; the manual check in settings reports errors
+                UpdateChecker.recordAutoCheck(PcView.this, false);
             }
         });
     }

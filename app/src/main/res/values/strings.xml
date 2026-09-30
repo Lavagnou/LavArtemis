@@ -477,7 +477,7 @@
     <string name="title_check_update">Check for updates</string>
     <string name="summary_check_update">Check GitHub for a new LavArtemis release</string>
     <string name="title_auto_update">Automatic update check</string>
-    <string name="summary_auto_update">Check for a new version when the app starts</string>
+    <string name="summary_auto_update">Check for a new version when the app starts, at most every 12 hours</string>
     <string name="title_update_prerelease">Include pre-releases</string>
     <string name="summary_update_prerelease">Also notify about CI pre-release builds</string>
     <string name="update_checking">Checking for updates…</string>
@@ -491,6 +491,11 @@
     <string name="update_check_failed">Update check failed. Check your network connection.</string>
     <string name="update_download_failed">Download failed. Try again later.</string>
     <string name="update_install_permission">Allow LavArtemis to install updates, then try again.</string>
+    <string name="update_skip">Skip this version</string>
+    <string name="update_verification_failed">The downloaded update was rejected: %1$s. Opening the release page instead.</string>
+    <string name="update_channel_name">App updates</string>
+    <string name="update_ready_title">LavArtemis update ready</string>
+    <string name="update_ready_text">Tap to install version %1$s.</string>
     <string name="title_special_key_layout">Special Key Layout</string>
     <string name="title_show_virtual_key">Display virtual keys on screen</string>
     <string name="summary_show_virtual_key">Display a layer of virtual special keys on the touchscreen.\nKey opacity is shared with the virtual gamepad above.</string>

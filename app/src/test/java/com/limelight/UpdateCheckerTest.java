@@ -1,6 +1,7 @@
 package com.limelight;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.limelight.utils.UpdateChecker;
@@ -102,5 +103,16 @@ public class UpdateCheckerTest {
         List<String> onlyArm64 = Arrays.asList("LavArtemis-v20.9.0-android-arm64-v8a.apk");
         assertEquals(-1, UpdateChecker.pickAsset(onlyArm64, new String[]{"armeabi-v7a", "armeabi"}));
         assertEquals(-1, UpdateChecker.pickAsset(BOTH_APKS, null));
+    }
+
+    @Test
+    public void autoCheckIsThrottled() {
+        long hour = 60L * 60 * 1000;
+        long now = 1_000_000_000_000L;
+        assertTrue(UpdateChecker.isDue(0, now));
+        assertFalse(UpdateChecker.isDue(now - 11 * hour, now));
+        assertTrue(UpdateChecker.isDue(now - 12 * hour, now));
+        // Clock moved backwards: check rather than go silent until it catches up
+        assertTrue(UpdateChecker.isDue(now + hour, now));
     }
 }
