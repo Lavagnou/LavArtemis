@@ -140,8 +140,14 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private final PacingStats pacingStats = new PacingStats();
 
     // Optional per-second CSV metrics log for offline A/B comparison
+    // Written only on perfCsvThread. The stats block that produces the rows runs on the thread
+    // feeding MediaCodec -- boosted to -16 for exactly that reason -- so the file I/O, which can
+    // stall for tens of milliseconds on slow flash, must not happen there.
     private java.io.BufferedWriter perfCsvWriter;
-    private boolean perfCsvFailed;
+    private volatile boolean perfCsvFailed;
+    private android.os.HandlerThread perfCsvThread;
+    private android.os.Handler perfCsvHandler;
+    private static final int MAX_PERF_CSV_FILES = 20;
 
     // Update stats using real decode time: enqueue->dequeue, instead of uptime - PTS
     private void updateDecodeLatencyStats(long presentationTimeUs) {
@@ -1761,11 +1767,19 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             adpfHelper.close();
         }
 
-        if (perfCsvWriter != null) {
-            try {
-                perfCsvWriter.close();
-            } catch (java.io.IOException ignored) {}
-            perfCsvWriter = null;
+        if (perfCsvHandler != null) {
+            // Queued after any pending rows, so they are all written before the file closes.
+            perfCsvHandler.post(() -> {
+                if (perfCsvWriter != null) {
+                    try {
+                        perfCsvWriter.close();
+                    } catch (java.io.IOException ignored) {}
+                    perfCsvWriter = null;
+                }
+            });
+            perfCsvThread.quitSafely();
+            perfCsvHandler = null;
+            perfCsvThread = null;
         }
     }
 
@@ -1877,6 +1891,28 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         if (perfCsvFailed) {
             return;
         }
+        if (perfCsvHandler == null) {
+            perfCsvThread = new android.os.HandlerThread("PerfCsv", android.os.Process.THREAD_PRIORITY_BACKGROUND);
+            perfCsvThread.start();
+            perfCsvHandler = new android.os.Handler(perfCsvThread.getLooper());
+        }
+
+        final String row = String.format(java.util.Locale.US,
+                "%d,%.1f,%.1f,%.1f,%.2f,%d,%d,%.2f,%.2f,%.2f,%.2f\n",
+                SystemClock.uptimeMillis(),
+                fps.receivedFps, fps.renderedFps, fps.totalFps,
+                decodeTimeMs,
+                (int)(rttInfo >> 32), (int)rttInfo,
+                lossPct,
+                pacing.p50Ms, pacing.p95Ms, pacing.p99Ms);
+        perfCsvHandler.post(() -> writePerfCsvRow(row));
+    }
+
+    // perfCsvThread only
+    private void writePerfCsvRow(String row) {
+        if (perfCsvFailed) {
+            return;
+        }
         try {
             if (perfCsvWriter == null) {
                 java.io.File dir = context.getExternalFilesDir(null);
@@ -1884,6 +1920,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     perfCsvFailed = true;
                     return;
                 }
+                prunePerfCsvFiles(dir);
                 java.io.File csv = new java.io.File(dir,
                         "stream-perf-" + System.currentTimeMillis() + ".csv");
                 perfCsvWriter = new java.io.BufferedWriter(new java.io.FileWriter(csv));
@@ -1891,18 +1928,25 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         "rttMs,rttVarianceMs,lossPct,pacingP50Ms,pacingP95Ms,pacingP99Ms\n");
                 LimeLog.info("Performance CSV logging to " + csv.getAbsolutePath());
             }
-            perfCsvWriter.write(String.format(java.util.Locale.US,
-                    "%d,%.1f,%.1f,%.1f,%.2f,%d,%d,%.2f,%.2f,%.2f,%.2f\n",
-                    SystemClock.uptimeMillis(),
-                    fps.receivedFps, fps.renderedFps, fps.totalFps,
-                    decodeTimeMs,
-                    (int)(rttInfo >> 32), (int)rttInfo,
-                    lossPct,
-                    pacing.p50Ms, pacing.p95Ms, pacing.p99Ms));
+            perfCsvWriter.write(row);
             perfCsvWriter.flush();
         } catch (java.io.IOException e) {
             LimeLog.warning("Performance CSV logging failed: " + e);
             perfCsvFailed = true;
+        }
+    }
+
+    // One file per session, never deleted before: keep the newest few, drop the rest.
+    private static void prunePerfCsvFiles(java.io.File dir) {
+        java.io.File[] files = dir.listFiles((d, name) -> name.startsWith("stream-perf-") && name.endsWith(".csv"));
+        if (files == null || files.length < MAX_PERF_CSV_FILES) {
+            return;
+        }
+        // Names embed the creation time, so name order is age order.
+        java.util.Arrays.sort(files, (x, y) -> x.getName().compareTo(y.getName()));
+        for (int i = 0; i <= files.length - MAX_PERF_CSV_FILES; i++) {
+            //noinspection ResultOfMethodCallIgnored
+            files[i].delete();
         }
     }
 
