@@ -1,0 +1,51 @@
+name: Unit tests
+
+# JVM unit tests (Robolectric) for the Android app, on every push and pull
+# request. Informational for now: five tests already fail on main
+# (LayoutInflationTest, SimpleStartupTest, StartupTest, ProfilesNavigationTest
+# x2 -- Robolectric setup problems, see CLAUDE.md), so the job reports the
+# results without blocking. Make it blocking once those are fixed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  android-unit-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # The build configures ndk-build even for unit tests, so the native
+      # core has to be present; the desktop submodule does not.
+      - name: Checkout native core submodule
+        run: git submodule update --init --recursive app/src/main/jni/moonlight-core/moonlight-common-c
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install NDK
+        run: echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973"
+
+      - name: Run unit tests
+        run: ./gradlew :app:testNonRoot_gameDebugUnitTest --no-daemon --continue
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
