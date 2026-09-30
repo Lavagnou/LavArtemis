@@ -1,5 +1,6 @@
 #include <jni.h>
 
+#include <errno.h>
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
@@ -25,6 +26,17 @@
 // native core -- a pacing regression has to stay bisectable.
 static jlong usToMs(uint64_t us) {
     return (jlong)(us / 1000);
+}
+
+// Raise the calling thread's priority, and say so if the kernel refuses. The boosts are
+// what the video and audio paths rely on under CPU contention; failing silently would leave
+// them believed active when they are not.
+static void boostCurrentThreadPriority(int niceValue, const char* role) {
+    if (setpriority(PRIO_PROCESS, (id_t)syscall(__NR_gettid), niceValue) != 0) {
+        __android_log_print(ANDROID_LOG_WARN, "moonlight-core",
+                            "Could not raise the %s thread to priority %d: %s",
+                            role, niceValue, strerror(errno));
+    }
 }
 
 static OpusMSDecoder* Decoder;
@@ -171,7 +183,7 @@ int BridgeDrSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
     static __thread int priorityBoosted = 0;
     if (!priorityBoosted) {
         priorityBoosted = 1;
-        setpriority(PRIO_PROCESS, (id_t)syscall(__NR_gettid), -16);
+        boostCurrentThreadPriority(-16, "video depacketizer");
     }
 
     // Increase the size of our frame data buffer if our frame won't fit
@@ -287,7 +299,7 @@ void BridgeArDecodeAndPlaySample(char* sampleData, int sampleLength) {
     static __thread int priorityBoosted = 0;
     if (!priorityBoosted) {
         priorityBoosted = 1;
-        setpriority(PRIO_PROCESS, (id_t)syscall(__NR_gettid), -19);
+        boostCurrentThreadPriority(-19, "audio decoder");
     }
 
     jshort* decodedData = (*env)->GetPrimitiveArrayCritical(env, DecodedAudioBuffer, NULL);
