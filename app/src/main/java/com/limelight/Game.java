@@ -743,6 +743,25 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
 
+        // PyroWave is only ever used on request: it needs a wired link with
+        // hundreds of Mbps to spare. The host picks it over the other formats
+        // above, which stay as the fallback for hosts without it. The renderer
+        // draws to a plain Surface, so the GLES-based 3D modes cannot use it.
+        if (prefConfig.videoFormat == PreferenceConfiguration.FormatOption.FORCE_PYROWAVE) {
+            if (prefConfig.renderMode != 0) {
+                Toast.makeText(this, getString(R.string.toast_pyrowave_3d), Toast.LENGTH_LONG).show();
+            }
+            else if (!MoonBridge.pyroWaveIsSupported()) {
+                Toast.makeText(this, getString(R.string.toast_pyrowave_unsupported), Toast.LENGTH_LONG).show();
+            }
+            else {
+                supportedVideoFormats |= MoonBridge.VIDEO_FORMAT_PYROWAVE;
+                if (prefConfig.pyroWave444) {
+                    supportedVideoFormats |= MoonBridge.VIDEO_FORMAT_PYROWAVE_444;
+                }
+            }
+        }
+
         int gamepadMask = ControllerHandler.getAttachedControllerMask(this);
         if (!prefConfig.multiController) {
             // Always set gamepad 1 present for when multi-controller is

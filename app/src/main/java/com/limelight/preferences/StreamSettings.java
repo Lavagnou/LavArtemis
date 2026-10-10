@@ -1,5 +1,7 @@
 package com.limelight.preferences;
 
+import com.limelight.nvstream.jni.MoonBridge;
+
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
 
 import android.content.Context;
@@ -395,6 +397,22 @@ public class StreamSettings extends AppCompatActivity {
                 PreferenceCategory category =
                         (PreferenceCategory) findPreference("category_ui_settings");
                 category.removePreference(findPreference("checkbox_enable_pip"));
+            }
+
+            // PyroWave needs a 64-bit build and a Vulkan 1.3 GPU. Hide it elsewhere,
+            // falling back to automatic codec selection if it was chosen before.
+            if (!MoonBridge.pyroWaveIsSupported()) {
+                removeValue("video_format", "forcepyrowave", new Runnable() {
+                    @Override
+                    public void run() {
+                        SharedPreferences prefs = getPreferenceManager().getSharedPreferences();
+                        prefs.edit().putString("video_format", "auto").apply();
+                        ((ListPreference) findPreference("video_format")).setValue("auto");
+                    }
+                });
+                PreferenceCategory category =
+                        (PreferenceCategory) findPreference("category_advanced_settings");
+                category.removePreference(findPreference("checkbox_pyrowave_444"));
             }
 
             // Fire TV apps are not allowed to use WebViews or browsers, so hide the Help category

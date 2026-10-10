@@ -20,6 +20,7 @@ public class PreferenceConfiguration {
     public enum FormatOption {
         AUTO,
         FORCE_AV1,
+        FORCE_PYROWAVE,
         FORCE_HEVC,
         FORCE_H264,
     };
@@ -68,6 +69,7 @@ public class PreferenceConfiguration {
     static final String AUDIO_CONFIG_PREF_STRING = "list_audio_config";
     private static final String USB_DRIVER_PREF_SRING = "checkbox_usb_driver";
     private static final String VIDEO_FORMAT_PREF_STRING = "video_format";
+    static final String PYROWAVE_444_PREF_STRING = "checkbox_pyrowave_444";
     private static final String ONSCREEN_CONTROLLER_PREF_STRING = "checkbox_show_onscreen_controls";
     private static final String CHECKBOX_HIDE_OSC_WHEN_HAS_GAMEPAD = "checkbox_hide_osc_when_has_gamepad";
     private static final String ONLY_L3_R3_PREF_STRING = "checkbox_only_show_L3R3";
@@ -248,6 +250,7 @@ public class PreferenceConfiguration {
     public String customRefreshRate;
     public int meteredBitrate;
     public FormatOption videoFormat;
+    public boolean pyroWave444;
     public int framePacingWarpFactor = 0;
     public int deadzonePercentage;
     public int oscOpacity;
@@ -604,6 +607,9 @@ public class PreferenceConfiguration {
         else if (str.equals("forceav1")) {
             return FormatOption.FORCE_AV1;
         }
+        else if (str.equals("forcepyrowave")) {
+            return FormatOption.FORCE_PYROWAVE;
+        }
         else if (str.equals("forceh265")) {
             return FormatOption.FORCE_HEVC;
         }
@@ -868,6 +874,7 @@ private static int getFramePacingValue(Context context) {
         config.videoScaleMode = getVideoScaleMode(context);
 
         config.videoFormat = getVideoFormatValue(context);
+        config.pyroWave444 = prefs.getBoolean(PYROWAVE_444_PREF_STRING, false);
         config.framePacing = getFramePacingValue(context);
         config.preferLowerDelays = getPreferLowerDelays(context);
 

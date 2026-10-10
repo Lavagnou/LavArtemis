@@ -28,7 +28,7 @@
         <com.limelight.preferences.SeekBarPreference
             android:dialogMessage="@string/summary_seekbar_bitrate"
             android:key="seekbar_bitrate_kbps"
-            android:max="300000"
+            android:max="800000"
             android:summary="@string/summary_seekbar_bitrate"
             android:text="@string/suffix_seekbar_bitrate_mbps"
             android:title="@string/title_seekbar_bitrate"
@@ -988,6 +988,12 @@
             android:key="video_format"
             android:summary="@string/summary_video_format"
             android:title="@string/title_video_format"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_pyrowave_444"
+            android:summary="@string/summary_pyrowave_444"
+            android:title="@string/title_pyrowave_444"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"
