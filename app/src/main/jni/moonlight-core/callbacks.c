@@ -13,6 +13,10 @@
 
 #include <cpu-features.h>
 
+#ifdef HAVE_PYROWAVE
+#include "pyrowave_renderer.h"
+#endif
+
 // moonlight-common-c moved the decode unit timestamps from milliseconds to
 // microseconds (receiveTimeMs -> receiveTimeUs). The Java side still works in
 // milliseconds: MediaCodecDecoderRenderer accumulates enqueue-minus-receive
@@ -161,6 +165,14 @@ void BridgeDrCleanup(void) {
 }
 
 int BridgeDrSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
+#ifdef HAVE_PYROWAVE
+    // PyroWave frames never cross into Java: copying megabytes per frame into a
+    // byte[] would cost more than decoding them. The renderer takes them here.
+    if (PyroWaveRendererIsActive()) {
+        return PyroWaveRendererSubmitDecodeUnit(decodeUnit);
+    }
+#endif
+
     JNIEnv* env = GetThreadEnv();
     int ret;
 

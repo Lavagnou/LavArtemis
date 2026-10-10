@@ -6,3 +6,7 @@
 	path = desktop
 	url = https://github.com/Lavagnou/LavArtemis-Qt.git
 	branch = main
+[submodule "app/src/main/jni/pyrowave"]
+	path = app/src/main/jni/pyrowave
+	url = https://github.com/Lavagnou/pyrowave.git
+	branch = lavartemis

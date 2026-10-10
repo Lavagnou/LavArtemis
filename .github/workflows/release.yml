@@ -173,10 +173,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # Only the native core is needed here. The desktop submodule is large, so
-      # we deliberately don't pull it into the Android job.
-      - name: Checkout native core submodule
-        run: git submodule update --init --recursive app/src/main/jni/moonlight-core/moonlight-common-c
+      # Only the native core and PyroWave are needed here. The desktop submodule
+      # is large, so we deliberately don't pull it into the Android job.
+      - name: Checkout native core submodules
+        run: |
+          git submodule update --init --recursive app/src/main/jni/moonlight-core/moonlight-common-c
+          git submodule update --init app/src/main/jni/pyrowave
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
