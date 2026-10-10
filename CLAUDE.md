@@ -28,7 +28,7 @@ LavArtemis hérite des fonctionnalités Artemis : manettes virtuelles personnali
 | compileSdk / minSdk / targetSdk | 36 / 21 / 34 |
 | Java (source/cible) | 11 (builder avec JDK 17+) |
 | NDK | `27.0.12077973` |
-| versionName / versionCode | `20.3.0` / `60` |
+| versionName / versionCode | `20.9.0` / `75` |
 
 Mono-module : `:app` (pas de version catalog, pas de `buildSrc`).
 
@@ -98,6 +98,10 @@ Build types :
 > signale au build** — les libs prébuildées (`libopus`, `openssl`) existent pour les 4 ABI, le
 > natif compile, seul le `splits { abi { include ... } }` décide. Vérifier un appareil avec
 > `adb shell getprop ro.product.cpu.abilist`.
+>
+> Le décodeur **PyroWave n'existe que dans l'APK arm64** (voir plus bas) : ce n'est pas une raison de
+> retirer le 32 bits, qui reste l'unique APK installable sur ces appareils et streame en
+> H.264/HEVC comme avant.
 
 > 🎮 **Manettes exotiques : rien de spécifique côté Android.** `ControllerHandler.java` détecte les axes **par heuristique** à partir des `MotionRange` déclarés (stick gauche X/Y, stick droit RX/RY sinon Z/RZ, croix HAT_X/HAT_Y). C'est ce qui fait marcher des périphériques HID génériques — dont la RadioMaster TX15 — sans une ligne de code dédiée.
 > Un variant `tx15_game` a existé (remap explicite des axes, `BuildConfig.TX15_BUILD`) : c'était un essai, **retiré** — le chemin standard fait déjà le travail. Ne pas le réintroduire sans preuve qu'un appareil résiste à l'heuristique.
@@ -262,13 +266,63 @@ sont des builds portables sans installeur dedans.
 
 ### ✅ Invariant : un seul `moonlight-common-c` — **tenu**
 
-Les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c), branche `lavartemis` @ `0da9626` = `moonlight-stream/master` (juillet 2026) + `84af637` (`LiSendExecServerCmd`) + `c999436` (`LiSendEmptyPayload`).
+Les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](https://github.com/Lavagnou/moonlight-common-c), branche `lavartemis` @ `63c75f1` = `moonlight-stream/master` (juillet 2026) + `84af637` (`LiSendExecServerCmd`) + `c999436` (`LiSendEmptyPayload`) + les 7 commits PyroWave de Nonary (négociation, frames partielles, délai de réassemblage) + l'ID de bitstream v1.
 
 `LiSendEmptyPayload` est du code mort côté desktop ; il est là pour que l'Android (`Game.java:336`) puisse partager la branche.
 
 > ⚠️ **La bascule de l'Android a coûté deux ajustements**, à connaître avant de rebumper :
 > - **FEC : reedsolomon → nanors.** Sous-module différent, avec ses propres sources `deps/obl/`. `Android.mk` liste `nanors/deps/obl/oblas_common.c`, `oblas_lite.c`, `nanors/rs.c` et les trois include paths correspondants (mêmes que le `.pro` desktop).
 > - **Timestamps des decode units : ms → µs.** `receiveTimeMs` → `receiveTimeUs`. Le renommage est la partie visible, **le changement d'unité est la partie dangereuse** : le Java travaille toujours en ms (`MediaCodecDecoderRenderer` accumule `enqueue - receive` dans `totalTimeMs` et multiplie `enqueue` par 1000 pour le timestamp MediaCodec). Passer les µs telles quelles gonflerait les deux ×1000, silencieusement. La conversion se fait dans `callbacks.c` (`usToMs()`), le contrat Java est inchangé. Récupérer la précision supplémentaire est souhaitable mais mérite un commit isolé, bisectable.
+
+## 🌊 PyroWave (codec intra-only GPU)
+
+[PyroWave](https://github.com/Themaister/pyrowave) (Themaister) compresse chaque image seule, en
+ondelettes, sur GPU (Vulkan) : décodage sous la milliseconde, une perte ne coûte qu'un flou local sur
+une image, mais il faut des **centaines de Mbit/s** — réseau filaire. Jamais choisi en Auto : codec
+« PyroWave » explicite, repli sur les autres codecs si l'hôte ou l'appareil ne sait pas.
+
+Le protocole est celui de [Vibepollo](https://github.com/Nonary/Vibepollo) / du fork moonlight-qt de
+Nonary, **inchangé** : `docs/pyrowave-protocol.md` dans LavApollo et LavArtemis-Qt (identiques).
+Hôte : LavApollo. Clients : desktop (Windows/Linux x64, porté depuis Nonary) et Android (ci-dessous).
+
+> ⚠️ **Invariant : un seul PyroWave.** Le bitstream n'a pas de champ de version. LavApollo
+> (`third-party/pyrowave`), LavArtemis-Qt (`pyrowave/pyrowave`) et l'Android
+> (`app/src/main/jni/pyrowave`) épinglent **le même commit** de
+> [`Lavagnou/pyrowave`](https://github.com/Lavagnou/pyrowave) (branche `lavartemis` = upstream v1 +
+> Granite élagué + colle de build dans `lavartemis/`). On les avance ensemble. L'hôte annonce
+> `502a3b52` (v1) ; les clients acceptent aussi `186f0393` (Vibepollo), au format réseau identique.
+
+### Côté Android (arm64-v8a uniquement)
+
+MediaCodec ne sait pas décoder PyroWave : un renderer natif Vulkan le fait
+(`app/src/main/jni/pyrowave-renderer/`). Écrit pour LavArtemis — les forks Android existants n'étaient
+pas assez éprouvés (et Moonlight V+ parle un autre protocole) ; seul le parseur de framing
+(`pyrowaveframing.cpp`) est repris de Nonary, le même que le desktop.
+
+- **Chemin d'une image** : `callbacks.c` (`BridgeDrSubmitDecodeUnit`) la passe directement au
+  renderer **sans passer par Java** — copier des Mo par image dans un `byte[]` coûterait plus que le
+  décodage. Un thread natif parse le framing, pousse les records, décode dans 3 plans R8, puis une
+  passe de rendu convertit Y'CbCr→RGB dans la swapchain posée sur la Surface du stream.
+- **Synchronisation GPU** : deux timeline semaphores. Le décodage attend la fin du rendu précédent
+  (avant d'écraser les plans), le rendu attend le décodage. Le CPU n'attend jamais un décodage.
+- **Un seul VkDevice partagé** : le renderer crée instance/device (avec le swapchain que PyroWave
+  n'active pas) et les passe à `pyrowave_create_device()`. Vulkan est chargé par `dlopen` →
+  minSdk 21 conservé.
+- **Fragment path** de PyroWave (prévu pour les GPU mobiles) quand le device le préfère **ou** quand
+  R8 n'accepte pas l'écriture compute.
+- **SDR seulement**, 4:2:0 ou 4:4:4 (`checkbox_pyrowave_444`). Incompatible avec les modes 3D
+  (`renderMode != 0`) : ils passent par un `SurfaceTexture` GLES.
+- L'option n'apparaît que si `MoonBridge.pyroWaveIsSupported()` (sonde : Vulkan 1.3 + création d'un
+  décodeur PyroWave) — toujours `false` sur l'APK 32 bits, qui n'embarque pas le renderer.
+
+> ⚠️ **Les points d'entrée JNI PyroWave sont dans `simplejni.c`**, pas dans le renderer :
+> `libmoonlight-core.so` est linkée avec `-Wl,--exclude-libs,ALL`, qui masque les symboles des libs
+> statiques — un `Java_..._pyroWaveStart` défini dans `pyrowave-renderer` serait introuvable par la JVM.
+> Sans `HAVE_PYROWAVE` (32 bits), `simplejni.c` fournit des stubs.
+
+> 📋 `APP_STL := c++_static` (`Application.mk`) : le renderer et Granite sont en C++. Les shaders sont
+> précompilés en SPIR-V (`pyrowave-renderer/shaders_spv.h`, régénéré par `shaders/build.sh` avec le
+> `glslc` du NDK) — aucun compilateur de shaders au build.
 
 ### Build desktop
 
@@ -385,7 +439,9 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `.github/workflows/release.yml` | CI build & release **unifiée** (Android + Windows + Linux) |
 | `.github/workflows/update-desktop-pointer.yml` | Avance le sous-module `desktop/` vers le dernier commit vert (manuel) |
 | `android_test_setup.md` | Guide de tests JVM / Robolectric |
-| `.gitmodules` | Sous-modules `moonlight-common-c` **et `desktop/`** |
+| `app/src/main/jni/pyrowave-renderer/` | Renderer PyroWave Android (Vulkan, arm64) |
+| `app/src/main/jni/pyrowave/` | Sous-module `Lavagnou/pyrowave` (⚠️ même commit que LavApollo et le desktop) |
+| `.gitmodules` | Sous-modules `moonlight-common-c`, `pyrowave` **et `desktop/`** |
 | `desktop/` | Client Qt (sous-module `LavArtemis-Qt`) |
 | `desktop/app/app.pro` | Build Qt : TARGET, icônes, métadonnées Windows |
 | `desktop/app/settings/artemissettings.{h,cpp}` | Réglages Artemis/LavArtemis desktop (⚠️ `save()` explicite) |
