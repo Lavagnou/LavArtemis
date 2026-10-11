@@ -348,6 +348,12 @@
     <string name="audioconf_71surround">7.1 Surround Sound</string>
 
     <string name="videoformat_auto">Automatic (Recommended)</string>
+    <string name="title_checkbox_vrr_pacing">VRR pacing (follow the game\'s timing)</string>
+    <string name="summary_checkbox_vrr_pacing">Shows each frame at the moment the game produced it plus a small learned delay, instead of when it arrived, so network jitter does not reach the screen. Best with a LavApollo host (it then captures at 1000 Hz) and a display that changes refresh rate with the content. Replaces the other pacing options while on. Not used with PyroWave.</string>
+    <string name="title_list_vrr_pacing_mode">VRR pacing profile</string>
+    <string name="vrr_pacing_low_latency">Low latency (up to 1 frame of delay)</string>
+    <string name="vrr_pacing_balanced">Balanced (up to 2 frames)</string>
+    <string name="vrr_pacing_smooth">Smooth (up to 4 frames)</string>
     <string name="videoformat_pyrowave">PyroWave (wired LAN, experimental)</string>
     <string name="title_pyrowave_444">PyroWave 4:4:4 chroma</string>
     <string name="summary_pyrowave_444">Full-resolution colour for sharper text, at about 1.6 times the bitrate. Only used with the PyroWave codec.</string>

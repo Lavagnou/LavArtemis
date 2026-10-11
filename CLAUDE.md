@@ -324,6 +324,33 @@ pas assez éprouvés (et Moonlight V+ parle un autre protocole) ; seul le parseu
 > précompilés en SPIR-V (`pyrowave-renderer/shaders_spv.h`, régénéré par `shaders/build.sh` avec le
 > `glslc` du NDK) — aucun compilateur de shaders au build.
 
+## 🎞️ Pacing VRR (LavApollo + les deux clients)
+
+Un client qui présente les images **à l'instant que vise leur timestamp RTP** (heure de capture de
+l'hôte + un délai appris) reproduit la cadence du jeu, gigue réseau absorbée. Il le signale par
+`&clientVrrRequested=1` sur `/launch`/`/resume` -- seul ajout au protocole ; un hôte qui l'ignore
+streame comme avant. LavApollo crée alors ses écrans virtuels à **1000 Hz** (horodatage de capture au
+ms près) et bride le jeu au rythme du stream.
+
+- **Desktop** : port fidèle du pacer VRR de Nonary (Windows ; Linux retombe sur le pacing fixe) --
+  détails dans `desktop/CLAUDE.md`.
+- **Android** : écrit pour LavArtemis, `binding/video/VrrPacing.java` (Java pur, testé en JVM :
+  `VrrPacingTest`). Décalage d'horloge = minimum glissant (2 s) de arrivée − temps RTP ; délai =
+  percentile du retard de décodage (p90 / p97 / p99,5 selon le profil), plafonné à 1 / 2 / 4 images
+  (les allocations de Nonary). `MediaCodecDecoderRenderer.renderVrrPaced()` rend chaque image avec
+  `releaseOutputBuffer(index, cible)` et en saute une en retard de plus d'une image, **jamais deux de
+  suite**. Réglages `checkbox_vrr_pacing` (défaut off, prend le pas sur ULL / prédictif / équilibré) et
+  `list_vrr_pacing_mode`.
+  - ⚠️ **Le timestamp RTP traverse le JNI** : `bridgeDrSubmitDecodeUnit` a un `int rtpTimestamp` de plus
+    (signature `([BIIIICJJI)I` dans `callbacks.c`), non signé côté C, 32 bits qui bouclent : `VrrPacing`
+    le déroule en 64 bits.
+  - ⚠️ L'arrivée mesurée est l'instant où la trame entière est soumise (`System.nanoTime()` dans
+    `submitDecodeUnit`), pas le premier paquet ; le minimum glissant absorbe ce décalage constant.
+  - Android n'a pas de G-Sync : SurfaceFlinger affiche à la vsync qui suit la cible ; le gain vient
+    d'un écran à fréquence adaptative (LTPO / ARR) qui suit la cadence du contenu.
+  - **Pas avec PyroWave** : son renderer Vulkan natif présente seul (FIFO) ; `VK_GOOGLE_display_timing`
+    n'est pas branché.
+
 ### Build desktop
 
 ```sh
@@ -345,6 +372,7 @@ Requiert **Qt 6.11 + MSVC (VS2026)** et **WiX 7**. Sur Linux : `qmake6 lavartemi
 | `setpriority(-19)` thread audio | déjà fait en amont dans `Session::arDecodeAndPlaySample` | ✅ amont |
 | cap audio pending (`seekbar_max_pending_audio_ms`) | `ArtemisSettings::maxPendingAudioMs` (10–100 ms, défaut 30), lu par `sdlaud.cpp` **à la construction** → s'applique au stream suivant | ✅ porté |
 | `-O3 -flto` (`Android.mk`) | `moonlight-common-c/moonlight-common-c.pro` : `-GL` (MSVC, `*-msvc` pour couvrir arm64) / `-O3 -flto` (GCC/Clang) | ✅ porté |
+| `checkbox_vrr_pacing` (`VrrPacing.java`) | Pacer VRR de Nonary (`pacer/vrrpacingworker.*`, `pacer/vrr/*`), réglage « VRR » à côté de la V-Sync | ✅ même principe ; le desktop est le port fidèle (présentation adaptative D3D11 avec tearing), l'Android une version compacte |
 | `checkbox_paced_ull` | ❌ **ne pas porter.** C'est un rattrapage Android : en ULL le renderer présente sans alignement vsync. Le desktop a déjà un vrai `IVsyncSource` (`DxVsyncSource` / Wayland presentation-time) derrière l'option **Frame pacing** de moonlight-qt — activer cette option *est* le mode pacé, en mieux (vsync réel, pas extrapolé). |
 | `checkbox_predictive_pacing` | ❌ **ne pas porter.** L'équivalent supposé (`SetMaximumFrameLatency(1)`) est **délibérément évité** en amont : cf. le commentaire de `d3d11va.cpp` (~l. 551) — avec `SyncInterval 0`, le fixer à 1 fait bloquer `Present()` sur DWM et **augmente** la latence. Le `+2 vsync` Android est un détail SurfaceFlinger sans équivalent. |
 | AV1 auto (≤15 Mbps ou 4K) | ❌ **ne pas porter tel quel.** Le mode Auto amont sonde déjà les décodeurs et *déprioritise* AV1 (sans le retirer) selon la dispo HEVC HW — cf. `session.cpp` ~l. 909-944. Appliquer en plus le seuil Android *retirerait* AV1 à >15 Mbps en <4K et ferait retomber en H.264 les GPU qui ne décodent qu'AV1 en HW : régression. |

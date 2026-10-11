@@ -57,6 +57,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     // Decode latency tracking: map PTS(us) -> enqueue time (ns)
     private final LongSparseArray<Long> enqueueNsByPtsUs = new LongSparseArray<>();
 
+    // VRR pacing (null when off): RTP time of each queued frame, by its MediaCodec PTS
+    private VrrPacing vrrPacing;
+    private final LongSparseArray<Long> rtpNsByPtsUs = new LongSparseArray<>();
+    private long pendingRtpNs = -1;
+
     // When preferLowerDelays=true we use this configurable timeout (µs) for output dequeue.
 // When preferLowerDelays=false we force 0µs (non-blocking, latest-frame rendering).
     private volatile int preferLowerDelaysTimeoutUs = 2000;
@@ -881,6 +886,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             adpfHelper = new AdpfHelper(context, 1_000_000_000L / targetFps);
         }
 
+        // PyroWave returned above: its native renderer presents on its own.
+        if (prefs != null && prefs.enableVrrPacing) {
+            vrrPacing = new VrrPacing(targetFps, prefs.vrrPacingMode);
+            LimeLog.info("VRR pacing: frames shown at their RTP time plus a learned delay (mode " + prefs.vrrPacingMode + ")");
+        }
+
         return initializeDecoder(false);
     }
 
@@ -1241,6 +1252,47 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         });
     }
 
+    /**
+     * One step of VRR pacing: hand the next decoded frame to SurfaceFlinger with the time it
+     * should appear at (its RTP time + learned delay), so the panel shows frames at the game's
+     * cadence rather than at whatever moment each one finished arriving and decoding.
+     */
+    private void renderVrrPaced(BufferInfo info) {
+        try {
+            int outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs());
+            if (outIndex >= 0) {
+                numFramesOut++;
+                long nowNs = System.nanoTime();
+                Long rtpNs;
+                synchronized (rtpNsByPtsUs) {
+                    rtpNs = rtpNsByPtsUs.get(info.presentationTimeUs);
+                    rtpNsByPtsUs.delete(info.presentationTimeUs);
+                }
+
+                long targetNs = rtpNs != null ? vrrPacing.targetFor(rtpNs, nowNs) : nowNs;
+                if (rtpNs != null && vrrPacing.shouldDrop(targetNs, nowNs)) {
+                    videoDecoder.releaseOutputBuffer(outIndex, false);
+                    return;
+                }
+
+                // A target already behind us means "as soon as possible"
+                videoDecoder.releaseOutputBuffer(outIndex, Math.max(targetNs, nowNs));
+                pacingStats.recordPresent(Math.max(targetNs, nowNs));
+                activeWindowVideoStats.totalFramesRendered++;
+                updateDecodeLatencyStats(info.presentationTimeUs);
+            }
+            else if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                LimeLog.info("Output format changed");
+                outputFormat = videoDecoder.getOutputFormat();
+                LimeLog.info("New output format: " + outputFormat);
+            }
+        } catch (IllegalStateException e) {
+            handleDecoderException(e);
+        } finally {
+            doCodecRecoveryIfRequired(CR_FLAG_RENDER_THREAD);
+        }
+    }
+
     private void startRendererThread()
     {
         rendererThread = new Thread() {
@@ -1303,6 +1355,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 BufferInfo info = new BufferInfo();
                 long lastOutputNs = System.nanoTime();
                 while (!stopping) {
+                    if (vrrPacing != null) {
+                        renderVrrPaced(info);
+                        continue;
+                    }
+
                     /* LATEST_ONLY_LOW_LATENCY */
                     if (!preferLowerDelays) {
                         try {
@@ -1814,6 +1871,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
             // Track enqueue time for this PTS
             try { enqueueNsByPtsUs.put(timestampUs, System.nanoTime()); } catch (Throwable ignored) {}
+            if (vrrPacing != null && pendingRtpNs >= 0 && (codecFlags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == 0) {
+                synchronized (rtpNsByPtsUs) {
+                    rtpNsByPtsUs.put(timestampUs, pendingRtpNs);
+                }
+                pendingRtpNs = -1;
+            }
 
             // We need a new buffer now
             nextInputBufferIndex = -1;
@@ -1908,10 +1971,16 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     @Override
     public int submitDecodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
                                 int frameNumber, int frameType, char frameHostProcessingLatency,
-                                long receiveTimeMs, long enqueueTimeMs) {
+                                long receiveTimeMs, long enqueueTimeMs, int rtpTimestamp) {
         if (stopping) {
             // Don't bother if we're stopping
             return MoonBridge.DR_OK;
+        }
+
+        // The whole frame has arrived: that is the arrival the VRR clock offset measures.
+        // Parameter sets come in their own calls ahead of the picture; only the picture counts.
+        if (vrrPacing != null && decodeUnitType == MoonBridge.BUFFER_TYPE_PICDATA) {
+            pendingRtpNs = vrrPacing.onArrival(rtpTimestamp, System.nanoTime());
         }
 
         if (lastFrameNumber == 0) {

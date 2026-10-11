@@ -102,6 +102,21 @@
             android:title="@string/title_checkbox_paced_ull"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_vrr_pacing"
+            android:summary="@string/summary_checkbox_vrr_pacing"
+            android:title="@string/title_checkbox_vrr_pacing"
+            app:iconSpaceReserved="false" />
+        <ListPreference
+            android:defaultValue="1"
+            android:dependency="checkbox_vrr_pacing"
+            android:entries="@array/vrr_pacing_mode_names"
+            android:entryValues="@array/vrr_pacing_mode_values"
+            android:key="list_vrr_pacing_mode"
+            android:summary="%s"
+            android:title="@string/title_list_vrr_pacing_mode"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
             android:defaultValue="true"
             android:key="checkbox_auto_av1"
             android:summary="@string/summary_checkbox_auto_av1"

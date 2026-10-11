@@ -15,6 +15,7 @@ public class StreamConfiguration {
     private float refreshRate;
     private float launchRefreshRate;
     private boolean virtualDisplay;
+    private boolean clientVrrRequested;
     private int resolutionScaleFactor;
     private int clientRefreshRateX100;
     private int bitrate;
@@ -63,6 +64,13 @@ public class StreamConfiguration {
 
         public StreamConfiguration.Builder setVirtualDisplay(boolean enable) {
             config.virtualDisplay = enable;
+            return this;
+        }
+
+        // Tells the host this client paces from RTP timestamps (LavApollo then captures
+        // its virtual display at 1000 Hz). Hosts that do not know it ignore it.
+        public StreamConfiguration.Builder setClientVrrRequested(boolean requested) {
+            config.clientVrrRequested = requested;
             return this;
         }
 
@@ -196,6 +204,8 @@ public class StreamConfiguration {
     }
 
     public boolean getVirtualDisplay() { return virtualDisplay; }
+
+    public boolean getClientVrrRequested() { return clientVrrRequested; }
 
     public int getResolutionScaleFactor() { return resolutionScaleFactor; }
     

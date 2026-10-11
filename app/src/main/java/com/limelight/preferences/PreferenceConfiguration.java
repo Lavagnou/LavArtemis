@@ -50,6 +50,8 @@ public class PreferenceConfiguration {
     private static final String SUSTAINED_PERFORMANCE_PREF_STRING = "checkbox_sustained_performance";
     private static final String PREDICTIVE_PACING_PREF_STRING = "checkbox_predictive_pacing";
     private static final String PACED_ULL_PREF_STRING = "checkbox_paced_ull";
+    private static final String VRR_PACING_PREF_STRING = "checkbox_vrr_pacing";
+    private static final String VRR_PACING_MODE_PREF_STRING = "list_vrr_pacing_mode";
     private static final String MAX_PENDING_AUDIO_PREF_STRING = "seekbar_max_pending_audio_ms";
     private static final String AUTO_AV1_PREF_STRING = "checkbox_auto_av1";
     private static final String ENFORCE_DISPLAY_MODE_PREF_STRING = "checkbox_enforce_display_mode";
@@ -244,6 +246,9 @@ public class PreferenceConfiguration {
     public boolean enableSustainedPerformance;
     public boolean enablePredictivePacing;
     public boolean enablePacedUll;
+    // Present each frame at its RTP time + a learned delay (VrrPacing), instead of on arrival
+    public boolean enableVrrPacing;
+    public int vrrPacingMode;
     public int maxPendingAudioMs;
     public boolean enableAutoAv1;
     public String customResolution;
@@ -903,6 +908,12 @@ private static int getFramePacingValue(Context context) {
         config.enableSustainedPerformance = prefs.getBoolean(SUSTAINED_PERFORMANCE_PREF_STRING, false);
         config.enablePredictivePacing = prefs.getBoolean(PREDICTIVE_PACING_PREF_STRING, false);
         config.enablePacedUll = prefs.getBoolean(PACED_ULL_PREF_STRING, false);
+        config.enableVrrPacing = prefs.getBoolean(VRR_PACING_PREF_STRING, false);
+        try {
+            config.vrrPacingMode = Integer.parseInt(prefs.getString(VRR_PACING_MODE_PREF_STRING, "1"));
+        } catch (NumberFormatException e) {
+            config.vrrPacingMode = 1;
+        }
         config.maxPendingAudioMs = prefs.getInt(MAX_PENDING_AUDIO_PREF_STRING, 40);
         config.enableAutoAv1 = prefs.getBoolean(AUTO_AV1_PREF_STRING, true);
         config.enableSops = prefs.getBoolean(SOPS_PREF_STRING, DEFAULT_SOPS);

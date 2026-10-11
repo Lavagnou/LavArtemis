@@ -11,7 +11,9 @@ public abstract class VideoDecoderRenderer {
     // for an IDR frame which contains several parameter sets and the I-frame data.
     public abstract int submitDecodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
                                          int frameNumber, int frameType, char frameHostProcessingLatency,
-                                         long receiveTimeMs, long enqueueTimeMs);
+                                         long receiveTimeMs, long enqueueTimeMs,
+                                         // The host's 90 kHz capture clock (unsigned 32-bit)
+                                         int rtpTimestamp);
     
     public abstract void cleanup();
 
