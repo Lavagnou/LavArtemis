@@ -590,4 +590,27 @@
     <string name="title_checkbox_remember_zoom_pan">Mémoriser le zoom et le panoramique</string>
     <string name="summary_checkbox_remember_zoom_pan">Enregistre la position de zoom et de panoramique entre les sessions.</string>
     <string name="title_edit_profile">Modifier le profil</string>
+    <string name="title_check_update">Rechercher une mise à jour</string>
+    <string name="summary_check_update">Chercher une nouvelle version de LavArtemis sur GitHub</string>
+    <string name="title_auto_update">Recherche automatique des mises à jour</string>
+    <string name="summary_auto_update">Chercher une nouvelle version au démarrage, au plus toutes les 12 heures</string>
+    <string name="title_update_prerelease">Inclure les pré-versions</string>
+    <string name="summary_update_prerelease">Signaler aussi les pré-versions issues de la CI</string>
+    <string name="update_checking">Recherche de mises à jour…</string>
+    <string name="update_available_title">Mise à jour disponible</string>
+    <string name="update_available_message">LavArtemis %1$s est disponible (actuelle : %2$s).</string>
+    <string name="update_download">Télécharger</string>
+    <string name="update_downloading">Téléchargement de la mise à jour… %1$d%%</string>
+    <string name="update_install">Installer</string>
+    <string name="update_later">Plus tard</string>
+    <string name="update_none">LavArtemis est à jour (%1$s).</string>
+    <string name="update_check_failed">La recherche de mise à jour a échoué. Vérifiez votre connexion.</string>
+    <string name="update_download_failed">Le téléchargement a échoué. Réessayez plus tard.</string>
+    <string name="update_install_permission">Autorisez LavArtemis à installer des mises à jour, puis réessayez.</string>
+    <string name="update_skip">Ignorer cette version</string>
+    <string name="update_verification_failed">La mise à jour téléchargée a été refusée : %1$s. Ouverture de la page de la version à la place.</string>
+    <string name="update_channel_name">Mises à jour de l\'application</string>
+    <string name="update_ready_title">Mise à jour de LavArtemis prête</string>
+    <string name="update_ready_text">Touchez pour installer la version %1$s.</string>
+    <string name="update_ready_message">LavArtemis %1$s a été téléchargée. L\'installer maintenant ?</string>
 </resources>

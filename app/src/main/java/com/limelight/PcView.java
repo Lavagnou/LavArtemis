@@ -31,6 +31,7 @@ import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
 import com.limelight.utils.UpdateChecker;
 import com.limelight.utils.UpdateDialogHelper;
+import com.limelight.utils.UpdateDownloader;
 
 import android.app.ActivityManager;
 import android.app.AlertDialog;
@@ -288,13 +289,27 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     }
 
     private void checkForUpdates() {
-        if (!UpdateChecker.isAutoUpdateEnabled(this)) {
+        // Downloads of versions already installed or superseded have no further use.
+        UpdateDownloader.cleanupOldDownloads(this);
+
+        // An update already downloaded but never installed comes first, and needs no network.
+        UpdateDialogHelper.offerDownloadedUpdateOr(this, this::checkForUpdatesOnline);
+    }
+
+    private void checkForUpdatesOnline() {
+        if (isFinishing() || !UpdateChecker.shouldAutoCheck(this)) {
             return;
         }
+        // Reserve the slot before the request: PcView is recreated on rotation, and a new
+        // instance must not start a second check while this one is still in flight.
+        UpdateChecker.recordAutoCheck(this, true);
         UpdateChecker.check(this, new UpdateChecker.Callback() {
             @Override
             public void onUpdateAvailable(UpdateChecker.UpdateInfo info) {
-                UpdateDialogHelper.showUpdateDialog(PcView.this, info);
+                // The manual check in settings still offers a skipped version.
+                if (!UpdateChecker.isSkipped(PcView.this, info.version)) {
+                    UpdateDialogHelper.showUpdateDialog(PcView.this, info);
+                }
             }
 
             @Override
@@ -304,7 +319,9 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
 
             @Override
             public void onError(Exception e) {
-                // Stay silent at startup; the manual check in settings reports errors
+                // Stay silent at startup; the manual check in settings reports errors.
+                // Move the reservation back so the next attempt comes after the short retry.
+                UpdateChecker.recordAutoCheck(PcView.this, false);
             }
         });
     }

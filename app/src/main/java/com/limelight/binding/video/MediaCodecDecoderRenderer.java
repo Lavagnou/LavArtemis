@@ -54,7 +54,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     /** Toggle tight frame pacing thresholds globally. */
     public void setForceTightThresholds(boolean v) { this.forceTightThresholds = v; }
     // Toggle at runtime if needed
-    // Decode latency tracking: map PTS(us) -> enqueue time (ns)
+    // Decode latency tracking: map PTS(us) -> enqueue time (ns).
+    // Written by the thread feeding the decoder (the native depacketizer with direct submit),
+    // read and pruned by the renderer thread. LongSparseArray is not thread-safe, so every
+    // access holds its monitor.
     private final LongSparseArray<Long> enqueueNsByPtsUs = new LongSparseArray<>();
 
     // VRR pacing (null when off): RTP time of each queued frame, by its MediaCodec PTS
@@ -113,26 +116,66 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
         pacingStats.recordPresent(System.nanoTime());
     }
+    // Every output dequeue on the renderer thread goes through here, to time the output work.
+    private int dequeueOutputBufferTimed(BufferInfo info, long timeoutUs) {
+        int index = videoDecoder.dequeueOutputBuffer(info, timeoutUs);
+        if (index >= 0) {
+            lastOutputDequeuedNs = System.nanoTime();
+        }
+        return index;
+    }
+
     private int getOutputDequeueTimeoutUs(){ return preferLowerDelays ? Math.max(250, preferLowerDelaysTimeoutUs) : preferLowerDelaysTimeoutUs; }
 
     // ADPF performance hint session for the decode/render pipeline threads
     private AdpfHelper adpfHelper;
 
+    // CPU work spent on the pipeline threads for the frame being reported to ADPF.
+    //
+    // ADPF sizes CPU clocks from how long the *threads in the session* work per frame. The
+    // hardware decode time (enqueue -> dequeue) used to be reported instead; the threads sleep
+    // through it, so it said nothing about their load and could just as well talk the governor
+    // into lowering clocks. What is reported now: time in submitDecodeUnit() minus waiting for
+    // an input buffer, plus time from an output buffer's dequeue to its release, plus -- in the
+    // paced modes, where the renderer thread only queues the buffer -- the Choreographer
+    // thread's release work. That last part lands in the report of the following frame, since
+    // the release happens after this frame was reported; ADPF works on averages, so a one-frame
+    // lag is harmless, while leaving it out underreported the default balanced mode.
+    private final java.util.concurrent.atomic.AtomicLong pendingInputWorkNs = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong pendingReleaseWorkNs = new java.util.concurrent.atomic.AtomicLong();
+    private long inputBufferWaitNs; // submitting thread only
+    private long lastOutputDequeuedNs; // renderer thread only
+
     // Frame pacing fluidity metrics (present-to-present interval percentiles)
     private final PacingStats pacingStats = new PacingStats();
 
     // Optional per-second CSV metrics log for offline A/B comparison
+    // Written only on perfCsvThread. The stats block that produces the rows runs on the thread
+    // feeding MediaCodec -- boosted to -16 for exactly that reason -- so the file I/O, which can
+    // stall for tens of milliseconds on slow flash, must not happen there.
     private java.io.BufferedWriter perfCsvWriter;
-    private boolean perfCsvFailed;
+    private volatile boolean perfCsvFailed;
+    private android.os.HandlerThread perfCsvThread;
+    private android.os.Handler perfCsvHandler;
+    private static final int MAX_PERF_CSV_FILES = 20;
 
     // Update stats using real decode time: enqueue->dequeue, instead of uptime - PTS
     private void updateDecodeLatencyStats(long presentationTimeUs) {
-        Long enqNs = enqueueNsByPtsUs.get(presentationTimeUs);
-        if (enqNs != null) {
-            enqueueNsByPtsUs.delete(presentationTimeUs);
-            if (adpfHelper != null) {
-                adpfHelper.reportFrameWorkDuration(System.nanoTime() - enqNs);
+        Long enqNs;
+        synchronized (enqueueNsByPtsUs) {
+            enqNs = enqueueNsByPtsUs.get(presentationTimeUs);
+            // Frames are output in PTS order, so anything older than this one was dropped
+            // without ever being rendered (the latest-only drain releases them unseen) and will
+            // never be looked up. Without pruning them the map grew for the whole session.
+            while (enqueueNsByPtsUs.size() > 0 && enqueueNsByPtsUs.keyAt(0) <= presentationTimeUs) {
+                enqueueNsByPtsUs.removeAt(0);
             }
+        }
+        if (adpfHelper != null) {
+            long outputWorkNs = lastOutputDequeuedNs > 0 ? Math.max(0, System.nanoTime() - lastOutputDequeuedNs) : 0;
+            adpfHelper.reportFrameWorkDuration(pendingInputWorkNs.getAndSet(0) + pendingReleaseWorkNs.getAndSet(0) + outputWorkNs);
+        }
+        if (enqNs != null) {
             long decMs = (System.nanoTime() - enqNs) / 1_000_000L;
             if (decMs >= 0 && decMs < 1000) {
                 activeWindowVideoStats.decoderTimeMs += decMs;
@@ -1180,6 +1223,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // frame of buffer to smooth over network/rendering jitter.
             Integer nextOutputBuffer = outputBufferQueue.poll();
             if (nextOutputBuffer != null) {
+                final long releaseStartNs = System.nanoTime();
                 try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         if (preferLowerDelays) {
@@ -1208,6 +1252,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                     lastRenderedFrameTimeNanos = frameTimeNanos;
                     activeWindowVideoStats.totalFramesRendered++;
+                    if (adpfHelper != null) {
+                        pendingReleaseWorkNs.addAndGet(System.nanoTime() - releaseStartNs);
+                    }
                 } catch (IllegalStateException ignored) {
                     try {
                         // Try to avoid leaking the output buffer by releasing it without rendering
@@ -1259,14 +1306,18 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
      */
     private void renderVrrPaced(BufferInfo info) {
         try {
-            int outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs());
+            int outIndex = dequeueOutputBufferTimed(info, getOutputDequeueTimeoutUs());
             if (outIndex >= 0) {
                 numFramesOut++;
                 long nowNs = System.nanoTime();
                 Long rtpNs;
                 synchronized (rtpNsByPtsUs) {
                     rtpNs = rtpNsByPtsUs.get(info.presentationTimeUs);
-                    rtpNsByPtsUs.delete(info.presentationTimeUs);
+                    // PTS only grow: entries up to this one belong to frames already out, or
+                    // dropped by the decoder and never coming
+                    while (rtpNsByPtsUs.size() > 0 && rtpNsByPtsUs.keyAt(0) <= info.presentationTimeUs) {
+                        rtpNsByPtsUs.removeAt(0);
+                    }
                 }
 
                 long targetNs = rtpNs != null ? vrrPacing.targetFor(rtpNs, nowNs) : nowNs;
@@ -1364,7 +1415,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     if (!preferLowerDelays) {
                         try {
                             android.media.MediaCodec.BufferInfo __tmpInfo = new android.media.MediaCodec.BufferInfo();
-                            int __idx = videoDecoder.dequeueOutputBuffer(__tmpInfo, 0);
+                            int __idx = dequeueOutputBufferTimed(__tmpInfo, 0);
                             int __last = -1;
                             long __lastPtsUs = -1L;
 
@@ -1375,7 +1426,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                 }
                                 __last = __idx;
                                 __lastPtsUs = __tmpInfo.presentationTimeUs;
-                                __idx = videoDecoder.dequeueOutputBuffer(__tmpInfo, 0);
+                                __idx = dequeueOutputBufferTimed(__tmpInfo, 0);
                             }
 
                             if (__last >= 0) {
@@ -1388,7 +1439,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                 if (__lastPtsUs >= 0) {
                                     long __d2pNs = __nowNs - (__lastPtsUs * 1000L);
                                     ewmaDecodeToPresentNs += EWMA_ALPHA * (__d2pNs - ewmaDecodeToPresentNs);
-                                    try { updateDecodeLatencyStats(__lastPtsUs); } catch (Throwable ignored) {}
+                                    updateDecodeLatencyStats(__lastPtsUs);
                                 }
 
                                 continue; // handled this iteration
@@ -1400,13 +1451,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                     try {
                         // Try to output a frame
-                        int outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs());
+                        int outIndex = dequeueOutputBufferTimed(info, getOutputDequeueTimeoutUs());
 
                         if (outIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                             // reduced backoff 0–500 µs
                             tryAgainStreak++;
                             int backoffUs = (tryAgainStreak <= 2) ? 250 : 500;
-                            outIndex = videoDecoder.dequeueOutputBuffer(info, backoffUs);
+                            outIndex = dequeueOutputBufferTimed(info, backoffUs);
                         } else {
                             tryAgainStreak = 0;
                         }
@@ -1434,7 +1485,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                             // Render the latest frame now if frame pacing isn't in balanced mode
                             if (prefs.framePacing != PreferenceConfiguration.FRAME_PACING_BALANCED) {
                                 // Get the last output buffer in the queue
-                                while ((outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs())) >= 0) {
+                                while ((outIndex = dequeueOutputBufferTimed(info, getOutputDequeueTimeoutUs())) >= 0) {
                                     videoDecoder.releaseOutputBuffer(lastIndex, false);
                                     frameDropped = true; // we're discarding the oldest one
 
@@ -1662,9 +1713,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         try {
             // If we don't have an input buffer index yet, fetch one now
+            long waitStartNs = System.nanoTime();
             while (nextInputBufferIndex < 0 && !stopping) {
                 nextInputBufferIndex = videoDecoder.dequeueInputBuffer(10000);
             }
+            inputBufferWaitNs += System.nanoTime() - waitStartNs;
 
             // Get the backing ByteBuffer for the input buffer index
             if (nextInputBufferIndex >= 0) {
@@ -1805,11 +1858,19 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             adpfHelper.close();
         }
 
-        if (perfCsvWriter != null) {
-            try {
-                perfCsvWriter.close();
-            } catch (java.io.IOException ignored) {}
-            perfCsvWriter = null;
+        if (perfCsvHandler != null) {
+            // Queued after any pending rows, so they are all written before the file closes.
+            perfCsvHandler.post(() -> {
+                if (perfCsvWriter != null) {
+                    try {
+                        perfCsvWriter.close();
+                    } catch (java.io.IOException ignored) {}
+                    perfCsvWriter = null;
+                }
+            });
+            perfCsvThread.quitSafely();
+            perfCsvHandler = null;
+            perfCsvThread = null;
         }
     }
 
@@ -1870,7 +1931,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     timestampUs, codecFlags);
 
             // Track enqueue time for this PTS
-            try { enqueueNsByPtsUs.put(timestampUs, System.nanoTime()); } catch (Throwable ignored) {}
+            synchronized (enqueueNsByPtsUs) {
+                enqueueNsByPtsUs.put(timestampUs, System.nanoTime());
+            }
             if (vrrPacing != null && pendingRtpNs >= 0 && (codecFlags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == 0) {
                 synchronized (rtpNsByPtsUs) {
                     rtpNsByPtsUs.put(timestampUs, pendingRtpNs);
@@ -1938,6 +2001,28 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         if (perfCsvFailed) {
             return;
         }
+        if (perfCsvHandler == null) {
+            perfCsvThread = new android.os.HandlerThread("PerfCsv", android.os.Process.THREAD_PRIORITY_BACKGROUND);
+            perfCsvThread.start();
+            perfCsvHandler = new android.os.Handler(perfCsvThread.getLooper());
+        }
+
+        final String row = String.format(java.util.Locale.US,
+                "%d,%.1f,%.1f,%.1f,%.2f,%d,%d,%.2f,%.2f,%.2f,%.2f\n",
+                SystemClock.uptimeMillis(),
+                fps.receivedFps, fps.renderedFps, fps.totalFps,
+                decodeTimeMs,
+                (int)(rttInfo >> 32), (int)rttInfo,
+                lossPct,
+                pacing.p50Ms, pacing.p95Ms, pacing.p99Ms);
+        perfCsvHandler.post(() -> writePerfCsvRow(row));
+    }
+
+    // perfCsvThread only
+    private void writePerfCsvRow(String row) {
+        if (perfCsvFailed) {
+            return;
+        }
         try {
             if (perfCsvWriter == null) {
                 java.io.File dir = context.getExternalFilesDir(null);
@@ -1945,6 +2030,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     perfCsvFailed = true;
                     return;
                 }
+                prunePerfCsvFiles(dir);
                 java.io.File csv = new java.io.File(dir,
                         "stream-perf-" + System.currentTimeMillis() + ".csv");
                 perfCsvWriter = new java.io.BufferedWriter(new java.io.FileWriter(csv));
@@ -1952,14 +2038,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         "rttMs,rttVarianceMs,lossPct,pacingP50Ms,pacingP95Ms,pacingP99Ms\n");
                 LimeLog.info("Performance CSV logging to " + csv.getAbsolutePath());
             }
-            perfCsvWriter.write(String.format(java.util.Locale.US,
-                    "%d,%.1f,%.1f,%.1f,%.2f,%d,%d,%.2f,%.2f,%.2f,%.2f\n",
-                    SystemClock.uptimeMillis(),
-                    fps.receivedFps, fps.renderedFps, fps.totalFps,
-                    decodeTimeMs,
-                    (int)(rttInfo >> 32), (int)rttInfo,
-                    lossPct,
-                    pacing.p50Ms, pacing.p95Ms, pacing.p99Ms));
+            perfCsvWriter.write(row);
             perfCsvWriter.flush();
         } catch (java.io.IOException e) {
             LimeLog.warning("Performance CSV logging failed: " + e);
@@ -1967,11 +2046,43 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
     }
 
-    @SuppressWarnings("deprecation")
+    // One file per session, never deleted before: keep the newest few, drop the rest.
+    private static void prunePerfCsvFiles(java.io.File dir) {
+        java.io.File[] files = dir.listFiles((d, name) -> name.startsWith("stream-perf-") && name.endsWith(".csv"));
+        if (files == null || files.length < MAX_PERF_CSV_FILES) {
+            return;
+        }
+        // Names embed the creation time, so name order is age order.
+        java.util.Arrays.sort(files, (x, y) -> x.getName().compareTo(y.getName()));
+        for (int i = 0; i <= files.length - MAX_PERF_CSV_FILES; i++) {
+            //noinspection ResultOfMethodCallIgnored
+            files[i].delete();
+        }
+    }
+
     @Override
     public int submitDecodeUnit(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
                                 int frameNumber, int frameType, char frameHostProcessingLatency,
                                 long receiveTimeMs, long enqueueTimeMs, int rtpTimestamp) {
+        if (adpfHelper == null) {
+            return submitDecodeUnitInternal(decodeUnitData, decodeUnitLength, decodeUnitType, frameNumber,
+                    frameType, frameHostProcessingLatency, receiveTimeMs, enqueueTimeMs, rtpTimestamp);
+        }
+
+        long startNs = System.nanoTime();
+        inputBufferWaitNs = 0;
+        try {
+            return submitDecodeUnitInternal(decodeUnitData, decodeUnitLength, decodeUnitType, frameNumber,
+                    frameType, frameHostProcessingLatency, receiveTimeMs, enqueueTimeMs, rtpTimestamp);
+        } finally {
+            pendingInputWorkNs.addAndGet(Math.max(0, System.nanoTime() - startNs - inputBufferWaitNs));
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private int submitDecodeUnitInternal(byte[] decodeUnitData, int decodeUnitLength, int decodeUnitType,
+                                         int frameNumber, int frameType, char frameHostProcessingLatency,
+                                         long receiveTimeMs, long enqueueTimeMs, int rtpTimestamp) {
         if (stopping) {
             // Don't bother if we're stopping
             return MoonBridge.DR_OK;

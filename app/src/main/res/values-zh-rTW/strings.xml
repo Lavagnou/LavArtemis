@@ -136,14 +136,7 @@
 	<string name="perf_overlay_drawdelay">延遲：%1$.2f ms</string>
 
 	<!-- Performance Report Sharing -->
-	<string name="email_prefix_message">
-		請將此電子郵件原樣發送至 artemistics.logs@gmail.com 以支持社群。\n
-		您分享的效能數據將有助於改善並擴充資料集，該資料集可在以下位置取得：\n
-		https://tinyurl.com/artemis-performance\n\n
-	</string>
 
-	<string name="email_recipient">artemistics.logs@gmail.com</string>
-	<string name="email_subject">Artemistics - 效能日誌</string>
 	<string name="email_chooser_title">傳送效能日誌...</string>
 	<string name="toast_no_email_clients">未安裝電子郵件用戶端。</string>
 	<string name="toast_no_logs">尚未儲存任何效能數據。</string>

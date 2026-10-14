@@ -136,14 +136,11 @@
     <string name="perf_overlay_drawdelay"> Delay: %1$.2f ms</string>
 
     <!-- Performance Report Sharing -->
-    <string name="email_prefix_message">
-        Please send this email as-is to artemistics.logs@gmail.com to support the community.\n
-        Your shared performance data will help improve and expand the dataset available at:\n
-        https://tinyurl.com/artemis-performance\n\n
-    </string>
+    <string name="email_prefix_message">LavArtemis performance log attached.
 
-    <string name="email_recipient">artemistics.logs@gmail.com</string>
-    <string name="email_subject">Artemistics - Performance Log</string>
+</string>
+
+    <string name="email_subject">LavArtemis - Performance Log</string>
     <string name="email_chooser_title">Send performance log...</string>
     <string name="toast_no_email_clients">No email clients installed.</string>
     <string name="toast_no_logs">There is no performance data stored yet.</string>
@@ -488,7 +485,7 @@
     <string name="title_check_update">Check for updates</string>
     <string name="summary_check_update">Check GitHub for a new LavArtemis release</string>
     <string name="title_auto_update">Automatic update check</string>
-    <string name="summary_auto_update">Check for a new version when the app starts</string>
+    <string name="summary_auto_update">Check for a new version when the app starts, at most every 12 hours</string>
     <string name="title_update_prerelease">Include pre-releases</string>
     <string name="summary_update_prerelease">Also notify about CI pre-release builds</string>
     <string name="update_checking">Checking for updates…</string>
@@ -502,6 +499,12 @@
     <string name="update_check_failed">Update check failed. Check your network connection.</string>
     <string name="update_download_failed">Download failed. Try again later.</string>
     <string name="update_install_permission">Allow LavArtemis to install updates, then try again.</string>
+    <string name="update_skip">Skip this version</string>
+    <string name="update_verification_failed">The downloaded update was rejected: %1$s. Opening the release page instead.</string>
+    <string name="update_channel_name">App updates</string>
+    <string name="update_ready_title">LavArtemis update ready</string>
+    <string name="update_ready_text">Tap to install version %1$s.</string>
+    <string name="update_ready_message">LavArtemis %1$s has been downloaded. Install it now?</string>
     <string name="title_special_key_layout">Special Key Layout</string>
     <string name="title_show_virtual_key">Display virtual keys on screen</string>
     <string name="summary_show_virtual_key">Display a layer of virtual special keys on the touchscreen.\nKey opacity is shared with the virtual gamepad above.</string>

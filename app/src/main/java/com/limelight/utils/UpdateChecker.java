@@ -2,6 +2,7 @@ package com.limelight.utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -15,7 +16,8 @@ import com.limelight.BuildConfig;
 import com.limelight.LimeLog;
 
 import java.io.IOException;
-import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -39,7 +41,28 @@ public class UpdateChecker {
     public static final String PREF_AUTO_UPDATE = "checkbox_auto_update";
     public static final String PREF_UPDATE_PRERELEASE = "checkbox_update_prerelease";
 
-    private static final String APK_ASSET_SUFFIX = "-android-arm64-v8a.apk";
+    // Bookkeeping for the automatic check (not user-visible settings)
+    private static final String PREF_LAST_AUTO_CHECK_MS = "update_last_auto_check_ms";
+    private static final String PREF_SKIPPED_VERSION = "update_skipped_version";
+
+    /**
+     * The automatic check runs from PcView.onCreate(), which fires on every rotation, every
+     * return from a stream and every time a TV box evicts the activity. Unthrottled, that is
+     * dozens of GitHub API calls a day against a 60-per-hour limit shared with the whole NAT,
+     * and the same dialog over and over.
+     */
+    private static final long AUTO_CHECK_INTERVAL_MS = 12L * 60 * 60 * 1000;
+
+    /** After a failed automatic check (offline, rate-limited), try again sooner than that. */
+    private static final long AUTO_CHECK_RETRY_MS = 60L * 60 * 1000;
+
+    /**
+     * Release APKs are published one per ABI as {@code LavArtemis-<tag>-android-<abi>.apk}.
+     * The asset has to match what the device can run: a Fire TV Stick or a Chromecast with
+     * Google TV runs a 32-bit userspace, and the arm64 APK fails there with
+     * INSTALL_FAILED_NO_MATCHING_ABIS -- after a full download and an install screen.
+     */
+    private static final String APK_ASSET_ABI_MARKER = "-android-";
 
     public static class UpdateInfo {
         public final String version;
@@ -67,6 +90,43 @@ public class UpdateChecker {
     public static boolean isAutoUpdateEnabled(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return prefs.getBoolean(PREF_AUTO_UPDATE, true);
+    }
+
+    /** Whether the automatic check is enabled and due. The manual check is never throttled. */
+    public static boolean shouldAutoCheck(Context context) {
+        if (!isAutoUpdateEnabled(context)) {
+            return false;
+        }
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return isDue(prefs.getLong(PREF_LAST_AUTO_CHECK_MS, 0), System.currentTimeMillis());
+    }
+
+    /** Records the outcome of an automatic check, for {@link #shouldAutoCheck(Context)}. */
+    public static void recordAutoCheck(Context context, boolean succeeded) {
+        long now = System.currentTimeMillis();
+        // A failure is recorded as if the last check were older, so the next one comes after
+        // AUTO_CHECK_RETRY_MS instead of the full interval.
+        long recorded = succeeded ? now : now - AUTO_CHECK_INTERVAL_MS + AUTO_CHECK_RETRY_MS;
+        PreferenceManager.getDefaultSharedPreferences(context).edit()
+                .putLong(PREF_LAST_AUTO_CHECK_MS, recorded)
+                .apply();
+    }
+
+    public static boolean isDue(long lastCheckMs, long nowMs) {
+        // A clock that went backwards must not suppress checks until it catches up again.
+        return nowMs < lastCheckMs || nowMs - lastCheckMs >= AUTO_CHECK_INTERVAL_MS;
+    }
+
+    /** The user chose to skip this version; the automatic check will not offer it again. */
+    public static void skipVersion(Context context, String version) {
+        PreferenceManager.getDefaultSharedPreferences(context).edit()
+                .putString(PREF_SKIPPED_VERSION, version)
+                .apply();
+    }
+
+    public static boolean isSkipped(Context context, String version) {
+        String skipped = PreferenceManager.getDefaultSharedPreferences(context).getString(PREF_SKIPPED_VERSION, null);
+        return version != null && version.equals(skipped);
     }
 
     public static void check(Context context, Callback callback) {
@@ -141,20 +201,47 @@ public class UpdateChecker {
         String pageUrl = release.get("html_url").getAsString();
         boolean prerelease = release.get("prerelease").getAsBoolean();
 
-        String downloadUrl = null;
+        List<String> names = new ArrayList<>();
+        List<String> urls = new ArrayList<>();
         JsonArray assets = release.getAsJsonArray("assets");
         if (assets != null) {
             for (JsonElement assetElement : assets) {
                 JsonObject asset = assetElement.getAsJsonObject();
-                String name = asset.get("name").getAsString();
-                if (name.endsWith(APK_ASSET_SUFFIX)) {
-                    downloadUrl = asset.get("browser_download_url").getAsString();
-                    break;
-                }
+                names.add(asset.get("name").getAsString());
+                urls.add(asset.get("browser_download_url").getAsString());
             }
         }
 
+        // No asset for this device's ABIs leaves downloadUrl null, and the dialog falls back
+        // to the release page rather than downloading something that cannot be installed.
+        String downloadUrl = null;
+        int picked = pickAsset(names, Build.SUPPORTED_ABIS);
+        if (picked >= 0) {
+            downloadUrl = urls.get(picked);
+        }
+
         return new UpdateInfo(latestVersion, pageUrl, downloadUrl, prerelease);
+    }
+
+    /**
+     * Picks the APK asset for the first ABI in {@code abis} (most preferred first, as in
+     * {@link Build#SUPPORTED_ABIS}) that has one.
+     *
+     * @return the index of the chosen asset in {@code names}, or -1 if none fits.
+     */
+    public static int pickAsset(List<String> names, String[] abis) {
+        if (abis == null) {
+            return -1;
+        }
+        for (String abi : abis) {
+            String suffix = APK_ASSET_ABI_MARKER + abi + ".apk";
+            for (int i = 0; i < names.size(); i++) {
+                if (names.get(i).endsWith(suffix)) {
+                    return i;
+                }
+            }
+        }
+        return -1;
     }
 
     /**

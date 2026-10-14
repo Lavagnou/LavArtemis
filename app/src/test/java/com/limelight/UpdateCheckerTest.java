@@ -1,11 +1,15 @@
 package com.limelight;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.limelight.utils.UpdateChecker;
 
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Unit tests for the semantic version comparison used by the in-app updater.
@@ -69,5 +73,46 @@ public class UpdateCheckerTest {
     public void malformedComponentsAreTolerated() {
         // Should not throw, garbage parses as 0
         assertEquals(0, UpdateChecker.compareVersions("x.y.z", "0.0.0"));
+    }
+
+    private static final List<String> BOTH_APKS = Arrays.asList(
+            "LavArtemis-v20.9.0-android-arm64-v8a.apk",
+            "LavArtemis-v20.9.0-android-armeabi-v7a.apk",
+            "LavArtemis-v20.9.0-win-installer.exe");
+
+    @Test
+    public void picksArm64On64BitDevice() {
+        assertEquals(0, UpdateChecker.pickAsset(BOTH_APKS, new String[]{"arm64-v8a", "armeabi-v7a", "armeabi"}));
+    }
+
+    @Test
+    public void picks32BitApkOnTvStick() {
+        // A Fire TV Stick 4K Max reports only 32-bit ABIs; the arm64 APK cannot install there.
+        assertEquals(1, UpdateChecker.pickAsset(BOTH_APKS, new String[]{"armeabi-v7a", "armeabi"}));
+    }
+
+    @Test
+    public void fallsBackToLaterAbiWhenPreferredIsMissing() {
+        List<String> onlyV7 = Arrays.asList("LavArtemis-v20.9.0-android-armeabi-v7a.apk");
+        assertEquals(0, UpdateChecker.pickAsset(onlyV7, new String[]{"arm64-v8a", "armeabi-v7a"}));
+    }
+
+    @Test
+    public void noCompatibleApk() {
+        assertEquals(-1, UpdateChecker.pickAsset(BOTH_APKS, new String[]{"x86_64", "x86"}));
+        List<String> onlyArm64 = Arrays.asList("LavArtemis-v20.9.0-android-arm64-v8a.apk");
+        assertEquals(-1, UpdateChecker.pickAsset(onlyArm64, new String[]{"armeabi-v7a", "armeabi"}));
+        assertEquals(-1, UpdateChecker.pickAsset(BOTH_APKS, null));
+    }
+
+    @Test
+    public void autoCheckIsThrottled() {
+        long hour = 60L * 60 * 1000;
+        long now = 1_000_000_000_000L;
+        assertTrue(UpdateChecker.isDue(0, now));
+        assertFalse(UpdateChecker.isDue(now - 11 * hour, now));
+        assertTrue(UpdateChecker.isDue(now - 12 * hour, now));
+        // Clock moved backwards: check rather than go silent until it catches up
+        assertTrue(UpdateChecker.isDue(now + hour, now));
     }
 }
