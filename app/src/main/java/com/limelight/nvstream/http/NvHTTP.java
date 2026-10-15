@@ -607,6 +607,12 @@ public class NvHTTP {
     // Bit 9: HEVC Main10
     // Bit 10: HEVC Main10 4:4:4
     // Bit 11: ???
+    // LavApollo's verdict on this client's microphone: "ready", "disabled", "no_permission",
+    // "no_device", or null for a host without microphone passthrough.
+    public String getMicPassthroughState(String serverInfo) throws XmlPullParserException, IOException {
+        return getXmlString(serverInfo, "MicPassthroughState", false);
+    }
+
     public long getServerCodecModeSupport(String serverInfo) throws XmlPullParserException, IOException {
         // ServerCodecModeSupport wasn't present on old GFE versions
         String str = getXmlString(serverInfo, "ServerCodecModeSupport", false);
@@ -891,6 +897,7 @@ public class NvHTTP {
             "&gcmap=" + context.streamConfig.getAttachedGamepadMask() +
             "&gcpersist="+(context.streamConfig.getPersistGamepadsAfterDisconnect() ? 1 : 0) +
             (context.streamConfig.getClientVrrRequested() ? "&clientVrrRequested=1" : "") +
+            (context.micRequested ? "&clientMicRequested=1" : "") +
             MoonBridge.getLaunchUrlQueryParameters());
         if ((verb.equals("launch") && !getXmlString(xmlStr, "gamesession", true).equals("0") ||
                 (verb.equals("resume") && !getXmlString(xmlStr, "resume", true).equals("0")))) {

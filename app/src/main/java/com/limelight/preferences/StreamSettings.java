@@ -4,6 +4,7 @@ import com.limelight.nvstream.jni.MoonBridge;
 
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -52,6 +53,7 @@ import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.PcView;
 import com.limelight.R;
+import com.limelight.binding.audio.MicrophoneStreamer;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardControllerConfigurationLoader;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.utils.Dialog;
@@ -745,6 +747,8 @@ public class StreamSettings extends AppCompatActivity {
                 }
             });
 
+            setupMicrophonePreferences();
+
             findPreference("checkbox_enable_perf_logging").setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
                 @Override
                 public boolean onPreferenceChange(Preference preference, Object newValue) {
@@ -1051,6 +1055,55 @@ public class StreamSettings extends AppCompatActivity {
 
         int READ_REQUEST_CODE = 1001;
         int READ_REQUEST_SPECIAL_CODE = 1002;
+        int MIC_PERMISSION_REQUEST_CODE = 1003;
+
+        private void setupMicrophonePreferences() {
+            ListPreference devicePref = findPreference(PreferenceConfiguration.MIC_DEVICE_PREF_STRING);
+            if (devicePref != null) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                    // Choosing a device needs AudioRecord.setPreferredDevice()
+                    devicePref.setVisible(false);
+                }
+                else {
+                    // Read when the page opens: plug a microphone in, then reopen the settings
+                    java.util.List<String[]> devices = MicrophoneStreamer.listDevices(getActivity());
+                    CharSequence[] entries = new CharSequence[devices.size() + 1];
+                    CharSequence[] values = new CharSequence[devices.size() + 1];
+                    entries[0] = getString(R.string.mic_device_default);
+                    values[0] = "";
+                    for (int i = 0; i < devices.size(); i++) {
+                        values[i + 1] = devices.get(i)[0];
+                        entries[i + 1] = devices.get(i)[1];
+                    }
+                    devicePref.setEntries(entries);
+                    devicePref.setEntryValues(values);
+                }
+            }
+
+            Preference micPref = findPreference(PreferenceConfiguration.MIC_PASSTHROUGH_PREF_STRING);
+            if (micPref != null) {
+                // Asked for when the user turns it on, where the reason is obvious, not mid-stream
+                micPref.setOnPreferenceChangeListener((preference, newValue) -> {
+                    if ((Boolean) newValue && !MicrophoneStreamer.hasPermission(getActivity())) {
+                        requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, MIC_PERMISSION_REQUEST_CODE);
+                    }
+                    return true;
+                });
+            }
+        }
+
+        @Override
+        public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+            if (requestCode == MIC_PERMISSION_REQUEST_CODE &&
+                    (grantResults.length == 0 || grantResults[0] != PackageManager.PERMISSION_GRANTED)) {
+                CheckBoxPreference micPref = findPreference(PreferenceConfiguration.MIC_PASSTHROUGH_PREF_STRING);
+                if (micPref != null) {
+                    micPref.setChecked(false);
+                }
+                Toast.makeText(getActivity(), R.string.toast_microphone_permission_denied, Toast.LENGTH_LONG).show();
+            }
+        }
 
         @Override
         public void onActivityResult(int requestCode, int resultCode, Intent data) {

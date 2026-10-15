@@ -775,4 +775,15 @@
 
     <string name="title_checkbox_full_screen">Enable Full Screen</string>
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>
+    <string name="title_checkbox_mic_passthrough">Send my microphone to the host</string>
+    <string name="summary_checkbox_mic_passthrough">LavApollo plays it into a virtual microphone on the PC, for voice chat and games with proximity chat. Needs LavApollo 2.2 or later. Mute it from the in-game menu or with Ctrl+Alt+Shift+U.</string>
+    <string name="title_list_mic_device">Microphone</string>
+    <string name="summary_list_mic_device">Which microphone to send</string>
+    <string name="mic_device_default">Default microphone</string>
+    <string name="game_menu_mute_microphone">Mute microphone</string>
+    <string name="game_menu_unmute_microphone">Unmute microphone</string>
+    <string name="toast_microphone_muted">Microphone muted</string>
+    <string name="toast_microphone_unmuted">Microphone on</string>
+    <string name="toast_microphone_permission_denied">Microphone access was not granted, so your microphone will not be sent</string>
+    <string name="toast_microphone_unavailable">No microphone could be opened, the stream goes on without it</string>
 </resources>

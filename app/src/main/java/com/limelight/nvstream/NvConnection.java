@@ -247,6 +247,28 @@ public class NvConnection {
 
         context.serverCodecModeSupport = (int)h.getServerCodecModeSupport(serverInfo);
 
+        // Only ask for the microphone when the host says it would be heard, and otherwise say
+        // what to fix: a microphone that silently goes nowhere is the worst outcome.
+        context.micRequested = false;
+        if (context.streamConfig.getClientMicRequested()) {
+            String micState = h.getMicPassthroughState(serverInfo);
+            if ("ready".equals(micState)) {
+                context.micRequested = true;
+            }
+            else if ("disabled".equals(micState)) {
+                context.connListener.displayTransientMessage("Your microphone won't be sent: microphone passthrough is turned off on the host (LavApollo, Audio/Video settings).");
+            }
+            else if ("no_permission".equals(micState)) {
+                context.connListener.displayTransientMessage("Your microphone won't be sent: the host hasn't given this device the Microphone permission (LavApollo, Clients).");
+            }
+            else if ("no_device".equals(micState)) {
+                context.connListener.displayTransientMessage("Your microphone won't be sent: the host has no virtual microphone. Installing Steam on the host provides one.");
+            }
+            else {
+                context.connListener.displayTransientMessage("Your microphone won't be sent: this host doesn't support microphone passthrough. It needs LavApollo 2.2 or later.");
+            }
+        }
+
         context.negotiatedHdr = (context.streamConfig.getSupportedVideoFormats() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0;
         if ((context.serverCodecModeSupport & 0x20200) == 0 && context.negotiatedHdr) {
             context.connListener.displayTransientMessage("Your PC GPU does not support streaming HDR. The stream will be SDR.");
@@ -562,6 +584,11 @@ public class NvConnection {
         if (!isMonkey) {
             MoonBridge.sendMouseHighResHScroll(scrollAmount);
         }
+    }
+
+    // Whether the host agreed to hear our microphone; known once the app has been launched
+    public boolean isMicrophoneRequested() {
+        return context.micRequested;
     }
 
     public int sendTouchEvent(byte eventType, int pointerId, float x, float y, float pressureOrDistance,

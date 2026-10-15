@@ -364,6 +364,15 @@ public class MoonBridge {
 
     public static native void sendEmptyPayload();
 
+    // Microphone passthrough (MicrophoneStreamer): an Opus encoder for 20 ms frames of 48 kHz
+    // mono PCM, whose output goes to the host inside the encrypted control stream.
+    public static native boolean micStart(int bitrate);
+
+    // Encodes and sends one frame; negative when it couldn't be sent
+    public static native int micSendPcm(short[] pcm, int samples);
+
+    public static native void micStop();
+
     public static native void sendMouseMove(short deltaX, short deltaY);
 
     public static native void sendMousePosition(short x, short y, short referenceWidth, short referenceHeight);

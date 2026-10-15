@@ -10,6 +10,7 @@ import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
 
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
+import com.limelight.binding.audio.MicrophoneStreamer;
 import com.limelight.binding.input.ControllerHandler;
 import com.limelight.binding.input.GameInputDevice;
 import com.limelight.binding.input.KeyboardTranslator;
@@ -202,6 +203,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private boolean grabbedInput = true;
     private boolean cursorVisible = false;
     private boolean isPanZoomMode = false;
+
+    // Microphone passthrough: alive from connectionStarted() to stopConnection(), UI thread only
+    private MicrophoneStreamer microphoneStreamer;
     private boolean synthClickPending = false;
     private boolean pointerSwiping = false;
     private boolean waitingForAllModifiersUp = false;
@@ -813,6 +817,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .setRefreshRate(chosenFrameRate)
                 .setVirtualDisplay(vDisplay)
                 .setClientVrrRequested(prefConfig.enableVrrPacing)
+                .setClientMicRequested(prefConfig.enableMicPassthrough)
                 .setResolutionScaleFactor(prefConfig.resolutionScaleFactor)
                 .setApp(app)
                 .setEnableUltraLowLatency(prefConfig.enableUltraLowLatency)
@@ -2017,6 +2022,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         finish();
                         break;
 
+                    // Mute the microphone sent to the host (U, as M is the desktop's mouse mode)
+                    case KeyEvent.KEYCODE_U:
+                        toggleMicrophoneMute();
+                        break;
+
                     // Toggle cursor visibility
                     case KeyEvent.KEYCODE_C:
                         if (!grabbedInput) {
@@ -2048,6 +2058,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 case KeyEvent.KEYCODE_Z:
                 case KeyEvent.KEYCODE_Q:
                 case KeyEvent.KEYCODE_C:
+                case KeyEvent.KEYCODE_U:
                     // Remember that a special key combo was activated, so we can consume all key
                     // events until the modifiers come up
                     specialKeyCode = androidKeyCode;
@@ -3511,6 +3522,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             connecting = connected = false;
             updatePipAutoEnter();
 
+            // The microphone sends through the connection: stop it before the connection goes
+            stopMicrophone();
+
             controllerHandler.stop();
 
             // Update GameManager state to indicate we're no longer in game
@@ -3771,6 +3785,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 if (prefConfig.preventPacketLoss) {
                     timerHandler.postDelayed(backgroundPing, 1000);
                 }
+
+                startMicrophone();
             }
         });
 
@@ -4050,6 +4066,50 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     public void sendExecServerCmd(int cmdId) {
         conn.sendExecServerCmd(cmdId);
+    }
+
+    private void startMicrophone() {
+        if (microphoneStreamer != null || conn == null || !conn.isMicrophoneRequested()) {
+            return;
+        }
+
+        if (!MicrophoneStreamer.hasPermission(this)) {
+            Toast.makeText(this, getString(R.string.toast_microphone_permission_denied), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        MicrophoneStreamer streamer = new MicrophoneStreamer(this, prefConfig.micDevice);
+        if (!streamer.start()) {
+            // Many Android TV devices have no microphone at all: the stream goes on without it
+            Toast.makeText(this, getString(R.string.toast_microphone_unavailable), Toast.LENGTH_LONG).show();
+            return;
+        }
+        microphoneStreamer = streamer;
+    }
+
+    private void stopMicrophone() {
+        if (microphoneStreamer != null) {
+            microphoneStreamer.stop();
+            microphoneStreamer = null;
+        }
+    }
+
+    public boolean isMicrophoneActive() {
+        return microphoneStreamer != null;
+    }
+
+    public boolean isMicrophoneMuted() {
+        return microphoneStreamer != null && microphoneStreamer.isMuted();
+    }
+
+    public void toggleMicrophoneMute() {
+        if (microphoneStreamer == null) {
+            return;
+        }
+
+        boolean muted = !microphoneStreamer.isMuted();
+        microphoneStreamer.setMuted(muted);
+        Toast.makeText(this, getString(muted ? R.string.toast_microphone_muted : R.string.toast_microphone_unmuted), Toast.LENGTH_SHORT).show();
     }
 
     public ArrayList<String> getServerCmds() {

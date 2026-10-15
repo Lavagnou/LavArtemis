@@ -6,6 +6,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 
+#include <opus.h>
+
 #include "minisdl.h"
 #include "controller_type.h"
 #include "controller_list.h"
@@ -29,6 +31,66 @@ Java_com_limelight_nvstream_jni_MoonBridge_sendExecServerCmd(JNIEnv *env, jclass
 JNIEXPORT void JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_sendEmptyPayload(JNIEnv *env, jclass clazz) {
     LiSendEmptyPayload();
+}
+
+// Microphone passthrough (MicrophoneStreamer.java). The encoder is only used by the capture
+// thread; micStart() runs before that thread starts and micStop() after it has been joined.
+#define MIC_SAMPLE_RATE 48000
+#define MIC_FRAME_SAMPLES (MIC_SAMPLE_RATE / 50)
+
+static OpusEncoder* micEncoder;
+
+JNIEXPORT jboolean JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_micStart(JNIEnv *env, jclass clazz, jint bitrate) {
+    int error = OPUS_OK;
+
+    if (micEncoder != NULL) {
+        opus_encoder_destroy(micEncoder);
+    }
+
+    micEncoder = opus_encoder_create(MIC_SAMPLE_RATE, 1, OPUS_APPLICATION_VOIP, &error);
+    if (micEncoder == NULL || error != OPUS_OK) {
+        micEncoder = NULL;
+        return JNI_FALSE;
+    }
+
+    opus_encoder_ctl(micEncoder, OPUS_SET_BITRATE(bitrate));
+    opus_encoder_ctl(micEncoder, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
+    // The host rebuilds a lost frame from the FEC carried by the next one
+    opus_encoder_ctl(micEncoder, OPUS_SET_INBAND_FEC(1));
+    opus_encoder_ctl(micEncoder, OPUS_SET_PACKET_LOSS_PERC(10));
+    // Silence costs a couple of bytes per frame. Those frames are still sent, so the host's
+    // sequence numbers stay contiguous and silence never reads as packet loss.
+    opus_encoder_ctl(micEncoder, OPUS_SET_DTX(1));
+    return JNI_TRUE;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_micSendPcm(JNIEnv *env, jclass clazz, jshortArray pcm, jint samples) {
+    opus_int16 frame[MIC_FRAME_SAMPLES];
+    unsigned char packet[LI_MAX_MICROPHONE_FRAME_LENGTH];
+    int length;
+
+    if (micEncoder == NULL || samples != MIC_FRAME_SAMPLES) {
+        return -1;
+    }
+
+    (*env)->GetShortArrayRegion(env, pcm, 0, samples, frame);
+
+    length = opus_encode(micEncoder, frame, samples, packet, sizeof(packet));
+    if (length <= 0) {
+        return length < 0 ? length : 0;
+    }
+
+    return LiSendMicrophoneData(packet, length, (uint32_t)samples);
+}
+
+JNIEXPORT void JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_micStop(JNIEnv *env, jclass clazz) {
+    if (micEncoder != NULL) {
+        opus_encoder_destroy(micEncoder);
+        micEncoder = NULL;
+    }
 }
 
 JNIEXPORT void JNICALL

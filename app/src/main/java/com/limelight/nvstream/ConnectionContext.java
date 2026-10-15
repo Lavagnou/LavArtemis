@@ -31,4 +31,7 @@ public class ConnectionContext {
     public int negotiatedPacketSize;
 
     public int videoCapabilities;
+
+    // Microphone passthrough: asked for by the user and "ready" on the host for this client
+    public boolean micRequested;
 }

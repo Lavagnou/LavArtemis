@@ -363,6 +363,39 @@ ms près) et bride le jeu au rythme du stream.
   - **Pas avec PyroWave** : son renderer Vulkan natif présente seul (FIFO) ; `VK_GOOGLE_display_timing`
     n'est pas branché.
 
+## 🎤 Passthrough du micro (LavApollo + les deux clients)
+
+Le micro du client est joué par l'hôte dans un **micro virtuel** (Steam Streaming Microphone par
+défaut), pour le chat vocal et les jeux à chat de proximité. **Désactivé par défaut côté client.**
+Protocole complet : `LavApollo/docs/mic-passthrough.md`.
+
+- **Transport : le flux de contrôle chiffré, pas un port UDP.** `LiSendMicrophoneData()`
+  (`Lavagnou/moonlight-common-c`) envoie une trame Opus (48 kHz mono, 20 ms) dans le message `0x3080`,
+  canal ENet 9, *unsequenced*. Refus d'envoyer si le flux de contrôle n'est pas chiffré ou si l'hôte
+  n'est pas de la famille Sunshine : la voix ne passe jamais en clair.
+- **Négociation** : `serverinfo` donne `MicPassthroughState` (`ready` / `disabled` / `no_permission` /
+  `no_device`, absent sur un autre hôte). Le client n'envoie `&clientMicRequested=1` que sur `ready`,
+  sinon il affiche la raison au lancement, et le stream continue sans micro.
+- **32 kbit/s, FEC Opus et DTX** : les trames de silence (2 octets) partent quand même, pour que les
+  numéros de séquence restent contigus. Un trou côté hôte signifie toujours une perte.
+- ⚠️ **`LiSendMicrophoneData()` : un seul thread appelant, et plus aucun appel après le début de
+  `LiStopConnection()`.** Les deux clients arrêtent la capture **avant** l'arrêt de la connexion.
+- **Couper le micro** : Ctrl+Alt+Shift+**U** sur les deux clients (M est déjà le mode souris du desktop).
+  Sur desktop, menu rapide + « Microphone muted » affiché tant qu'il est coupé ; sur Android, entrée
+  du menu en jeu (visible seulement si le micro est actif).
+
+| | Android | Desktop |
+|---|---|---|
+| Capture | `binding/audio/MicrophoneStreamer.java` : `AudioRecord` en `VOICE_COMMUNICATION` (annulation d'écho et réduction de bruit de l'appareil) | `streaming/audio/micstreamer.{h,cpp}` : `SDL_OpenAudioDevice(name, 1, …)`, encodage et envoi dans le callback SDL |
+| Encodage | natif, `simplejni.c` (`micStart` / `micSendPcm` / `micStop`) : les points d'entrée JNI vivent là à cause de `--exclude-libs` | `opus_encoder_create` direct |
+| Réglages | `checkbox_mic_passthrough`, `list_mic_device` (clé `type:nom`, pas l'id : il change à chaque reconnexion) | `ArtemisSettings::micPassthroughEnabled` / `micDeviceName`, **globaux** (le micro dépend de la machine, pas du profil) |
+| Permission | `RECORD_AUDIO`, demandée quand on coche la case ; refusée → la case se décoche | — |
+| Écho | traité par l'appareil | **aucun** : SDL n'annule pas l'écho, d'où le conseil du casque |
+
+> ⚠️ **Desktop : le sous-système audio SDL est partagé** entre le rendu (`SdlAudioRenderer`) et le
+> micro. Les deux `SDL_assert(!SDL_WasInit(SDL_INIT_AUDIO))` de `sdlaud.cpp` supposaient un seul
+> utilisateur ; ils ont été retirés. `SDL_InitSubSystem` / `SDL_QuitSubSystem` comptent les références.
+
 ### Build desktop
 
 ```sh

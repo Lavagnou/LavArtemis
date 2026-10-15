@@ -317,6 +317,12 @@ public class GameMenu implements Game.GameMenuCallbacks {
         options.add(new MenuOption(getString(R.string.game_menu_toggle_keyboard), true,
                 game::toggleKeyboard));
 
+        if (game.isMicrophoneActive()) {
+            options.add(new MenuOption(getString(game.isMicrophoneMuted() ?
+                    R.string.game_menu_unmute_microphone : R.string.game_menu_mute_microphone), true,
+                    game::toggleMicrophoneMute));
+        }
+
         options.add(new MenuOption(getString(game.isZoomModeEnabled() ? R.string.game_menu_disable_zoom_mode : R.string.game_menu_enable_zoom_mode), true,
                 game::toggleZoomMode));
 

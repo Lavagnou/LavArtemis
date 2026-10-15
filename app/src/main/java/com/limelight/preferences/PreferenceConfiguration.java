@@ -51,6 +51,8 @@ public class PreferenceConfiguration {
     private static final String PREDICTIVE_PACING_PREF_STRING = "checkbox_predictive_pacing";
     private static final String PACED_ULL_PREF_STRING = "checkbox_paced_ull";
     private static final String VRR_PACING_PREF_STRING = "checkbox_vrr_pacing";
+    public static final String MIC_PASSTHROUGH_PREF_STRING = "checkbox_mic_passthrough";
+    public static final String MIC_DEVICE_PREF_STRING = "list_mic_device";
     private static final String VRR_PACING_MODE_PREF_STRING = "list_vrr_pacing_mode";
     private static final String MAX_PENDING_AUDIO_PREF_STRING = "seekbar_max_pending_audio_ms";
     private static final String AUTO_AV1_PREF_STRING = "checkbox_auto_av1";
@@ -248,6 +250,10 @@ public class PreferenceConfiguration {
     public boolean enablePacedUll;
     // Present each frame at its RTP time + a learned delay (VrrPacing), instead of on arrival
     public boolean enableVrrPacing;
+    // Send this device's microphone to the host (LavApollo plays it into a virtual microphone)
+    public boolean enableMicPassthrough;
+    // MicrophoneStreamer device key, empty for the default microphone
+    public String micDevice;
     public int vrrPacingMode;
     public int maxPendingAudioMs;
     public boolean enableAutoAv1;
@@ -909,6 +915,8 @@ private static int getFramePacingValue(Context context) {
         config.enablePredictivePacing = prefs.getBoolean(PREDICTIVE_PACING_PREF_STRING, false);
         config.enablePacedUll = prefs.getBoolean(PACED_ULL_PREF_STRING, false);
         config.enableVrrPacing = prefs.getBoolean(VRR_PACING_PREF_STRING, false);
+        config.enableMicPassthrough = prefs.getBoolean(MIC_PASSTHROUGH_PREF_STRING, false);
+        config.micDevice = prefs.getString(MIC_DEVICE_PREF_STRING, "");
         try {
             config.vrrPacingMode = Integer.parseInt(prefs.getString(VRR_PACING_MODE_PREF_STRING, "1"));
         } catch (NumberFormatException e) {

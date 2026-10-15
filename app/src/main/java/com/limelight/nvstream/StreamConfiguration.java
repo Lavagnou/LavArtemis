@@ -16,6 +16,7 @@ public class StreamConfiguration {
     private float launchRefreshRate;
     private boolean virtualDisplay;
     private boolean clientVrrRequested;
+    private boolean clientMicRequested;
     private int resolutionScaleFactor;
     private int clientRefreshRateX100;
     private int bitrate;
@@ -71,6 +72,13 @@ public class StreamConfiguration {
         // its virtual display at 1000 Hz). Hosts that do not know it ignore it.
         public StreamConfiguration.Builder setClientVrrRequested(boolean requested) {
             config.clientVrrRequested = requested;
+            return this;
+        }
+
+        // The user wants this device's microphone played into the host's virtual microphone.
+        // Only sent to the host when its serverinfo says it would be heard (NvConnection).
+        public StreamConfiguration.Builder setClientMicRequested(boolean requested) {
+            config.clientMicRequested = requested;
             return this;
         }
 
@@ -206,6 +214,8 @@ public class StreamConfiguration {
     public boolean getVirtualDisplay() { return virtualDisplay; }
 
     public boolean getClientVrrRequested() { return clientVrrRequested; }
+
+    public boolean getClientMicRequested() { return clientMicRequested; }
 
     public int getResolutionScaleFactor() { return resolutionScaleFactor; }
     

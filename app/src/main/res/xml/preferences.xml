@@ -291,6 +291,19 @@
             android:summary="@string/summary_checkbox_enable_audiofx"
             android:title="@string/title_checkbox_enable_audiofx"
             app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_mic_passthrough"
+            android:summary="@string/summary_checkbox_mic_passthrough"
+            android:title="@string/title_checkbox_mic_passthrough"
+            app:iconSpaceReserved="false" />
+        <ListPreference
+            android:defaultValue=""
+            android:dependency="checkbox_mic_passthrough"
+            android:key="list_mic_device"
+            android:summary="@string/summary_list_mic_device"
+            android:title="@string/title_list_mic_device"
+            app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <PreferenceCategory
