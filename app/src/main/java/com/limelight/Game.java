@@ -49,6 +49,9 @@ import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
 import com.limelight.utils.PanZoomHandler;
 import com.limelight.utils.PerformanceDataTracker;
+import com.limelight.benchmark.BenchmarkGameRun;
+import com.limelight.benchmark.BenchmarkSettings;
+import com.limelight.benchmark.BenchmarkTypes;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.SpinnerDialog;
@@ -223,6 +226,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private float lastAbsTouchDownX, lastAbsTouchDownY;
 
     private boolean quitOnStop = false;
+    // Set when BenchmarkActivity started this stream as one of its runs
+    private BenchmarkGameRun benchmarkRun;
     private boolean isHidingOverlays;
     private boolean floatingButtonShown;
     private boolean overlayToggleZoomButtonShown;
@@ -357,6 +362,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Read the stream preferences
         prefConfig = PreferenceConfiguration.readPreferences(this);
         tombstonePrefs = Game.this.getSharedPreferences("DecoderTombstone", 0);
+
+        // A benchmark run changes the settings of this stream only, in memory
+        benchmarkRun = BenchmarkGameRun.fromIntent(getIntent());
+        if (benchmarkRun != null) {
+            benchmarkRun.applyTo(prefConfig);
+        }
 
         if (prefConfig.fullScreen) {
             // Full-screen
@@ -1894,7 +1905,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 message += selectedVideoFormat;
             }
 
-            if (message != null) {
+            if (message != null && benchmarkRun == null) {
                 if (prefConfig.enableLatencyToast) {
                     Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                 }
@@ -1907,7 +1918,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         .putInt("LastNotifiedCrashCount", 0)
                         .apply();
             }
-            if(prefConfig.enablePerfLogging && decoderRenderer.performanceWasTracked()) {
+            if(prefConfig.enablePerfLogging && decoderRenderer.performanceWasTracked() && benchmarkRun == null) {
                 new PerformanceDataTracker().savePerformanceStatistics(
                         getBaseContext(),
                         Build.MODEL,
@@ -1927,6 +1938,17 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         }
 
+        finish();
+    }
+
+    /** The benchmark run measured all it needed: score it and leave, the app still running on the host. */
+    private void completeBenchmarkRun() {
+        BenchmarkTypes.RunConfig effective = new BenchmarkTypes.RunConfig(
+                BenchmarkSettings.codecOfVideoFormat(decoderRenderer.getActiveVideoFormat()),
+                prefConfig.bitrate,
+                BenchmarkSettings.pacingOf(prefConfig.enableUltraLowLatency, prefConfig.enablePacedUll,
+                        prefConfig.enablePredictivePacing, decoderRenderer.isVrrPacingActive(), prefConfig.vrrPacingMode));
+        benchmarkRun.complete(this, effective, prefConfig.fps);
         finish();
     }
 
@@ -3571,6 +3593,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     spinner = null;
                 }
 
+                if (benchmarkRun != null && !benchmarkRun.isDone()) {
+                    displayedFailureDialog = true;
+                    benchmarkRun.fail(Game.this, BenchmarkSettings.fromPreferences(prefConfig),
+                            "Starting " + stage + " failed: error " + errorCode + ".");
+                    finish();
+                    return;
+                }
+
                 if (!displayedFailureDialog) {
                     displayedFailureDialog = true;
                     LimeLog.severe(stage + " failed: " + errorCode);
@@ -3647,6 +3677,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 // Ungrab input
                 setInputGrabState(false);
+
+                // A benchmark run reports the failure and lets the benchmark carry on
+                if (benchmarkRun != null && !benchmarkRun.isDone() && !displayedFailureDialog) {
+                    displayedFailureDialog = true;
+                    stopConnection();
+                    benchmarkRun.fail(Game.this, BenchmarkSettings.fromPreferences(prefConfig),
+                            "The connection ended (error " + errorCode + ").");
+                    finish();
+                    return;
+                }
 
                 if (!displayedFailureDialog) {
                     displayedFailureDialog = true;
@@ -3755,6 +3795,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 connected = true;
                 connecting = false;
                 updatePipAutoEnter();
+
+                if (benchmarkRun != null) {
+                    benchmarkRun.start(timerHandler, () -> decoderRenderer.snapshotBenchmarkStats(), Game.this::completeBenchmarkRun);
+                }
 
                 // Hide the mouse cursor now after a short delay.
                 // Doing it before dismissing the spinner seems to be undone

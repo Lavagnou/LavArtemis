@@ -363,6 +363,43 @@ ms près) et bride le jeu au rythme du stream.
   - **Pas avec PyroWave** : son renderer Vulkan natif présente seul (FIFO) ; `VK_GOOGLE_display_timing`
     n'est pas branché.
 
+## 📊 Benchmark des réglages (LavApollo + les deux clients)
+
+Choisir codec, débit et pacing « au ressenti » est remplacé par une mesure : clic droit (desktop) ou appui
+long (Android) sur un hôte → **Benchmark**. Le client streame plusieurs fois de suite la **même scène
+animée**, servie par l'app cachée « Benchmark » de LavApollo (`tools/benchmark_scene.cpp`, fonction du seul
+numéro d'image), une combinaison par run, et note chaque run sur 100 en **latence** et en **fluidité** face
+aux réglages actuels, mesurés en premier et en dernier. Modes Rapide / Complet / Adaptatif, bouton
+« Appliquer », historique. **Spécification commune : `LavApollo/docs/benchmark.md`** (planification,
+mesures, formules, JSON) : les deux clients l'implémentent à l'identique et leurs tests vérifient les mêmes
+valeurs de référence.
+
+- **Protocole** : `serverinfo` donne `BenchmarkAppId` / `BenchmarkAppUuid` ; l'app n'apparaît pas dans
+  `/applist` sauf pendant qu'elle tourne. Aucun changement dans `moonlight-common-c`.
+- **Desktop** : `backend/benchmark/` + `gui/BenchmarkView.qml`, détails dans `desktop/CLAUDE.md`.
+- **Android** : `com.limelight.benchmark` (`BenchmarkPlanner`, `BenchmarkScoring`, `BenchmarkReport` : ports
+  ligne à ligne du C++, testés par `BenchmarkTest` / `BenchmarkControllerTest`), `BenchmarkActivity`, menu
+  `BENCHMARK_ID` de `PcView`.
+
+> ⚠️ **Android : chaque run est une activité `Game` normale**, lancée avec l'extra `BenchmarkRun` (JSON) que
+> `Game` applique à `prefConfig` **en mémoire**, juste après `readPreferences()`. Le run se mesure lui-même
+> (`BenchmarkGameRun`, calendrier sur `timerHandler`) et écrit son résultat dans
+> `files/benchmarks/runs/<id>.json` avant `finish()`. **Pas de `setResult()`** : `Game` est
+> `singleTask`/`noHistory`, ce qui rend `startActivityForResult()` peu fiable, et ses stats sont lues dans
+> `onStop`, après `finish()`. Pas de fichier pour un run = l'utilisateur l'a quitté = le benchmark s'arrête.
+
+> ⚠️ **Les stats Android du benchmark ont leurs propres compteurs** dans `MediaCodecDecoderRenderer`
+> (`bench*`, sous `benchLock`), publiés à chaque fenêtre d'1 s (`publishBenchmarkStats()`) : le décodage en µs
+> (les `VideoStats` sont en ms tronquées), et l'attente en file = du dequeue (noté par
+> `dequeueOutputBufferTimed()`) au **moment visé** par `releaseOutputBuffer` (`benchmarkPresented()`, à chaque
+> site de présentation). Tout nouveau chemin de présentation doit appeler `benchmarkPresented()`.
+
+- Android n'a pas d'étage « rendu » mesurable (SurfaceFlinger) et ne mesure pas PyroWave (décodé en natif,
+  hors des stats Java) : ses scores ne se comparent pas un pour un à ceux du desktop. Chaque rapport compare
+  ses propres runs.
+- « Appliquer » écrit dans le **profil actif** s'il y en a un, sinon dans les préférences de base : écrire les
+  préférences de base sous un profil serait masqué par lui (`OverlaySharedPreferences`).
+
 ## 🎤 Passthrough du micro (LavApollo + les deux clients)
 
 Le micro du client est joué par l'hôte dans un **micro virtuel** (Steam Streaming Microphone par
@@ -417,6 +454,7 @@ Requiert **Qt 6.11 + MSVC (VS2026)** et **WiX 7**. Sur Linux : `qmake6 lavartemi
 | `setpriority(-19)` thread audio | déjà fait en amont dans `Session::arDecodeAndPlaySample` | ✅ amont |
 | cap audio pending (`seekbar_max_pending_audio_ms`) | `ArtemisSettings::maxPendingAudioMs` (10–100 ms, défaut 30), lu par `sdlaud.cpp` **à la construction** → s'applique au stream suivant | ✅ porté |
 | `-O3 -flto` (`Android.mk`) | `moonlight-common-c/moonlight-common-c.pro` : `-GL` (MSVC, `*-msvc` pour couvrir arm64) / `-O3 -flto` (GCC/Clang) | ✅ porté |
+| Benchmark (`com.limelight.benchmark`, `BenchmarkActivity`) | `backend/benchmark/`, `gui/BenchmarkView.qml` | ✅ même spécification (`LavApollo/docs/benchmark.md`), mêmes valeurs de référence testées des deux côtés ; un run Android est une activité `Game`, un run desktop une `Session` détachée |
 | `checkbox_vrr_pacing` (`VrrPacing.java`) | Pacer VRR de Nonary (`pacer/vrrpacingworker.*`, `pacer/vrr/*`), réglage « VRR » à côté de la V-Sync | ✅ même principe ; le desktop est le port fidèle (présentation adaptative D3D11 avec tearing), l'Android une version compacte |
 | `checkbox_paced_ull` | ❌ **ne pas porter.** C'est un rattrapage Android : en ULL le renderer présente sans alignement vsync. Le desktop a déjà un vrai `IVsyncSource` (`DxVsyncSource` / Wayland presentation-time) derrière l'option **Frame pacing** de moonlight-qt — activer cette option *est* le mode pacé, en mieux (vsync réel, pas extrapolé). |
 | `checkbox_predictive_pacing` | ❌ **ne pas porter.** L'équivalent supposé (`SetMaximumFrameLatency(1)`) est **délibérément évité** en amont : cf. le commentaire de `d3d11va.cpp` (~l. 551) — avec `SyncInterval 0`, le fixer à 1 fait bloquer `Present()` sur DWM et **augmente** la latence. Le `+2 vsync` Android est un détail SurfaceFlinger sans équivalent. |

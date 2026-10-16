@@ -443,6 +443,16 @@ public class NvHTTP {
         // The MJOLNIR codename was used by GFE but never by any third-party server
         details.nvidiaServer = getXmlString(serverInfo, "state", true).contains("MJOLNIR");
 
+        // LavApollo's Benchmark app, absent when the host does not offer it
+        try {
+            String benchmarkId = getXmlString(serverInfo, "BenchmarkAppId", false);
+            details.benchmarkAppId = benchmarkId != null ? Integer.parseInt(benchmarkId.trim()) : 0;
+        } catch (NumberFormatException e) {
+            details.benchmarkAppId = 0;
+        }
+        details.benchmarkAppUuid = getXmlString(serverInfo, "BenchmarkAppUuid", false);
+        details.serverCodecModeSupport = getServerCodecModeSupport(serverInfo);
+
         // We could reach it so it's online
         details.state = ComputerDetails.State.ONLINE;
 

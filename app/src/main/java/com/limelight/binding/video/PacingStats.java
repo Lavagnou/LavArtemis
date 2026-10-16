@@ -1,5 +1,7 @@
 package com.limelight.binding.video;
 
+import com.limelight.benchmark.PresentHistogram;
+
 import java.util.Arrays;
 
 /**
@@ -15,6 +17,8 @@ final class PacingStats {
     private int writeIndex;
     private int count;
     private long lastPresentNs;
+    // Every interval since creation, for the benchmark; reset() leaves it alone
+    private final PresentHistogram histogram = new PresentHistogram();
 
     static final class Snapshot {
         float p50Ms;
@@ -29,6 +33,7 @@ final class PacingStats {
             // Ignore pathological samples (stream pauses, codec recovery)
             if (deltaNs > 0 && deltaNs < 1_000_000_000L) {
                 deltasMs[writeIndex] = deltaNs / 1_000_000.0f;
+                histogram.record(deltaNs / 1_000_000.0);
                 writeIndex = (writeIndex + 1) % WINDOW_SIZE;
                 if (count < WINDOW_SIZE) {
                     count++;
@@ -55,6 +60,10 @@ final class PacingStats {
         snap.p95Ms = sorted[Math.min(count - 1, (int) (count * 0.95f))];
         snap.p99Ms = sorted[Math.min(count - 1, (int) (count * 0.99f))];
         return snap;
+    }
+
+    synchronized PresentHistogram histogram() {
+        return new PresentHistogram(histogram);
     }
 
     synchronized void reset() {

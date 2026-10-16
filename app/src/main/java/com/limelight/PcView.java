@@ -137,6 +137,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     private final static int FULL_APP_LIST_ID = 9;
     private final static int TEST_NETWORK_ID = 10;
     private final static int GAMESTREAM_EOL_ID = 11;
+    private final static int BENCHMARK_ID = 12;
     private final static int OPEN_MANAGEMENT_PAGE_ID = 20;
     private final static int PAIR_ID_OTP = 21;
 
@@ -495,6 +496,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
             }
 
             menu.add(Menu.NONE, FULL_APP_LIST_ID, 4, getResources().getString(R.string.pcview_menu_app_list));
+            menu.add(Menu.NONE, BENCHMARK_ID, 4, getResources().getString(R.string.pcview_menu_benchmark));
         }
 
         menu.add(Menu.NONE, TEST_NETWORK_ID, 5, getResources().getString(R.string.pcview_menu_test_network));
@@ -846,6 +848,14 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
             case TEST_NETWORK_ID:
                 ServerHelper.doNetworkTest(PcView.this);
                 return true;
+
+            case BENCHMARK_ID: {
+                Intent benchmark = new Intent(PcView.this, BenchmarkActivity.class);
+                benchmark.putExtra(BenchmarkActivity.EXTRA_PC_UUID, computer.details.uuid);
+                benchmark.putExtra(BenchmarkActivity.EXTRA_PC_NAME, computer.details.name);
+                startActivity(benchmark);
+                return true;
+            }
 
             case GAMESTREAM_EOL_ID:
                 HelpLauncher.launchGameStreamEolFaq(PcView.this);

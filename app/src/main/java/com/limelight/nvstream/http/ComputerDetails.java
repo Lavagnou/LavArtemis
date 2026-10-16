@@ -89,6 +89,13 @@ public class ComputerDetails {
     // Server commands
     public List<String> serverCommands;
 
+    // LavApollo's hidden "Benchmark" app (docs/benchmark.md): 0 / null when not offered.
+    // Not in the app list: the benchmark launches it by these.
+    public int benchmarkAppId;
+    public String benchmarkAppUuid;
+    // ServerCodecModeSupport, for the benchmark to leave out codecs the host can't encode
+    public long serverCodecModeSupport;
+
     public ComputerDetails() {
         // Use defaults
         state = State.UNKNOWN;
@@ -165,6 +172,10 @@ public class ComputerDetails {
         this.vDisplaySupported = details.vDisplaySupported;
 
         this.serverCommands = details.serverCommands;
+
+        this.benchmarkAppId = details.benchmarkAppId;
+        this.benchmarkAppUuid = details.benchmarkAppUuid;
+        this.serverCodecModeSupport = details.serverCodecModeSupport;
     }
 
     @NonNull

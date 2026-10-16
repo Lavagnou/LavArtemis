@@ -1,5 +1,7 @@
 package com.limelight.binding.video;
 
+import com.limelight.benchmark.BenchmarkTypes;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -99,14 +101,17 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     long nextVsync = lastVsync + (((now - lastVsync) / period) + 1) * period;
                     if (nextVsync - now > 2_000_000L) {
                         videoDecoder.releaseOutputBuffer(bufferIndex, nextVsync);
+                        benchmarkPresented(bufferIndex, nextVsync);
                         return;
                     }
                 }
             }
             if (immediate) {
                 videoDecoder.releaseOutputBuffer(bufferIndex, true);
+                benchmarkPresented(bufferIndex, System.nanoTime());
             } else {
                 videoDecoder.releaseOutputBuffer(bufferIndex, frameTimeNanos);
+                benchmarkPresented(bufferIndex, Math.max(frameTimeNanos, now));
             }
         } catch (Throwable t) {
             try {
@@ -121,6 +126,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         int index = videoDecoder.dequeueOutputBuffer(info, timeoutUs);
         if (index >= 0) {
             lastOutputDequeuedNs = System.nanoTime();
+            synchronized (benchLock) {
+                benchDequeueNs[index & 0xFF] = lastOutputDequeuedNs;
+            }
         }
         return index;
     }
@@ -145,6 +153,19 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private final java.util.concurrent.atomic.AtomicLong pendingReleaseWorkNs = new java.util.concurrent.atomic.AtomicLong();
     private long inputBufferWaitNs; // submitting thread only
     private long lastOutputDequeuedNs; // renderer thread only
+
+    // Benchmark (com.limelight.benchmark): whole-session sums, published once per stats
+    // window as an immutable snapshot that Game reads from the UI thread
+    private final Object benchLock = new Object();
+    private final long[] benchDequeueNs = new long[256]; // by output buffer index
+    private long benchDecodeSumUs;
+    private long benchDecodedFrames;
+    private long benchQueueSumUs;
+    private long benchReceiveSumUs;
+    private double benchRttSumMs;
+    private double benchRttVarianceSumMs;
+    private long benchRttSamples;
+    private volatile BenchmarkTypes.RawStats benchPublished;
 
     // Frame pacing fluidity metrics (present-to-present interval percentiles)
     private final PacingStats pacingStats = new PacingStats();
@@ -176,6 +197,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             adpfHelper.reportFrameWorkDuration(pendingInputWorkNs.getAndSet(0) + pendingReleaseWorkNs.getAndSet(0) + outputWorkNs);
         }
         if (enqNs != null) {
+            long decNs = System.nanoTime() - enqNs;
+            if (decNs >= 0 && decNs < 1_000_000_000L) {
+                synchronized (benchLock) {
+                    benchDecodeSumUs += decNs / 1000;
+                    benchDecodedFrames++;
+                }
+            }
             long decMs = (System.nanoTime() - enqNs) / 1_000_000L;
             if (decMs >= 0 && decMs < 1000) {
                 activeWindowVideoStats.decoderTimeMs += decMs;
@@ -187,6 +215,62 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     }
 
     public void setPreferLowerDelays(boolean v) { this.preferLowerDelays = v; }
+
+    /**
+     * Benchmark: a frame handed to SurfaceFlinger to appear at targetNs. The time from its
+     * dequeue to that target is what pacing adds on this device: a vsync wait, two for
+     * predictive pacing, the learned delay for VRR pacing.
+     */
+    private void benchmarkPresented(int bufferIndex, long targetNs) {
+        synchronized (benchLock) {
+            long dequeuedNs = benchDequeueNs[bufferIndex & 0xFF];
+            if (dequeuedNs > 0 && targetNs >= dequeuedNs && targetNs - dequeuedNs < 1_000_000_000L) {
+                benchQueueSumUs += (targetNs - dequeuedNs) / 1000;
+            }
+        }
+    }
+
+    private void publishBenchmarkStats() {
+        long rttInfo = MoonBridge.getEstimatedRttInfo();
+        BenchmarkTypes.RawStats stats = new BenchmarkTypes.RawStats();
+        synchronized (benchLock) {
+            if (rttInfo != -1) {
+                benchRttSumMs += rttInfo >> 32;
+                benchRttVarianceSumMs += rttInfo & 0xFFFFFFFFL;
+                benchRttSamples++;
+            }
+            stats.decodeSumUs = benchDecodeSumUs;
+            stats.framesDecoded = benchDecodedFrames;
+            stats.queueSumUs = benchQueueSumUs;
+            stats.receiveSumUs = benchReceiveSumUs;
+            stats.rttSumMs = benchRttSumMs;
+            stats.rttVarianceSumMs = benchRttVarianceSumMs;
+            stats.rttSamples = benchRttSamples;
+        }
+        // A clock: runs subtract two of them
+        stats.elapsedUs = System.nanoTime() / 1000.0;
+        stats.framesTotal = globalVideoStats.totalFrames;
+        stats.framesNetworkLost = globalVideoStats.framesLost;
+        stats.framesReceived = globalVideoStats.totalFramesReceived;
+        stats.framesRendered = globalVideoStats.totalFramesRendered;
+        stats.hostLatencySum = globalVideoStats.totalHostProcessingLatency;
+        stats.hostLatencyFrames = globalVideoStats.framesWithHostProcessingLatency;
+        stats.presents = pacingStats.histogram();
+        benchPublished = stats;
+    }
+
+    /**
+     * Benchmark: everything measured since the stream started, as of the last stats window
+     * (about once a second); null before the first one. Any thread.
+     */
+    public BenchmarkTypes.RawStats snapshotBenchmarkStats() {
+        return benchPublished;
+    }
+
+    /** Whether frames are being paced by VRR pacing (it never runs with PyroWave). */
+    public boolean isVrrPacingActive() {
+        return vrrPacing != null;
+    }
 
 
     private static final boolean USE_FRAME_RENDER_TIME = false;
@@ -1231,10 +1315,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                             releaseWithPolicy(nextOutputBuffer, System.nanoTime());} else if (predictiveVsyncRelease && cachedDisplayVsyncPeriodNs > 0) {
                             // Schedule 2 vsyncs out so SurfaceFlinger honors the timestamp exactly
                             videoDecoder.releaseOutputBuffer(nextOutputBuffer, frameTimeNanos + 2 * cachedDisplayVsyncPeriodNs);
+                            benchmarkPresented(nextOutputBuffer, frameTimeNanos + 2 * cachedDisplayVsyncPeriodNs);
                             pacingStats.recordPresent(System.nanoTime());
                         } else {
                             // Smooth/Balanced: keep timestamp scheduling
                             videoDecoder.releaseOutputBuffer(nextOutputBuffer, frameTimeNanos);
+                            benchmarkPresented(nextOutputBuffer, Math.max(frameTimeNanos, System.nanoTime()));
                             pacingStats.recordPresent(System.nanoTime());
                         }
 
@@ -1328,6 +1414,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                 // A target already behind us means "as soon as possible"
                 videoDecoder.releaseOutputBuffer(outIndex, Math.max(targetNs, nowNs));
+                benchmarkPresented(outIndex, Math.max(targetNs, nowNs));
                 pacingStats.recordPresent(Math.max(targetNs, nowNs));
                 activeWindowVideoStats.totalFramesRendered++;
                 updateDecodeLatencyStats(info.presentationTimeUs);
@@ -1526,7 +1613,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                             // ULL: present at next VSYNC (no scheduling)
                                             releaseWithPolicy(lastIndex, System.nanoTime());} else {
                                             // Smooth/Balanced: keep timestamp scheduling
-                                            videoDecoder.releaseOutputBuffer(lastIndex, nowNs);
+                                            videoDecoder.releaseOutputBuffer(lastIndex, nowNs); benchmarkPresented(lastIndex, nowNs);
                                         }
 
                                         lastPresentNs = nowNs;
@@ -1599,7 +1686,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                             // ULL: present at next VSYNC (no scheduling)
                                             releaseWithPolicy(lastIndex, System.nanoTime());} else {
                                             // Smooth/Balanced: keep timestamp scheduling
-                                            videoDecoder.releaseOutputBuffer(lastIndex, nowNs);
+                                            videoDecoder.releaseOutputBuffer(lastIndex, nowNs); benchmarkPresented(lastIndex, nowNs);
                                         }
 
                                         lastPresentNs = nowNs;
@@ -2246,6 +2333,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 }
             }
             globalVideoStats.add(activeWindowVideoStats);
+            publishBenchmarkStats();
             lastWindowVideoStats.copy(activeWindowVideoStats);
             activeWindowVideoStats.clear();
             activeWindowVideoStats.measurementStartTimestamp = SystemClock.uptimeMillis();
@@ -2480,6 +2568,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // We will count DU queue time as part of decoding, because it is directly
             // caused by a slow decoder.
             activeWindowVideoStats.totalTimeMs += enqueueTimeMs - receiveTimeMs;
+        }
+        synchronized (benchLock) {
+            benchReceiveSumUs += Math.max(0, enqueueTimeMs - receiveTimeMs) * 1000;
         }
 
         if (!fetchNextInputBuffer()) {
