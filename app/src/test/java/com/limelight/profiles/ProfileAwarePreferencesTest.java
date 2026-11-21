@@ -84,6 +84,20 @@ public class ProfileAwarePreferencesTest {
         assertTrue(manager.getOverlayingSharedPreferences(context).getBoolean(KEY, false));
     }
 
+    @Test
+    public void profileWriteSurvivesReload() {
+        Map<String, Object> options = new LinkedHashMap<>();
+        options.put(KEY, false);
+        activate(options);
+
+        ProfileAwarePreferences.putBoolean(context, KEY, true);
+
+        ProfilesManager.instance = null;
+        ProfilesManager fresh = ProfilesManager.getInstance();
+        fresh.load(context);
+        assertEquals(Boolean.TRUE, fresh.getActive().getOptions().get(KEY));
+    }
+
     private void activate(Map<String, Object> options) {
         long now = System.currentTimeMillis();
         SettingsProfile p = new SettingsProfile(UUID.randomUUID(), "Active", now, now, options);

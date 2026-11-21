@@ -310,7 +310,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private boolean onExternelDisplay = false;
     private ImageButton floatingMenuButton;
     private VoicePttButton voicePttButton;
-    private boolean voicePttButtonShownBeforePip;
     // The key left of 1, as a US-normalized VK (VK_OEM_3): the host turns it into scancode 0x29,
     // which its own layout reads as ² on AZERTY. VK_OEM_7, what a French Android keyboard
     // produces for ², would land on another key.
@@ -1097,14 +1096,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         voicePttButton = new VoicePttButton(button, shield, PreferenceManager.getDefaultSharedPreferences(this),
                 new VoicePttButton.KeySender() {
                     @Override
-                    public void keyDown() {
-                        if (conn != null) {
-                            conn.sendKeyboardInput(VOICE_PTT_KEY, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+                    public boolean keyDown() {
+                        // Not once stopConnection() has begun: conn.stop() tears the bridge down on
+                        // another thread. A refused press sends no release either.
+                        if (conn == null || !connected) {
+                            return false;
                         }
+                        conn.sendKeyboardInput(VOICE_PTT_KEY, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+                        return true;
                     }
 
                     @Override
                     public void keyUp() {
+                        // Not gated on `connected`: stopConnection() clears it before releasing the
+                        // key, and that release must still go out
                         if (conn != null) {
                             conn.sendKeyboardInput(VOICE_PTT_KEY, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
                         }
@@ -1334,9 +1339,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     floatingMenuButton.setVisibility(View.GONE);
                 }
 
-                voicePttButtonShownBeforePip = isVoicePttButtonShown();
-                if (voicePttButtonShownBeforePip) {
-                    voicePttButton.setShown(false);
+                if (voicePttButton != null) {
+                    voicePttButton.hideForOverlays();
                 }
 
                 overlayToggleZoomButtonShown = overlayToggleButton != null && overlayToggleButton.isShown();
@@ -1375,8 +1379,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     floatingMenuButton.setVisibility(View.VISIBLE);
                 }
 
-                if (voicePttButtonShownBeforePip && voicePttButton != null) {
-                    voicePttButton.setShown(true);
+                if (voicePttButton != null) {
+                    voicePttButton.restoreAfterOverlays();
                 }
 
                 if (overlayToggleZoomButtonShown) {

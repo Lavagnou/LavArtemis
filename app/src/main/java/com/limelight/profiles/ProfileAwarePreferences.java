@@ -25,8 +25,8 @@ public final class ProfileAwarePreferences {
             options.put(key, value);
             active.setOptions(options);
             active.setModifiedUtc(System.currentTimeMillis());
+            // update() writes the profiles file itself (saveIfPossible)
             profiles.update(active);
-            profiles.save(context);
             return;
         }
         PreferenceManager.getDefaultSharedPreferences(context).edit().putBoolean(key, value).apply();

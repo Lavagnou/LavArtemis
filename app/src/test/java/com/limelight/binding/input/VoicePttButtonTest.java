@@ -25,7 +25,8 @@ import static org.junit.Assert.assertTrue;
 public class VoicePttButtonTest {
     private static final class RecordingSender implements VoicePttButton.KeySender {
         int downs, ups;
-        @Override public void keyDown() { downs++; }
+        boolean accept = true;
+        @Override public boolean keyDown() { if (accept) downs++; return accept; }
         @Override public void keyUp() { ups++; }
     }
 
@@ -139,6 +140,44 @@ public class VoicePttButtonTest {
         assertEquals(View.GONE, shield.getVisibility());
         assertTrue(prefs.getFloat("voice_ptt_button_x", -1f) >= 0f);
         assertTrue(prefs.getFloat("voice_ptt_button_y", -1f) >= 0f);
+    }
+
+    @Test
+    public void refusedPressSendsNoRelease() {
+        // The connection is going away: the press is not sent, so its release must not be either
+        s.accept = false;
+        down();
+        up();
+        c.releaseKey();
+        assertEquals(0, s.downs);
+        assertEquals(0, s.ups);
+        assertEquals(0.5f, button.getAlpha(), 0.01f);
+    }
+
+    @Test
+    public void overlaysHiddenTwiceStillComeBack() {
+        // PiP can report its configuration change more than once: the second hide must not
+        // forget that the button was shown
+        c.setShown(true);
+        c.hideForOverlays();
+        c.hideForOverlays();
+        c.restoreAfterOverlays();
+        assertTrue(c.isShown());
+    }
+
+    @Test
+    public void restoreAfterOverlaysKeepsAHiddenButtonHidden() {
+        c.hideForOverlays();
+        c.restoreAfterOverlays();
+        assertFalse(c.isShown());
+    }
+
+    @Test
+    public void hideForOverlaysReleasesKey() {
+        c.setShown(true);
+        down();
+        c.hideForOverlays();
+        assertEquals(1, s.ups);
     }
 
     @Test

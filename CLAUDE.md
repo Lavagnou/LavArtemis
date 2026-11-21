@@ -147,6 +147,16 @@ Réglage `checkbox_voice_ptt_button` (*UI Settings*, défaut off) + entrées « 
 > `onWindowFocusChanged(false)`, `onPause()`, `stopConnection()` (**avant** l'arrêt de la connexion,
 > comme le micro), masquage et passage en mode déplacement. Tout nouveau chemin de sortie doit faire
 > pareil.
+>
+> ⚠️ **Appui et relâché ne sont pas gardés pareil.** `KeySender.keyDown()` refuse (et renvoie
+> `false`) dès que `connected` est faux, et un appui refusé n'envoie **aucun** relâché. `keyUp()`, lui,
+> ne teste que `conn != null` : `stopConnection()` remet `connected` à faux *avant* de relâcher la
+> touche, et ce relâché-là doit partir.
+>
+> ⚠️ **PiP : `hideForOverlays()` / `restoreAfterOverlays()`, jamais un instantané dans `Game`.** Le
+> changement de configuration du PiP peut arriver plusieurs fois ; un second instantané lisait le bouton
+> déjà masqué et il ne revenait plus. L'appel est idempotent côté contrôleur. (Le bouton menu flottant
+> hérité, `floatingButtonShown`, a toujours ce défaut.)
 
 > 📋 **Déplacement par un mode du menu, pas par glisser direct** : l'appui long sert déjà à dicter.
 > En mode déplacement, un « bouclier » plein écran (`voicePttMoveShield`) capte le toucher de

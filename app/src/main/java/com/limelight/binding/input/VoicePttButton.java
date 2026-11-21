@@ -22,7 +22,8 @@ import com.limelight.R;
  */
 public class VoicePttButton {
     public interface KeySender {
-        void keyDown();
+        /** @return false when the press could not be sent (no live connection): no release follows. */
+        boolean keyDown();
         void keyUp();
     }
 
@@ -40,6 +41,9 @@ public class VoicePttButton {
 
     private boolean keyDown;
     private boolean moving;
+    // Hidden with the other overlays (PiP); remembers whether to come back
+    private boolean hiddenForOverlays;
+    private boolean shownBeforeOverlays;
     private float dragDX, dragDY;
 
     public VoicePttButton(ImageButton button, View moveShield, SharedPreferences basePrefs, KeySender sender) {
@@ -65,6 +69,30 @@ public class VoicePttButton {
 
     public boolean isShown() {
         return button.getVisibility() == View.VISIBLE;
+    }
+
+    /**
+     * Hides the button with the other overlays (PiP). Idempotent: PiP can report its
+     * configuration change several times, and a second call must not record "hidden" as the
+     * state to come back to.
+     */
+    public void hideForOverlays() {
+        if (hiddenForOverlays) {
+            return;
+        }
+        hiddenForOverlays = true;
+        shownBeforeOverlays = isShown();
+        setShown(false);
+    }
+
+    public void restoreAfterOverlays() {
+        if (!hiddenForOverlays) {
+            return;
+        }
+        hiddenForOverlays = false;
+        if (shownBeforeOverlays) {
+            setShown(true);
+        }
     }
 
     public void beginMove() {
@@ -138,10 +166,9 @@ public class VoicePttButton {
             }
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
-                    if (!keyDown) {
+                    if (!keyDown && sender.keyDown()) {
                         keyDown = true;
                         button.setAlpha(ALPHA_ACTIVE);
-                        sender.keyDown();
                     }
                     break;
                 case MotionEvent.ACTION_UP:
