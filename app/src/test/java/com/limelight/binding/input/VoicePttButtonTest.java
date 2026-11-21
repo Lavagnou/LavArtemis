@@ -142,6 +142,18 @@ public class VoicePttButtonTest {
     }
 
     @Test
+    public void rotationDuringMoveLeavesButtonOnScreen() {
+        c.beginMove();
+        button.setX(1700f); // right edge in landscape
+        FrameLayout parent = (FrameLayout) button.getParent();
+        parent.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY));
+        parent.layout(0, 0, 1080, 1920); // rotated to portrait mid-move
+        tapShield();
+        assertTrue(button.getX() <= 1080 - 150);
+    }
+
+    @Test
     public void alphaFollowsPress() {
         c.setShown(true);
         assertEquals(0.5f, button.getAlpha(), 0.01f);

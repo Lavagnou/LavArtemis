@@ -93,6 +93,9 @@ public class VoicePttButton {
         button.setBackgroundResource(R.drawable.floating_menu_button);
         button.setAlpha(ALPHA_IDLE);
         moveShield.setVisibility(View.GONE);
+        // The screen may have rotated mid-move (the layout listener skips moving buttons):
+        // place the view from the clamped fraction, or it can stay past the new edge
+        reapplyPosition();
     }
 
     public void releaseKey() {
