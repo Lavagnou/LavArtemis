@@ -14,6 +14,7 @@ import com.limelight.binding.audio.MicrophoneStreamer;
 import com.limelight.binding.input.ControllerHandler;
 import com.limelight.binding.input.GameInputDevice;
 import com.limelight.binding.input.KeyboardTranslator;
+import com.limelight.binding.input.VoicePttButton;
 import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
@@ -40,6 +41,7 @@ import com.limelight.nvstream.input.MouseButtonPacket;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.GlPreferences;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.profiles.ProfileAwarePreferences;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.ui.ExternalControllerView;
 import com.limelight.ui.GameGestures;
@@ -307,6 +309,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public boolean allowChangeMouseMode = true;
     private boolean onExternelDisplay = false;
     private ImageButton floatingMenuButton;
+    private VoicePttButton voicePttButton;
+    private boolean voicePttButtonShownBeforePip;
+    // The key left of 1, as a US-normalized VK (VK_OEM_3): the host turns it into scancode 0x29,
+    // which its own layout reads as ² on AZERTY. VK_OEM_7, what a French Android keyboard
+    // produces for ², would land on another key.
+    private static final short VOICE_PTT_KEY = (short) 0xC0;
     private ImageButton overlayToggleButton;
     private float floatingButtonDX, floatingButtonDY;
     private boolean isButtonMoving = false;
@@ -928,6 +936,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         floatingMenuButton = findViewById(R.id.floatingMenuButton);
         updateFloatingButtonVisibility(prefConfig.enableBackMenu && prefConfig.enableFloatingButton);
         initFloatingButton();
+        initVoicePttButton();
 
         overlayToggleButton = findViewById(R.id.overlayToggleZoomButton);
         setupOverlayToggleButton();
@@ -1077,6 +1086,71 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private void handleDisplayRemoved() {
         NotificationManagerCompat.from(getBaseContext()).cancel(SECONDARY_SCREEN_NOTIFICATION_ID);
         closeExternalDisplayControl();
+    }
+
+    private void initVoicePttButton() {
+        ImageButton button = findViewById(R.id.voicePttButton);
+        View shield = findViewById(R.id.voicePttMoveShield);
+        if (button == null || shield == null) {
+            return;
+        }
+        voicePttButton = new VoicePttButton(button, shield, PreferenceManager.getDefaultSharedPreferences(this),
+                new VoicePttButton.KeySender() {
+                    @Override
+                    public void keyDown() {
+                        if (conn != null) {
+                            conn.sendKeyboardInput(VOICE_PTT_KEY, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+                        }
+                    }
+
+                    @Override
+                    public void keyUp() {
+                        if (conn != null) {
+                            conn.sendKeyboardInput(VOICE_PTT_KEY, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+                        }
+                    }
+                });
+
+        // Rotation and window resizes: put the button back at its stored place
+        View parent = (View) button.getParent();
+        if (parent != null) {
+            parent.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+                if ((r - l != or - ol || b - t != ob - ot) && !voicePttButton.isMoving()) {
+                    voicePttButton.reapplyPosition();
+                }
+            });
+        }
+
+        voicePttButton.setShown(prefConfig.enableVoicePttButton);
+    }
+
+    public boolean isVoicePttButtonShown() {
+        return voicePttButton != null && voicePttButton.isShown();
+    }
+
+    public void toggleVoicePttButton() {
+        if (voicePttButton == null) {
+            return;
+        }
+        boolean shown = !voicePttButton.isShown();
+        voicePttButton.setShown(shown);
+        prefConfig.enableVoicePttButton = shown;
+        ProfileAwarePreferences.putBoolean(this, PreferenceConfiguration.CHECKBOX_VOICE_PTT_BUTTON, shown);
+    }
+
+    public void startMovingVoicePttButton() {
+        if (voicePttButton == null || !voicePttButton.isShown()) {
+            return;
+        }
+        hideGameMenu();
+        voicePttButton.beginMove();
+        Toast.makeText(this, R.string.voice_ptt_move_hint, Toast.LENGTH_SHORT).show();
+    }
+
+    private void releaseVoicePttKey() {
+        if (voicePttButton != null) {
+            voicePttButton.releaseKey();
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -1260,6 +1334,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     floatingMenuButton.setVisibility(View.GONE);
                 }
 
+                voicePttButtonShownBeforePip = isVoicePttButtonShown();
+                if (voicePttButtonShownBeforePip) {
+                    voicePttButton.setShown(false);
+                }
+
                 overlayToggleZoomButtonShown = overlayToggleButton != null && overlayToggleButton.isShown();
 
                 if (overlayToggleZoomButtonShown) {
@@ -1294,6 +1373,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 if (floatingButtonShown) {
                     floatingMenuButton.setVisibility(View.VISIBLE);
+                }
+
+                if (voicePttButtonShownBeforePip && voicePttButton != null) {
+                    voicePttButton.setShown(true);
                 }
 
                 if (overlayToggleZoomButtonShown) {
@@ -1451,6 +1534,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // We can't guarantee the state of modifiers keys which may have
         // lifted while focus was not on us. Clear the modifier state.
         this.modifierFlags = 0;
+
+        // A finger on the voice button when focus goes (menu, notification shade) may never
+        // deliver its ACTION_UP: never leave the host's push-to-talk key held
+        if (!hasFocus) {
+            releaseVoicePttKey();
+        }
 
         // With Android native pointer capture, capture is lost when focus is lost,
         // so it must be requested again when focus is regained.
@@ -1830,6 +1919,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     protected void onPause() {
+        releaseVoicePttKey();
+
         if (isFinishing()) {
             // Stop any further input device notifications before we lose focus (and pointer capture)
             if (controllerHandler != null) {
@@ -3547,6 +3638,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // The microphone sends through the connection: stop it before the connection goes
             stopMicrophone();
 
+            // Same for the voice button's key: let it go while the connection can still carry it
+            releaseVoicePttKey();
+
             controllerHandler.stop();
 
             // Update GameManager state to indicate we're no longer in game
@@ -4101,6 +4195,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
+        if (voicePttButton != null && voicePttButton.isMoving()) {
+            voicePttButton.endMove();
+            return;
+        }
         if(prefConfig.enableBackMenu){
             showGameMenu(null);
             return;
@@ -4417,6 +4515,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void showGameMenu(GameInputDevice device) {
+        releaseVoicePttKey();
         if(isOnExternalDisplay()) {
             ExternalDisplayControlActivity.toggleGameMenu();
         } else {

@@ -469,6 +469,13 @@
     <string name="summary_quit_dialog">When enabled, clicking the physical back button on the streaming interface will show related options!\nSoft keyboard, performance information, touch mode switching, send special keys</string>
     <string name="title_floating_button">Floating Button</string>
     <string name="summary_floating_button">Enable floating button</string>
+    <string name="title_voice_ptt_button">Voice push-to-talk button</string>
+    <string name="summary_voice_ptt_button">Shows a microphone button while streaming. Holding it holds the host\'s ² key (left of 1), for a dictation tool on the PC.</string>
+    <string name="voice_ptt_button">Voice push-to-talk</string>
+    <string name="game_menu_show_voice_ptt_button">Show voice button</string>
+    <string name="game_menu_hide_voice_ptt_button">Hide voice button</string>
+    <string name="game_menu_move_voice_ptt_button">Move voice button</string>
+    <string name="voice_ptt_move_hint">Drag the button, then tap elsewhere to confirm</string>
     <string name="dialog_custom_resolution">Set the resolution and exit the settings page to take effect!</string>
     <string name="summary_custom_resolution">Add a custom resolution, separated by x, strange resolutions may not work.\nFor example: 1920x1080\nIf it is a non-native resolution, it may not fill the notch area by default. If the aspect ratio is the same, you can manually set to stretch the screen to fill the full screen</string>
     <string name="title_custom_resolution">Custom Resolution</string>

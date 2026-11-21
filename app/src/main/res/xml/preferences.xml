@@ -617,6 +617,12 @@
             android:title="@string/title_floating_button"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_voice_ptt_button"
+            android:summary="@string/summary_voice_ptt_button"
+            android:title="@string/title_voice_ptt_button"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
             android:key="checkbox_full_screen"
             android:title="@string/title_checkbox_full_screen"
             android:summary="@string/summary_checkbox_full_screen"

@@ -128,6 +128,33 @@ C'est ici que réside l'essentiel du travail spécifique au fork (performances /
 
 Toutes ces options sont exposées dans **`app/src/main/res/xml/preferences.xml`** (Advanced Settings).
 
+## 🎙️ Bouton vocal push-to-talk (Android)
+
+Un bouton micro semi-transparent pendant le stream (bas à droite par défaut) : **tant qu'on le tient,
+la touche ² de l'hôte reste enfoncée**, pour un outil de dictée côté PC qui écoute ² en push-to-talk.
+`binding/input/VoicePttButton.java` (machine à états, testée par `VoicePttButtonTest`),
+`VoicePttButtonPosition.java` (maths de position), branchement dans `Game.initVoicePttButton()`.
+Réglage `checkbox_voice_ptt_button` (*UI Settings*, défaut off) + entrées « Afficher / Masquer » et
+« Déplacer » du menu en jeu.
+
+> ⚠️ **La touche envoyée est `VK_OEM_3` (0xC0), pas `VK_OEM_7`.** Le client envoie des VK
+> *normalisés clavier US* ; l'hôte en fait un scancode (0x29 ici), et c'est **la disposition du PC**
+> qui le lit comme ². `VK_OEM_7` est ce que produit un ² tapé sur un clavier Android français : envoyé
+> tel quel, il tombe sur une autre touche et la dictée ne réagit pas.
+
+> ⚠️ **La seule panne grave est une touche laissée enfoncée** — la dictée tournerait sans fin.
+> `releaseKey()` est idempotent et appelé partout où le doigt peut se perdre : `showGameMenu()`,
+> `onWindowFocusChanged(false)`, `onPause()`, `stopConnection()` (**avant** l'arrêt de la connexion,
+> comme le micro), masquage et passage en mode déplacement. Tout nouveau chemin de sortie doit faire
+> pareil.
+
+> 📋 **Déplacement par un mode du menu, pas par glisser direct** : l'appui long sert déjà à dicter.
+> En mode déplacement, un « bouclier » plein écran (`voicePttMoveShield`) capte le toucher de
+> validation pour qu'il n'atteigne pas le stream. La position est stockée en **fraction de l'écran**
+> dans les préférences **de base** (propre à l'appareil, pas au profil) ; la visibilité passe par
+> `ProfileAwarePreferences.putBoolean()`, qui écrit dans le profil actif s'il porte la clé — sinon
+> `OverlaySharedPreferences.edit()` l'écrirait dans les prefs de base, masquées par le profil.
+
 ## 🔧 Code natif / JNI
 
 - Build : **ndk-build** (`app/src/main/jni/Android.mk` aggregator ; `Application.mk` : `APP_PLATFORM android-21`, support des pages 16 KB).

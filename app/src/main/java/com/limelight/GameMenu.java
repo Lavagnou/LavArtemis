@@ -317,6 +317,15 @@ public class GameMenu implements Game.GameMenuCallbacks {
         options.add(new MenuOption(getString(R.string.game_menu_toggle_keyboard), true,
                 game::toggleKeyboard));
 
+        options.add(new MenuOption(getString(game.isVoicePttButtonShown() ?
+                R.string.game_menu_hide_voice_ptt_button : R.string.game_menu_show_voice_ptt_button), true,
+                game::toggleVoicePttButton));
+
+        if (game.isVoicePttButtonShown()) {
+            options.add(new MenuOption(getString(R.string.game_menu_move_voice_ptt_button), true,
+                    game::startMovingVoicePttButton));
+        }
+
         if (game.isMicrophoneActive()) {
             options.add(new MenuOption(getString(game.isMicrophoneMuted() ?
                     R.string.game_menu_unmute_microphone : R.string.game_menu_mute_microphone), true,

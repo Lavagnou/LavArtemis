@@ -116,4 +116,28 @@
         android:visibility="gone"
         android:elevation="9999dp" />
 
+    <!-- Catches the "confirm" tap while the voice button is being moved, so it never reaches the stream -->
+    <View
+        android:id="@+id/voicePttMoveShield"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="false"
+        android:visibility="gone"
+        android:elevation="9997dp" />
+
+    <!-- Voice push-to-talk: held = the host's ² key held (VoicePttButton) -->
+    <ImageButton
+        android:id="@+id/voicePttButton"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="top|start"
+        android:background="@drawable/floating_menu_button"
+        android:src="@drawable/ic_voice_ptt"
+        android:padding="14dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/voice_ptt_button"
+        android:visibility="gone"
+        android:elevation="9998dp" />
+
 </merge>
