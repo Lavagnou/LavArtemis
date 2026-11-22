@@ -184,15 +184,20 @@ défaut off). `binding/input/touch/TrackpadZoomController.java` orchestre ; `Tra
 
 > ⚠️ **Un pincement décidé possède tout le geste** : `PinchArbiter` tranche au début (l'écart entre les
 > doigts change avant que le centre bouge), puis `cancelTouch()` sur les contextes — sinon le
-> défilement ou le clic droit à deux doigts partiraient pendant le zoom. Le seuil (24 px) doit rester
-> sous les seuils de défilement des contextes (20/30 px *par doigt*, qu'un pincement atteint à la
-> moitié de la vitesse de l'écart).
+> défilement ou le clic droit à deux doigts partiraient pendant le zoom. **Tant que ce n'est pas
+> décidé, les mouvements à deux doigts sont retenus** (pas transmis aux contextes) : le contexte gaming
+> confirme un défilement dès le premier mouvement si le doigt 0 bougeait déjà, et défilait donc avant
+> que le pincement soit reconnu. Un défilement décidé ensuite rattrape son retard au mouvement suivant,
+> les contextes calculant depuis leur dernière position. Et **`lastSpan` repart de zéro** à chaque
+> doigt posé ou levé pendant un pincement, sinon reposer un doigt plus près fait s'effondrer le zoom.
 
 > 📋 **Le suivi ne se déclenche que sur un mouvement du curseur**, jamais sur un pincement : on peut
 > zoomer loin du curseur, la vue le rattrape au prochain mouvement. Il vaut pour **tout** zoom > 1×
 > (pincement, mode zoom du menu, zoom retenu). En mode tactile, retour à 1× à l'entrée (zoom retenu
-> compris, `Game` le refait après la restauration différée) ; un toucher absolu resynchronise la
-> position tenue. Option off = aucun `MouseMover`, aucune interception : comportement d'avant.
+> compris, `Game` le refait après la restauration différée) ; un toucher absolu (`AbsoluteTouchContext`,
+> modes 1/5, ou mode 0 sans support tactile côté hôte) resynchronise la position tenue. **Le mode 0 en
+> toucher natif ne la resynchronise pas** : on ne sait pas si l'injection tactile de Windows déplace le
+> curseur, et recaler sur une supposition ferait viser faux. Option off = aucun `MouseMover`, aucune interception : comportement d'avant.
 
 > ⚠️ **Bug possible hérité, hors périmètre** : `getNormalizedCoordinates(streamContainer, …)` lit
 > l'échelle du **conteneur**, alors que `PanZoomHandler` zoome la `SurfaceView` : sous le mode zoom du

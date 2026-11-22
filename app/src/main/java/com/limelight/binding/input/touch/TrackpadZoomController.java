@@ -93,6 +93,8 @@ public class TrackpadZoomController implements MouseMover {
 
             case MotionEvent.ACTION_POINTER_DOWN:
                 if (pinching) {
+                    // A new pair of fingers: measure its span afresh, or the zoom jumps
+                    lastSpan = 0;
                     return true;
                 }
                 if (pointerCount == 2 && !twoFingerGesture) {
@@ -112,18 +114,26 @@ public class TrackpadZoomController implements MouseMover {
                     }
                     return true;
                 }
-                if (twoFingerGesture && pointerCount == 2
-                        && arbiter.update(x0, y0, x1, y1) == PinchArbiter.Decision.PINCH) {
-                    pinching = true;
-                    canceller.cancelAll();
-                    scaleBy(x0, y0, x1, y1);
-                    return true;
+                if (twoFingerGesture && pointerCount == 2) {
+                    PinchArbiter.Decision d = arbiter.update(x0, y0, x1, y1);
+                    if (d == PinchArbiter.Decision.PINCH) {
+                        pinching = true;
+                        canceller.cancelAll();
+                        scaleBy(x0, y0, x1, y1);
+                        return true;
+                    }
+                    // Hold moves back until the gesture is known: the gaming context would
+                    // already scroll. Contexts work from their last seen position, so a scroll
+                    // decided later catches up on its next move.
+                    return d == PinchArbiter.Decision.UNDECIDED;
                 }
                 return false;
 
             case MotionEvent.ACTION_POINTER_UP:
                 if (!pinching) {
                     twoFingerGesture = false;
+                } else {
+                    lastSpan = 0;
                 }
                 return pinching;
 

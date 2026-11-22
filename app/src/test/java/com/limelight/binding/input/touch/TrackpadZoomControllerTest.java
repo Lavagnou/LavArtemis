@@ -143,6 +143,25 @@ public class TrackpadZoomControllerTest {
         assertEquals(0, k.cancels);
     }
 
+    @Test
+    public void fingerPutBackMidPinchDoesNotJumpZoom() {
+        pinch();                                                  // fingers 240 px apart
+        float zoomed = v.scale;
+        c.onTouch(ACTION_POINTER_UP, 2, 380, 500, 620, 500);
+        c.onTouch(ACTION_POINTER_DOWN, 2, 380, 500, 480, 500);   // put back 100 px away
+        c.onTouch(ACTION_MOVE, 2, 380, 500, 480, 500);           // first move of the new pair
+        assertEquals(zoomed, v.scale, 0.01f);
+    }
+
+    @Test
+    public void undecidedTwoFingerMovesAreHeldBack() {
+        // Until the gesture is known, the contexts must not see moves: a gaming-mode context
+        // would already be scrolling
+        c.onTouch(ACTION_POINTER_DOWN, 2, 400, 500, 600, 500);
+        assertTrue(c.onTouch(ACTION_MOVE, 2, 395, 500, 605, 500));
+        assertEquals(0, k.cancels);
+    }
+
     private void pinch() {
         c.onTouch(ACTION_POINTER_DOWN, 2, 400, 500, 600, 500);
         c.onTouch(ACTION_MOVE, 2, 380, 500, 620, 500);
