@@ -213,6 +213,9 @@ public class StreamConfiguration {
 
     public boolean getVirtualDisplay() { return virtualDisplay; }
 
+    /** The launch rate as a plain number (getLaunchRefreshRate() encodes fractional rates x1000). */
+    public float getLaunchRefreshRateValue() { return launchRefreshRate; }
+
     /**
      * Stream at the host display's mode (HostDisplayFit): its aspect, fitted inside this
      * configuration's size, at no more frames than it produces. The client's exact (possibly

@@ -50,6 +50,8 @@ public class NvConnection {
     private ConnectionContext context;
     // LavApollo's captured display mode at connection time, or null (other hosts)
     private int[] hostDisplayMode;
+    // The stream size/rate the client asked for, before any host display fit (HostDisplayWatch)
+    private int settingWidth, settingHeight, settingFps;
     private static Semaphore connectionAllowed = new Semaphore(1);
     private final boolean isMonkey;
     private final Context appContext;
@@ -230,6 +232,9 @@ public class NvConnection {
 
         String serverInfo = h.getServerInfo(true);
         hostDisplayMode = NvHTTP.getCurrentDisplayMode(serverInfo);
+        settingWidth = context.streamConfig.getWidth();
+        settingHeight = context.streamConfig.getHeight();
+        settingFps = Math.round(context.streamConfig.getLaunchRefreshRateValue());
         
         context.serverAppVersion = h.getServerVersion(serverInfo);
         if (context.serverAppVersion == null) {
@@ -411,6 +416,23 @@ public class NvConnection {
 
     public int[] getHostDisplayModeAtStart() {
         return hostDisplayMode;
+    }
+
+    /** A watcher comparing the host display's fit with the stream in progress. */
+    public com.limelight.utils.HostDisplayWatch newHostDisplayWatch() {
+        return new com.limelight.utils.HostDisplayWatch(settingWidth, settingHeight, settingFps,
+                context.streamConfig.getWidth(), context.streamConfig.getHeight(),
+                Math.round(context.streamConfig.getLaunchRefreshRateValue()));
+    }
+
+    /** Re-reads the host display's mode (network: never on the UI or render thread). Null on any failure. */
+    public int[] fetchHostDisplayMode() {
+        try {
+            NvHTTP h = new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider);
+            return NvHTTP.getCurrentDisplayMode(h.getServerInfo(true));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private boolean launchNotRunningApp(NvHTTP h, ConnectionContext context)

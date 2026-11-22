@@ -339,6 +339,7 @@
     <string name="game_menu_hide_voice_ptt_button">Masquer le bouton vocal</string>
     <string name="game_menu_move_voice_ptt_button">Déplacer le bouton vocal</string>
     <string name="voice_ptt_move_hint">Faites glisser le bouton, puis touchez ailleurs pour valider</string>
+    <string name="host_display_changed">Écran du PC modifié : reconnexion…</string>
     <string name="title_voice_ptt_button">Bouton vocal push-to-talk</string>
     <string name="summary_voice_ptt_button">Affiche un bouton micro pendant le stream. Le maintenir enfonce la touche ² de l\'hôte (à gauche du 1), pour un outil de dictée sur le PC.</string>
     <string name="voice_ptt_button">Vocal push-to-talk</string>

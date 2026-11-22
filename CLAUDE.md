@@ -240,6 +240,32 @@ Desktop). Décisions dans `utils/RotationPolicy.java` (tests JVM), appliquées p
 > l'écran » disparaît du menu en jeu (c'est le téléphone qui décide). Pas sur écran externe (orientation
 > forcée en paysage plus haut dans `onCreate`). Réglage off = chemin d'orientation et d'échelle d'origine.
 
+## 📐 Résolution calée sur l'écran du PC (LavApollo + les deux clients)
+
+Quand le client **ne crée pas l'écran** — il **rejoint une session en cours** (`/resume`) ou il **lance
+sans écran virtuel** — il streame au **format de l'écran que le PC affiche**, à la plus grande taille qui
+tient dans son réglage **et** dans cet écran (jamais agrandi), à `min(fréquence réglée, fréquence de
+l'écran)`. Sinon le PC ajoutait des bandes noires *dans la vidéo* (bureau 16:9 dans un stream 20:9) et le
+client se calait sur des images inexistantes. LavApollo annonce le mode dans `serverinfo`
+(`CurrentDisplayWidth/Height/RefreshRate`) ; sans ces champs, rien ne change. Valeurs de référence
+communes aux deux clients (`HostDisplayFitTest`, `tests/hostdisplay`).
+
+- **Android** : `utils/HostDisplayFit` (règle) et `utils/HostDisplayWatch` (changement), appliqués par
+  `NvConnection.applyHostDisplayMode()` juste avant `launchApp(resume|launch)` →
+  `StreamConfiguration.applyHostDisplay()` (en mémoire) → `NvConnectionListener.streamModeDecided()` →
+  `Game` met à jour la taille de la vue, le zoom et le curseur.
+- **En cours de session** : `Game` relit `serverinfo` toutes les 2,5 s (`HostDisplayWatch`) et, sur un
+  changement confirmé deux fois, **se reconnecte** : `finish()` puis relance du même intent depuis
+  `onDestroy()` — la nouvelle instance prend le chemin de reprise et applique le nouveau mode. Le
+  protocole fixe la taille à la connexion : il n'existe pas de changement à chaud.
+
+> ⚠️ **Comparer la cible au stream en cours, jamais l'écran du PC au stream.** Un écran 2400×1080
+> streamé en 1920×864 est l'état ajusté, pas un écart : comparer à l'écran ferait reconnecter en boucle.
+> Et deux lectures identiques avant d'agir : Windows passe par des modes intermédiaires.
+
+> 📋 Rejoindre applique la règle **même si l'écran virtuel est coché** : `/resume` ne recrée pas les
+> écrans, le client streame forcément celui de la session. Pas de suivi pendant un run de benchmark.
+
 ## 🔧 Code natif / JNI
 
 - Build : **ndk-build** (`app/src/main/jni/Android.mk` aggregator ; `Application.mk` : `APP_PLATFORM android-21`, support des pages 16 KB).

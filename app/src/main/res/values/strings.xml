@@ -478,6 +478,7 @@
     <string name="game_menu_hide_voice_ptt_button">Hide voice button</string>
     <string name="game_menu_move_voice_ptt_button">Move voice button</string>
     <string name="voice_ptt_move_hint">Drag the button, then tap elsewhere to confirm</string>
+    <string name="host_display_changed">Host display changed: reconnecting…</string>
     <string name="dialog_custom_resolution">Set the resolution and exit the settings page to take effect!</string>
     <string name="summary_custom_resolution">Add a custom resolution, separated by x, strange resolutions may not work.\nFor example: 1920x1080\nIf it is a non-native resolution, it may not fill the notch area by default. If the aspect ratio is the same, you can manually set to stretch the screen to fill the full screen</string>
     <string name="title_custom_resolution">Custom Resolution</string>

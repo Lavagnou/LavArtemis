@@ -196,6 +196,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private int displayWidth;
     // Stream rate actually negotiated (host display mode may lower it); 0 = the preference's
     private int effectiveStreamFps;
+    // Follows the host display's mode mid-session (HostDisplayWatch); reconnects when it changes
+    private static final long HOST_DISPLAY_POLL_MS = 2500;
+    private android.os.HandlerThread hostDisplayWatchThread;
+    private boolean restartRequested;
     // "Follow phone rotation": the view turns with the phone, the host keeps its resolution
     private boolean followDeviceRotation;
     private int displayHeight;
@@ -1947,6 +1951,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        if (restartRequested) {
+            // Start the replacement once this instance is gone (Game is singleTask)
+            final Intent restart = new Intent(getIntent()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            final Context appContext = getApplicationContext();
+            new Handler(Looper.getMainLooper()).postDelayed(() -> appContext.startActivity(restart), 300);
+        }
 
         instance = null;
         timerHandler.removeCallbacksAndMessages(null);
@@ -3725,6 +3736,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void stopConnection() {
+        stopHostDisplayWatch();
         if (connecting || connected) {
             connecting = connected = false;
             updatePipAutoEnter();
@@ -3985,8 +3997,53 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         });
     }
 
+    private void startHostDisplayWatch() {
+        // Only with a LavApollo that announces its display, and never during a benchmark run:
+        // a reconnect would ruin the measurement
+        if (conn == null || conn.getHostDisplayModeAtStart() == null || benchmarkRun != null
+                || hostDisplayWatchThread != null) {
+            return;
+        }
+        final com.limelight.utils.HostDisplayWatch watch = conn.newHostDisplayWatch();
+        final NvConnection watchedConn = conn;
+        hostDisplayWatchThread = new android.os.HandlerThread("HostDisplayWatch");
+        hostDisplayWatchThread.start();
+        final Handler handler = new Handler(hostDisplayWatchThread.getLooper());
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                com.limelight.utils.HostDisplayFit.Mode target = watch.onPoll(watchedConn.fetchHostDisplayMode());
+                if (target != null) {
+                    LimeLog.info("Host display mode changed, reconnecting at " + target);
+                    runOnUiThread(Game.this::restartStream);
+                    return;
+                }
+                handler.postDelayed(this, HOST_DISPLAY_POLL_MS);
+            }
+        }, HOST_DISPLAY_POLL_MS);
+    }
+
+    private void stopHostDisplayWatch() {
+        if (hostDisplayWatchThread != null) {
+            hostDisplayWatchThread.quit();
+            hostDisplayWatchThread = null;
+        }
+    }
+
+    // Reconnect to the same session: this activity closes, and a fresh one takes the resume path,
+    // where the new host display mode is applied (NvConnection.applyHostDisplayMode)
+    private void restartStream() {
+        if (restartRequested || isFinishing()) {
+            return;
+        }
+        restartRequested = true;
+        Toast.makeText(this, R.string.host_display_changed, Toast.LENGTH_SHORT).show();
+        finish();
+    }
+
     @Override
     public void connectionStarted() {
+        startHostDisplayWatch();
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
