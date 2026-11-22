@@ -91,6 +91,13 @@ public class RelativeTouchContext implements TouchContext {
 
     private static final int SCROLL_SPEED_FACTOR = 5;
 
+    // Trackpad pinch-zoom owns the cursor when set; null = today's behaviour
+    private MouseMover mouseMover;
+
+    public void setMouseMover(MouseMover mover) {
+        this.mouseMover = mover;
+    }
+
     public RelativeTouchContext(NvConnection conn, int actionIndex,
                                 int referenceWidth, int referenceHeight,
                                 View view, PreferenceConfiguration prefConfig)
@@ -271,7 +278,11 @@ public class RelativeTouchContext implements TouchContext {
                         conn.sendMouseHighResScroll((short)(deltaY * SCROLL_SPEED_FACTOR));
                     }
                 } else {
-                    if (prefConfig.absoluteMouseMode) {
+                    if (mouseMover != null) {
+                        // Trackpad pinch-zoom owns the cursor: it supersedes absolute mouse mode
+                        mouseMover.move((short) (deltaX*prefConfig.touchPadSensitivity*0.01f), (short) (deltaY*prefConfig.touchPadYSensitity*0.01f));
+                    }
+                    else if (prefConfig.absoluteMouseMode) {
                         conn.sendMouseMoveAsMousePosition(
                                 (short) deltaX,
                                 (short) deltaY,

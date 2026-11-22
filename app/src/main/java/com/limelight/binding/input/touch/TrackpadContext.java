@@ -52,10 +52,25 @@ public class TrackpadContext implements TouchContext {
     private static final int FLICK_VELOCITY_DECAY_TIMEOUT_MS = 50;
     private static final int SCROLL_TRANSITION_TIMEOUT_MS = 200;
 
+    // Trackpad pinch-zoom owns the cursor when set; null = relative moves to the host as before
+    private MouseMover mouseMover;
+
     public TrackpadContext(NvConnection conn, int actionIndex) {
         this.conn = conn;
         this.actionIndex = actionIndex;
         this.handler = new Handler(Looper.getMainLooper());
+    }
+
+    public void setMouseMover(MouseMover mover) {
+        this.mouseMover = mover;
+    }
+
+    private void sendMove(short dx, short dy) {
+        if (mouseMover != null) {
+            mouseMover.move(dx, dy);
+        } else {
+            conn.sendMouseMove(dx, dy);
+        }
     }
 
     public TrackpadContext(NvConnection conn, int actionIndex, boolean swapAxis, int sensitivityX, int sensitivityY) {
@@ -86,7 +101,7 @@ public class TrackpadContext implements TouchContext {
             short intDeltaY = (short) pendingDeltaY;
 
             if (intDeltaX != 0 || intDeltaY != 0) {
-                conn.sendMouseMove(intDeltaX, intDeltaY);
+                sendMove(intDeltaX, intDeltaY);
                 pendingDeltaX -= intDeltaX;
                 pendingDeltaY -= intDeltaY;
             }
@@ -376,14 +391,14 @@ public class TrackpadContext implements TouchContext {
                 // Don't move the mouse immediately after a scroll
                 if (!isScrollTransitioning) {
                     if (sendDeltaX != 0 || sendDeltaY != 0) {
-                        conn.sendMouseMove(sendDeltaX, sendDeltaY);
+                        sendMove(sendDeltaX, sendDeltaY);
                     }
                 }
             } else {
                 if (actionIndex == 1) {
                     if (confirmedDrag) {
                         if (sendDeltaX != 0 || sendDeltaY != 0) {
-                            conn.sendMouseMove(sendDeltaX, sendDeltaY);
+                            sendMove(sendDeltaX, sendDeltaY);
                         }
                     } else if (pointerCount == 2) {
                         checkForConfirmedScroll();

@@ -69,6 +69,13 @@ public class AbsoluteTouchContext implements TouchContext {
     private static final int TOUCH_DOWN_DEAD_ZONE_TIME_THRESHOLD = 100;
     private static final int TOUCH_DOWN_DEAD_ZONE_DISTANCE_THRESHOLD = 20;
 
+    // Told where each absolute touch put the host cursor (trackpad pinch-zoom resyncs from it)
+    private AbsolutePositionObserver positionObserver;
+
+    public void setPositionObserver(AbsolutePositionObserver observer) {
+        this.positionObserver = observer;
+    }
+
     public AbsoluteTouchContext(NvConnection conn, int actionIndex, View view, boolean swapped)
     {
         this.conn = conn;
@@ -127,6 +134,11 @@ public class AbsoluteTouchContext implements TouchContext {
         eventY = Math.min(Math.max(eventY, 0), targetView.getHeight());
 
         conn.sendMousePosition((short)eventX, (short)eventY, (short)targetView.getWidth(), (short)targetView.getHeight());
+
+        if (positionObserver != null && targetView.getWidth() > 0 && targetView.getHeight() > 0) {
+            positionObserver.onAbsolutePosition(eventX / (float) targetView.getWidth(),
+                    eventY / (float) targetView.getHeight());
+        }
     }
 
     @Override
