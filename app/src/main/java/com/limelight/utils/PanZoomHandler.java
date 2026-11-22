@@ -10,7 +10,7 @@ import com.limelight.Game;
 import com.limelight.LimeLog;
 import com.limelight.preferences.PreferenceConfiguration;
 
-public class PanZoomHandler {
+public class PanZoomHandler implements ZoomView {
     static private final float MAX_SCALE = 10.0f;
 
     private final Game game;
@@ -111,34 +111,15 @@ public class PanZoomHandler {
     private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
-            float newScaleFactor = scaleFactor * detector.getScaleFactor();
-            newScaleFactor = Math.max(1, Math.min(newScaleFactor, MAX_SCALE)); // Apply minimum scale
-
-            // Calculate pivot point
-            float focusX = detector.getFocusX();
-            float focusY = detector.getFocusY();
-
-            float dPivotX = (childX - focusX) / scaleFactor * newScaleFactor;
-            float dPivotY = (childY - focusY) / scaleFactor * newScaleFactor;
-
-            childX = focusX + dPivotX;
-            childY = focusY + dPivotY;
-
-            scaleFactor = newScaleFactor;
-
-            streamView.setScaleX(scaleFactor);
-            streamView.setScaleY(scaleFactor);
-
-            streamView.setX(childX);
-            streamView.setY(childY);
-
-            constrainToBounds();
+            scaleAround(detector.getScaleFactor(), detector.getFocusX(), detector.getFocusY());
             return true;
         }
 
         @Override
         public void onScaleEnd(ScaleGestureDetector detector) {
-            game.updatePipAutoEnter();
+            if (game != null) {
+                game.updatePipAutoEnter();
+            }
         }
     }
 
@@ -167,7 +148,44 @@ public class PanZoomHandler {
         streamView.setY(childY);
     }
 
-    public float getScaleFactor() { return scaleFactor; }
-    public float getChildX() { return childX; }
-    public float getChildY() { return childY; }
+    @Override public float getScaleFactor() { return scaleFactor; }
+    @Override public float getChildX() { return childX; }
+    @Override public float getChildY() { return childY; }
+    @Override public float getViewWidth() { return streamView.getWidth(); }
+    @Override public float getViewHeight() { return streamView.getHeight(); }
+    @Override public float getParentWidth() { return parent != null ? parent.getWidth() : 0; }
+    @Override public float getParentHeight() { return parent != null ? parent.getHeight() : 0; }
+
+    /** One code path for the zoom mode's pinch and the trackpad pinch-zoom. */
+    @Override
+    public void scaleAround(float factor, float focusX, float focusY) {
+        float newScaleFactor = Math.max(1, Math.min(scaleFactor * factor, MAX_SCALE));
+
+        // Keep the focus point where it is on screen
+        childX = focusX + (childX - focusX) / scaleFactor * newScaleFactor;
+        childY = focusY + (childY - focusY) / scaleFactor * newScaleFactor;
+
+        scaleFactor = newScaleFactor;
+        streamView.setScaleX(scaleFactor);
+        streamView.setScaleY(scaleFactor);
+        streamView.setX(childX);
+        streamView.setY(childY);
+
+        constrainToBounds();
+    }
+
+    @Override
+    public void setTranslation(float x, float y) {
+        childX = x;
+        childY = y;
+        constrainToBounds();
+    }
+
+    @Override
+    public void resetZoom() {
+        scaleFactor = 1f;
+        streamView.setScaleX(1f);
+        streamView.setScaleY(1f);
+        constrainToBounds();
+    }
 }
