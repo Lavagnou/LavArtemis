@@ -32,6 +32,32 @@ public class StreamConfigurationHostDisplayTest {
     }
 
     @Test
+    public void joiningUpdatesTheSizeSentToTheHost() {
+        // Pixel 7 (2400x1080@90) joining the Honor Pad's 2560x1600@120 session: the launch
+        // URL and the RTSP setup read negotiatedWidth/Height, not the stream config.
+        ConnectionContext ctx = new ConnectionContext();
+        ctx.streamConfig = config(2400, 1080, 90);
+        ctx.negotiatedWidth = 2400;
+        ctx.negotiatedHeight = 1080;
+        HostDisplayFit.Mode m = NvConnection.applyHostDisplayMode(ctx, new int[]{2560, 1600, 120}, true);
+        assertEquals(1728, m.width);
+        assertEquals(1080, m.height);
+        assertEquals(1728, ctx.negotiatedWidth);
+        assertEquals(1080, ctx.negotiatedHeight);
+        assertEquals(90, ctx.streamConfig.getLaunchRefreshRate());
+    }
+
+    @Test
+    public void noHostModeLeavesTheNegotiatedSizeAlone() {
+        ConnectionContext ctx = new ConnectionContext();
+        ctx.streamConfig = config(2400, 1080, 90);
+        ctx.negotiatedWidth = 2400;
+        ctx.negotiatedHeight = 1080;
+        assertEquals(null, NvConnection.applyHostDisplayMode(ctx, null, true));
+        assertEquals(2400, ctx.negotiatedWidth);
+    }
+
+    @Test
     public void fasterHostKeepsTheClientsExactRate() {
         // 59.94 stays 59.94 (encoded x1000 by the getters) when the host runs faster
         StreamConfiguration c = config(1920, 1080, 59.94f);

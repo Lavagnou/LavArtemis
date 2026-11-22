@@ -28,7 +28,7 @@ LavArtemis hérite des fonctionnalités Artemis : manettes virtuelles personnali
 | compileSdk / minSdk / targetSdk | 36 / 21 / 34 |
 | Java (source/cible) | 11 (builder avec JDK 17+) |
 | NDK | `27.0.12077973` |
-| versionName / versionCode | `21.7.0` / `87` |
+| versionName / versionCode | `21.7.1` / `88` |
 
 Mono-module : `:app` (pas de version catalog, pas de `buildSrc`).
 
@@ -262,6 +262,13 @@ communes aux deux clients (`HostDisplayFitTest`, `tests/hostdisplay`).
 > ⚠️ **Comparer la cible au stream en cours, jamais l'écran du PC au stream.** Un écran 2400×1080
 > streamé en 1920×864 est l'état ajusté, pas un écart : comparer à l'écran ferait reconnecter en boucle.
 > Et deux lectures identiques avant d'agir : Windows passe par des modes intermédiaires.
+
+> ⚠️ **Android : la taille envoyée au PC est `context.negotiatedWidth/Height`, pas la `StreamConfiguration`.**
+> L'URL de `launch`/`resume` et la négociation RTSP lisent les valeurs négociées, figées dans `startApp()`
+> **avant** la décision de reprise. `NvConnection.applyHostDisplayMode()` doit les mettre à jour aussi : en
+> 21.7.0 il ne changeait que la configuration, et un Pixel 7 rejoignant un écran 2560×1600 demandait encore
+> 2400×1080 (la vue se calait sur 1728×1080, l'hôte envoyait autre chose). Le desktop n'a qu'un
+> `m_StreamConfig`, ajusté avant tout usage : pas ce piège.
 
 > 📋 Rejoindre applique la règle **même si l'écran virtuel est coché** : `/resume` ne recrée pas les
 > écrans, le client streame forcément celui de la session. Pas de suivi pendant un run de benchmark.

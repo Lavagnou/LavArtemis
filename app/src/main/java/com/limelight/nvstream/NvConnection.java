@@ -405,13 +405,28 @@ public class NvConnection {
     }
     
     private void applyHostDisplayMode(boolean resuming) {
-        if (hostDisplayMode == null
-                || !com.limelight.utils.HostDisplayFit.applies(resuming, context.streamConfig.getVirtualDisplay())) {
-            return;
+        com.limelight.utils.HostDisplayFit.Mode m = applyHostDisplayMode(context, hostDisplayMode, resuming);
+        if (m != null) {
+            LimeLog.info("Streaming at the host display's mode: " + m);
+            context.connListener.streamModeDecided(m.width, m.height, m.fps);
         }
-        com.limelight.utils.HostDisplayFit.Mode m = context.streamConfig.applyHostDisplay(hostDisplayMode);
-        LimeLog.info("Streaming at the host display's mode: " + m);
-        context.connListener.streamModeDecided(m.width, m.height, m.fps);
+    }
+
+    /**
+     * Fits the stream to the host display, or returns null when the rule doesn't apply. The
+     * negotiated size is what the launch URL and the RTSP setup send, and it was decided before
+     * this point: it must follow, or the host still gets the client's own size (21.7.0).
+     */
+    static com.limelight.utils.HostDisplayFit.Mode applyHostDisplayMode(ConnectionContext context,
+                                                                       int[] hostMode, boolean resuming) {
+        if (hostMode == null
+                || !com.limelight.utils.HostDisplayFit.applies(resuming, context.streamConfig.getVirtualDisplay())) {
+            return null;
+        }
+        com.limelight.utils.HostDisplayFit.Mode m = context.streamConfig.applyHostDisplay(hostMode);
+        context.negotiatedWidth = m.width;
+        context.negotiatedHeight = m.height;
+        return m;
     }
 
     public int[] getHostDisplayModeAtStart() {
