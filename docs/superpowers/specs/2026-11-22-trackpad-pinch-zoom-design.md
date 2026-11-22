@@ -104,6 +104,9 @@ souris : « Zoom au pincement (trackpad) ».
 **Option désactivée** : tout se comporte exactement comme aujourd'hui (mouvements relatifs, pas de
 pincement en trackpad).
 
+> **Mis à jour le 2026-11-22** : la règle de vitesse est remplacée par « même distance que le doigt à
+> l'écran » (`2026-11-22-rotation-and-trackpad-speed-design.md`), qui contient la division par le zoom.
+
 ## Calls faits par Claude (validés en conversation)
 
 - Mode zoom existant du menu inchangé.

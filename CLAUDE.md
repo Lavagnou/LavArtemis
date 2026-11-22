@@ -199,9 +199,34 @@ défaut off). `binding/input/touch/TrackpadZoomController.java` orchestre ; `Tra
 > toucher natif ne la resynchronise pas** : on ne sait pas si l'injection tactile de Windows déplace le
 > curseur, et recaler sur une supposition ferait viser faux. Option off = aucun `MouseMover`, aucune interception : comportement d'avant.
 
+> 📋 **Vitesse 1:1 à l'écran** (remplace « vitesse divisée par le zoom ») : le `MouseMover` reçoit les
+> **pixels bruts du doigt** — sans l'accélération `cbrt` du trackpad naturel, sans l'échelle de
+> référence 1280 du gaming (dont la sensibilité reste un multiplicateur, 100 % = 1:1) — et le
+> contrôleur les convertit : `d × largeurStream / (largeurVue × zoom)`. La taille de la vue est relue **à
+> chaque mouvement** : une rotation la change en plein stream. Option off = accélération d'origine.
+
 > ⚠️ **Bug possible hérité, hors périmètre** : `getNormalizedCoordinates(streamContainer, …)` lit
 > l'échelle du **conteneur**, alors que `PanZoomHandler` zoome la `SurfaceView` : sous le mode zoom du
 > menu, un toucher absolu viserait peut-être à côté. Non vérifié sur appareil.
+
+## 🔄 Rotation qui suit le téléphone (Android)
+
+Réglage `checkbox_follow_device_rotation` (défaut off, à côté d'« Orientation automatique ») : l'image
+tourne avec le téléphone pendant tout le stream, **l'écran du PC reste tel quel** (comme Chrome Remote
+Desktop). Décisions dans `utils/RotationPolicy.java` (tests JVM), appliquées par `Game`.
+
+> ⚠️ **La résolution demandée n'est jamais inversée quand on suit la rotation**, même avec « Inverser la
+> résolution » cochée et un lancement en portrait : l'hôte ne peut pas changer de résolution en plein
+> stream, donc l'inverser au lancement figerait un PC en portrait pour toute la session.
+
+> ⚠️ **Portrait = toujours ajusté** (`effectiveScaleMode()` → FIT), même avec « Étirer » ou « Remplir » :
+> une image paysage étirée ou rognée en portrait est inutilisable. `Game.applyStreamScaleMode()` est
+> rappelé à chaque `onConfigurationChanged` ; en paysage le mode choisi revient (STRETCH =
+> `setDesiredAspectRatio(0)`, le conteneur remplit l'écran comme le chemin d'origine).
+
+> 📋 `SCREEN_ORIENTATION_FULL_USER` : le verrouillage de rotation d'Android est respecté. « Pivoter
+> l'écran » disparaît du menu en jeu (c'est le téléphone qui décide). Pas sur écran externe (orientation
+> forcée en paysage plus haut dans `onCreate`). Réglage off = chemin d'orientation et d'échelle d'origine.
 
 ## 🔧 Code natif / JNI
 

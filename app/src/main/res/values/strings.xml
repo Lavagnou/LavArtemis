@@ -483,6 +483,8 @@
     <string name="title_custom_resolution">Custom Resolution</string>
     <string name="title_auto_orientation">Auto Orientation</string>
     <string name="summary_auto_orientation">The streaming screen will be displayed according to the device\'s orientation when the stream begins.</string>
+    <string name="title_follow_device_rotation">Follow phone rotation</string>
+    <string name="summary_follow_device_rotation">The stream turns with the phone during the stream; the host keeps its resolution. In portrait the image is fitted to the width.</string>
     <string name="title_import_special_button">Import Custom Keys</string>
     <string name="summary_import_special_button">Available in Back Menu and special keys.\nNote: Importing will overwrite current configuration, please backup accordingly.</string>
     <string name="summary_share_performance_logs">Share your performance with friends or the community</string>

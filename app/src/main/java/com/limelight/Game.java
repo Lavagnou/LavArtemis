@@ -51,6 +51,7 @@ import com.limelight.utils.Dialog;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
 import com.limelight.utils.PanZoomHandler;
+import com.limelight.utils.RotationPolicy;
 import com.limelight.utils.PerformanceDataTracker;
 import com.limelight.benchmark.BenchmarkGameRun;
 import com.limelight.benchmark.BenchmarkSettings;
@@ -192,6 +193,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private SharedPreferences tombstonePrefs;
 
     private int displayWidth;
+    // "Follow phone rotation": the view turns with the phone, the host keeps its resolution
+    private boolean followDeviceRotation;
     private int displayHeight;
     private int currentOrientation;
 
@@ -453,14 +456,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
             }
 
-            if (prefConfig.autoOrientation) {
+            // The view turns with the phone, the host's screen does not
+            followDeviceRotation = prefConfig.followDeviceRotation;
+
+            if (prefConfig.autoOrientation || followDeviceRotation) {
                 currentOrientation = getResources().getConfiguration().orientation;
             } else {
                 currentOrientation = Configuration.ORIENTATION_LANDSCAPE;
             }
 
             boolean portraitMode = currentOrientation == Configuration.ORIENTATION_PORTRAIT;
-            shouldInvertDecoderResolution = portraitMode && prefConfig.autoInvertVideoResolution;
+            shouldInvertDecoderResolution = RotationPolicy.shouldInvertResolution(
+                    followDeviceRotation, portraitMode, prefConfig.autoInvertVideoResolution);
 
             displayWidth = shouldInvertDecoderResolution ? prefConfig.height : prefConfig.width;
             displayHeight = shouldInvertDecoderResolution ? prefConfig.width : prefConfig.height;
@@ -1298,6 +1305,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void setPreferredOrientationForActivity() {
+        if (followDeviceRotation) {
+            // The phone decides; FULL_USER honours Android's rotation lock
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
+            return;
+        }
+
         Display display = getActiveDisplay(Game.this, prefConfig);
 
         // For semi-square displays, we use more complex logic to determine which orientation to use (if any)
@@ -1346,6 +1359,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // Set requested orientation for possible new screen size
         setPreferredOrientationForActivity();
+
+        if (followDeviceRotation) {
+            // Portrait fits a landscape image, landscape gets the chosen scale mode back
+            applyStreamScaleMode(false);
+        }
 
         if (virtualController != null) {
             // Refresh layout of OSC for possible new screen size
@@ -1622,6 +1640,35 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return onExternelDisplay;
     }
 
+    private void applyStreamScaleMode(boolean aspectRatioMatch) {
+        if (followDeviceRotation) {
+            boolean portrait = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+            PreferenceConfiguration.ScaleMode mode =
+                    RotationPolicy.effectiveScaleMode(prefConfig.videoScaleMode, true, portrait);
+            if (mode == PreferenceConfiguration.ScaleMode.STRETCH) {
+                // No aspect ratio: the container fills the screen, as today's stretch path
+                streamContainer.setDesiredAspectRatio(0);
+            } else {
+                streamContainer.setDesiredAspectRatio((double) displayWidth / (double) displayHeight);
+                streamContainer.setFillDisplay(mode == PreferenceConfiguration.ScaleMode.FILL);
+            }
+            return;
+        }
+
+        // Don't do setFixedSize since it might not update the view dimensions correctly when entering PiP mode
+        if (!(prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.STRETCH || aspectRatioMatch)) {
+            // Set the surface to scale based on the aspect ratio of the stream
+            streamContainer.setDesiredAspectRatio((double)displayWidth / (double)displayHeight);
+            streamContainer.setFillDisplay(prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.FILL);
+            LimeLog.info("surfaceChanged-->"+(double)displayWidth / (double)displayHeight);
+            LimeLog.info("scaleMode-->"+prefConfig.videoScaleMode);
+        }
+    }
+
+    public boolean isFollowingDeviceRotation() {
+        return followDeviceRotation;
+    }
+
     private float prepareDisplayForRendering(Display currentDisplay) {
         WindowManager.LayoutParams windowLayoutParams = getWindow().getAttributes();
         float displayRefreshRate;
@@ -1785,14 +1832,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
 
-        // Don't do setFixedSize since it might not update the view dimensions correctly when entering PiP mode
-        if (!(prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.STRETCH || aspectRatioMatch)) {
-            // Set the surface to scale based on the aspect ratio of the stream
-            streamContainer.setDesiredAspectRatio((double)displayWidth / (double)displayHeight);
-            streamContainer.setFillDisplay(prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.FILL);
-            LimeLog.info("surfaceChanged-->"+(double)displayWidth / (double)displayHeight);
-            LimeLog.info("scaleMode-->"+prefConfig.videoScaleMode);
-        }
+        applyStreamScaleMode(aspectRatioMatch);
 
         // Set the desired refresh rate that will get passed into setFrameRate() later
         desiredRefreshRate = displayRefreshRate;

@@ -415,6 +415,8 @@
     <string name="title_custom_resolution">Résolution personnalisée</string>
     <string name="title_auto_orientation">Orientation automatique</string>
     <string name="summary_auto_orientation">L\'écran de streaming sera affiché selon l\'orientation de l\'appareil lorsque le streaming commence.</string>
+    <string name="title_follow_device_rotation">Suivre la rotation du téléphone</string>
+    <string name="summary_follow_device_rotation">L\'image tourne avec le téléphone pendant le stream ; le PC garde sa résolution. En portrait, l\'image est ajustée à la largeur.</string>
     <string name="title_import_special_button">Importer des touches spéciales personnalisées</string>
     <string name="summary_import_special_button">Disponible dans le menu Retour et les touches spéciales.\nRemarque : l\'importation écrasera la configuration actuelle, veuillez sauvegarder en conséquence.</string>
     <string name="title_software_update">Mise à jour du logiciel</string>

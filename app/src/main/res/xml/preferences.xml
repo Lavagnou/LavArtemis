@@ -156,6 +156,13 @@
 
         <CheckBoxPreference
             android:defaultValue="false"
+            android:key="checkbox_follow_device_rotation"
+            android:summary="@string/summary_follow_device_rotation"
+            android:title="@string/title_follow_device_rotation"
+            app:iconSpaceReserved="false" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
             android:key="checkbox_enable_view_top_center"
             android:summary="@string/summary_top_center_display"
             android:title="@string/title_top_center_display"
