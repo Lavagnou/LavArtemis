@@ -200,16 +200,17 @@ défaut off). `binding/input/touch/TrackpadZoomController.java` orchestre ; `Tra
 > curseur, et recaler sur une supposition ferait viser faux. Option off = aucun `MouseMover`, aucune interception : comportement d'avant.
 
 > 📋 **Vitesse 1:1 à l'écran** : le doigt et le curseur parcourent la même distance à l'écran, à tout
-> zoom. Le `MouseMover` reçoit le mouvement **sans accélération** (pas de `cbrt` en naturel, pas d'échelle
-> de référence 1280 en gaming, dont la sensibilité reste un multiplicateur, 100 % = 1:1) et le contrôleur
-> le convertit en pixels du stream : `d × largeurStream / largeurVue`. La taille de la vue est relue **à
-> chaque mouvement** : une rotation la change en plein stream.
+> zoom. Le `MouseMover` reçoit le mouvement **en pixels écran, sans accélération** (pas de `cbrt` en
+> naturel, pas d'échelle de référence 1280 en gaming, dont la sensibilité reste un multiplicateur,
+> 100 % = 1:1) et le contrôleur le convertit une fois : `d × largeurStream / (largeurVue × zoom)`. La
+> taille de la vue est relue **à chaque mouvement** : une rotation la change en plein stream.
 >
-> ⚠️ **Ne pas rediviser par le zoom.** Depuis que c'est le conteneur qui est zoomé, *tous* les touchers
-> arrivent aux contextes dans son repère (`getNormalizedCoordinates` divise par son échelle) : le zoom est
-> **déjà** dans `d`. La 21.6.1 le redivisait et le curseur allait zoom fois moins vite que le doigt
-> (« 3 largeurs d'écran pour un mot »). Corollaire : à fort zoom, le mouvement est quantifié à 1 px du
-> conteneur (les positions sont arrondies en `int`), soit `zoom` px à l'écran.
+> ⚠️ **Les trackpads lisent le doigt en coordonnées écran** (`Game.contextCoordinates()` /
+> `utils/TouchSpace`) tant que le contrôleur tient le curseur. Le repère du conteneur zoomé
+> (`(x − position) / zoom`, qu'il faut aux touchers absolus) **bouge quand la vue glisse** : un doigt
+> immobile « bougeait », le curseur allait plus loin, la vue glissait encore — le curseur accélérait
+> d'un coup au bord (21.6.2). Et la 21.6.1, qui lisait ce repère sans le savoir, redivisait par le
+> zoom : curseur zoom fois trop lent. Une seule division, au contrôleur, sur des pixels écran.
 
 > ⚠️ **On zoome le cadre du stream, pas l'image à l'intérieur.** `StreamContainer` est taillé au
 > format du stream (c'est lui qui fait les bandes noires) ; zoomer la `SurfaceView` *dans* ce cadre la

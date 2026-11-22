@@ -45,6 +45,11 @@ public class TrackpadZoomController implements MouseMover {
         this.arbiter = new PinchArbiter(pinchThresholdPx);
     }
 
+    /** True while trackpad contexts must get screen coordinates (see {@link com.limelight.utils.TouchSpace}). */
+    public boolean wantsScreenCoordinates() {
+        return trackpadMode;
+    }
+
     public void setTrackpadMode(boolean trackpad) {
         trackpadMode = trackpad;
         resetGesture();
@@ -58,7 +63,7 @@ public class TrackpadZoomController implements MouseMover {
     }
 
     /**
-     * @param dx, dy  finger movement in the stream container's own (unzoomed) pixels; the cursor travels the same distance on
+     * @param dx, dy  finger movement in screen pixels; the cursor travels the same distance on
      *                screen, whatever the zoom and orientation (Chrome Remote Desktop's trackpad)
      */
     @Override
@@ -68,10 +73,10 @@ public class TrackpadZoomController implements MouseMover {
         float viewH = view.getViewHeight();
         float toStreamX = viewW > 0 ? cursor.getWidth() / viewW : 1f;
         float toStreamY = viewH > 0 ? cursor.getHeight() / viewH : 1f;
-        // Touches reach the contexts in the zoomed container's own pixels (Game.getNormalizedCoordinates
-        // divides by its scale), so the zoom is already in dx/dy: dividing by it again made the cursor
-        // zoom-times slower than the finger. Zoom 1 here = 1:1 on screen at any zoom.
-        cursor.move(dx * toStreamX, dy * toStreamY, 1f);
+        // dx/dy are screen pixels: Game gives trackpad contexts screen coordinates while this
+        // controller owns the cursor (TouchSpace), because the zoomed view's own space moves when it
+        // pans and fed back into the cursor. The zoom is applied here, once: 1:1 on screen.
+        cursor.move(dx * toStreamX, dy * toStreamY, view.getScaleFactor());
         sender.send(cursor.getX(), cursor.getY(), (short) cursor.getWidth(), (short) cursor.getHeight());
 
         float[] t = ZoomFollow.followTranslation(view.getChildX(), view.getChildY(), view.getScaleFactor(),

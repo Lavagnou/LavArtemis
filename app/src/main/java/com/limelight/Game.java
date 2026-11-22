@@ -52,6 +52,7 @@ import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
 import com.limelight.utils.PanZoomHandler;
 import com.limelight.utils.RotationPolicy;
+import com.limelight.utils.TouchSpace;
 import com.limelight.utils.PerformanceDataTracker;
 import com.limelight.benchmark.BenchmarkGameRun;
 import com.limelight.benchmark.BenchmarkSettings;
@@ -2800,13 +2801,17 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private float[] getNormalizedCoordinates(View streamView, float rawX, float rawY) {
-        float scaleX = streamView.getScaleX();
-        float scaleY = streamView.getScaleY();
+        return TouchSpace.forContexts(rawX, rawY, streamView.getX(), streamView.getY(),
+                streamView.getScaleX(), streamView.getScaleY(), false);
+    }
 
-        float normalizedX = (rawX - streamView.getX()) / scaleX;
-        float normalizedY = (rawY - streamView.getY()) / scaleY;
-
-        return new float[] { normalizedX, normalizedY };
+    // Coordinates for the touch contexts. While the trackpad pinch-zoom owns the cursor, trackpads
+    // get screen coordinates: the zoomed view's own space moves when it pans, which fed back into the
+    // cursor and made it accelerate at the edge (see TouchSpace).
+    private float[] contextCoordinates(float rawX, float rawY) {
+        boolean screenSpace = trackpadZoom != null && trackpadZoom.wantsScreenCoordinates();
+        return TouchSpace.forContexts(rawX, rawY, streamContainer.getX(), streamContainer.getY(),
+                streamContainer.getScaleX(), streamContainer.getScaleY(), screenSpace);
     }
 
     private static float normalizeValueInRange(float value, InputDevice.MotionRange range) {
@@ -3428,7 +3433,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         int historicalX = (int)event.getHistoricalX(aActionIndex, i);
                         int historicalY = (int)event.getHistoricalY(aActionIndex, i);
                         if (isTouchScreen) {
-                            float[] normalizedCoords = getNormalizedCoordinates(streamContainer, historicalX, historicalY);
+                            float[] normalizedCoords = contextCoordinates(historicalX, historicalY);
                             historicalX = (int)normalizedCoords[0];
                             historicalY = (int)normalizedCoords[1];
                         }
@@ -3463,7 +3468,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     int currentX = (int)event.getX(aActionIndex);
                     int currentY = (int)event.getY(aActionIndex);
                     if (isTouchScreen) {
-                        float[] normalizedCoords = getNormalizedCoordinates(streamContainer, currentX, currentY);
+                        float[] normalizedCoords = contextCoordinates(currentX, currentY);
                         currentX = (int)normalizedCoords[0];
                         currentY = (int)normalizedCoords[1];
                     }
@@ -3492,7 +3497,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // Handle view scaling
         if (isTouchScreen) {
-            float[] normalizedCoords = getNormalizedCoordinates(streamContainer, eventX, eventY);
+            float[] normalizedCoords = contextCoordinates(eventX, eventY);
             eventX = (int)normalizedCoords[0];
             eventY = (int)normalizedCoords[1];
         }
@@ -3543,7 +3548,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     int pointer1X = (int)event.getX(1);
                     int pointer1Y = (int)event.getY(1);
                     if (isTouchScreen) {
-                        float[] normalizedCoords = getNormalizedCoordinates(streamContainer, pointer1X, pointer1Y);
+                        float[] normalizedCoords = contextCoordinates(pointer1X, pointer1Y);
                         pointer1X = (int)normalizedCoords[0];
                         pointer1Y = (int)normalizedCoords[1];
                     }
