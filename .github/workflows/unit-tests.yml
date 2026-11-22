@@ -1,15 +1,16 @@
 name: Unit tests
 
-# JVM unit tests (Robolectric) for the Android app, on every push and pull
-# request. Informational for now: five tests already fail on main
+# JVM unit tests (Robolectric) for the Android app, on pull requests and on
+# demand. Not on every push to main: work lands on main directly, tested
+# locally first, and Actions minutes are kept for releases.
+# Informational for now: five tests already fail on main
 # (LayoutInflationTest, SimpleStartupTest, StartupTest, ProfilesNavigationTest
 # x2 -- Robolectric setup problems, see CLAUDE.md), so the job reports the
 # results without blocking. Make it blocking once those are fixed.
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
