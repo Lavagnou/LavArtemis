@@ -199,11 +199,17 @@ défaut off). `binding/input/touch/TrackpadZoomController.java` orchestre ; `Tra
 > toucher natif ne la resynchronise pas** : on ne sait pas si l'injection tactile de Windows déplace le
 > curseur, et recaler sur une supposition ferait viser faux. Option off = aucun `MouseMover`, aucune interception : comportement d'avant.
 
-> 📋 **Vitesse 1:1 à l'écran** (remplace « vitesse divisée par le zoom ») : le `MouseMover` reçoit les
-> **pixels bruts du doigt** — sans l'accélération `cbrt` du trackpad naturel, sans l'échelle de
-> référence 1280 du gaming (dont la sensibilité reste un multiplicateur, 100 % = 1:1) — et le
-> contrôleur les convertit : `d × largeurStream / (largeurVue × zoom)`. La taille de la vue est relue **à
-> chaque mouvement** : une rotation la change en plein stream. Option off = accélération d'origine.
+> 📋 **Vitesse 1:1 à l'écran** : le doigt et le curseur parcourent la même distance à l'écran, à tout
+> zoom. Le `MouseMover` reçoit le mouvement **sans accélération** (pas de `cbrt` en naturel, pas d'échelle
+> de référence 1280 en gaming, dont la sensibilité reste un multiplicateur, 100 % = 1:1) et le contrôleur
+> le convertit en pixels du stream : `d × largeurStream / largeurVue`. La taille de la vue est relue **à
+> chaque mouvement** : une rotation la change en plein stream.
+>
+> ⚠️ **Ne pas rediviser par le zoom.** Depuis que c'est le conteneur qui est zoomé, *tous* les touchers
+> arrivent aux contextes dans son repère (`getNormalizedCoordinates` divise par son échelle) : le zoom est
+> **déjà** dans `d`. La 21.6.1 le redivisait et le curseur allait zoom fois moins vite que le doigt
+> (« 3 largeurs d'écran pour un mot »). Corollaire : à fort zoom, le mouvement est quantifié à 1 px du
+> conteneur (les positions sont arrondies en `int`), soit `zoom` px à l'écran.
 
 > ⚠️ **On zoome le cadre du stream, pas l'image à l'intérieur.** `StreamContainer` est taillé au
 > format du stream (c'est lui qui fait les bandes noires) ; zoomer la `SurfaceView` *dans* ce cadre la

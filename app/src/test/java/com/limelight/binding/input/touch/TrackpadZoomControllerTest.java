@@ -63,10 +63,13 @@ public class TrackpadZoomControllerTest {
     }
 
     @Test
-    public void moveDividesByZoom() {
+    public void zoomDoesNotSlowTheCursorTwice() {
+        // Touches reach the contexts in the zoomed container's own pixels (Game.getNormalizedCoordinates
+        // divides by its scale): the zoom is already in the delta, dividing again made the cursor
+        // zoom-times slower than the finger
         v.scale = 2f;
         c.move((short) 10, (short) 0);
-        assertEquals(970, s.lastX);       // 960 + 10 * 1920 / (1000 * 2)
+        assertEquals(979, s.lastX);       // 960 + 10 * 1920 / 1000
     }
 
     @Test
@@ -79,9 +82,10 @@ public class TrackpadZoomControllerTest {
 
     @Test
     public void moveIsOneToOneOnScreen() {
+        // A 200 px finger move at 2x arrives as 100 container px: 192 stream px, i.e. 200 px on screen
         v.scale = 2f;
         c.move((short) 100, (short) 0);
-        assertEquals(1056, s.lastX);      // 100 px on screen = 100 * 1920 / (1000 * 2) stream px
+        assertEquals(1152, s.lastX);
     }
 
     @Test
