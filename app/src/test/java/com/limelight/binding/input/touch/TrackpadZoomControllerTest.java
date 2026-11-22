@@ -179,6 +179,15 @@ public class TrackpadZoomControllerTest {
         assertEquals(0, k.cancels);
     }
 
+    @Test
+    public void setStreamSizeUsesNewSize() {
+        c.setStreamSize(1280, 720);
+        c.move((short) 0, (short) 0);
+        assertEquals(1280, s.lastW);
+        assertEquals(720, s.lastH);
+        assertEquals(640, s.lastX);
+    }
+
     private void pinch() {
         c.onTouch(ACTION_POINTER_DOWN, 2, 400, 500, 600, 500);
         c.onTouch(ACTION_MOVE, 2, 380, 500, 620, 500);

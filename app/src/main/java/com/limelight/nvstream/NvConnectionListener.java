@@ -6,6 +6,10 @@ public interface NvConnectionListener {
     boolean stageFailed(String stage, int portFlags, int errorCode);
     
     void connectionStarted();
+
+    // The stream's size and rate were set from the host display's mode (HostDisplayFit), before
+    // the connection starts. Called on the connection thread.
+    default void streamModeDecided(int width, int height, int fps) {}
     void connectionTerminated(int errorCode);
     void connectionStatusUpdate(int connectionStatus);
     

@@ -194,6 +194,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private SharedPreferences tombstonePrefs;
 
     private int displayWidth;
+    // Stream rate actually negotiated (host display mode may lower it); 0 = the preference's
+    private int effectiveStreamFps;
     // "Follow phone rotation": the view turns with the phone, the host keeps its resolution
     private boolean followDeviceRotation;
     private int displayHeight;
@@ -3964,6 +3966,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 if (!isHidingOverlays) {
                     notificationOverlayView.setVisibility(requestedNotificationOverlayVisibility);
                 }
+            }
+        });
+    }
+
+    @Override
+    public void streamModeDecided(int width, int height, int fps) {
+        // The connection streams at the host display's mode (HostDisplayFit): everything sized from
+        // the stream must use it, not the preferences
+        runOnUiThread(() -> {
+            displayWidth = width;
+            displayHeight = height;
+            effectiveStreamFps = fps;
+            applyStreamScaleMode(false);
+            if (trackpadZoom != null) {
+                trackpadZoom.setStreamSize(width, height);
             }
         });
     }

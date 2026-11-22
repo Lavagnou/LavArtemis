@@ -213,6 +213,24 @@ public class StreamConfiguration {
 
     public boolean getVirtualDisplay() { return virtualDisplay; }
 
+    /**
+     * Stream at the host display's mode (HostDisplayFit): its aspect, fitted inside this
+     * configuration's size, at no more frames than it produces. The client's exact (possibly
+     * fractional) rate is kept unless the host display is slower.
+     */
+    public com.limelight.utils.HostDisplayFit.Mode applyHostDisplay(int[] hostMode) {
+        int settingFps = Math.round(launchRefreshRate);
+        com.limelight.utils.HostDisplayFit.Mode m = com.limelight.utils.HostDisplayFit.fit(
+                hostMode[0], hostMode[1], hostMode[2], width, height, settingFps);
+        width = m.width;
+        height = m.height;
+        if (m.fps < settingFps) {
+            refreshRate = m.fps;
+            launchRefreshRate = m.fps;
+        }
+        return m;
+    }
+
     public boolean getClientVrrRequested() { return clientVrrRequested; }
 
     public boolean getClientMicRequested() { return clientMicRequested; }

@@ -8,8 +8,8 @@ package com.limelight.binding.input.touch;
  * moves would drift as soon as Windows' pointer acceleration reshapes them.
  */
 public class TrackedCursor {
-    private final int width;
-    private final int height;
+    private int width;
+    private int height;
     private float x;
     private float y;
 
@@ -30,6 +30,15 @@ public class TrackedCursor {
     public void setFraction(float fx, float fy) {
         x = clamp(fx * width, width);
         y = clamp(fy * height, height);
+    }
+
+    /** The stream changed size (host display mode): keep the cursor at the same relative place. */
+    public void resize(int streamWidth, int streamHeight) {
+        float fx = getFractionX();
+        float fy = getFractionY();
+        width = streamWidth;
+        height = streamHeight;
+        setFraction(fx, fy);
     }
 
     public short getX() {

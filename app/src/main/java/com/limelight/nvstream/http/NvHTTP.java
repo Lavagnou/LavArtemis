@@ -619,6 +619,25 @@ public class NvHTTP {
     // Bit 11: ???
     // LavApollo's verdict on this client's microphone: "ready", "disabled", "no_permission",
     // "no_device", or null for a host without microphone passthrough.
+    /**
+     * LavApollo's mode of the display the stream captures: {width, height, refresh}, or null when
+     * the host does not announce it (other hosts, older LavApollo).
+     */
+    public static int[] getCurrentDisplayMode(String serverInfo) throws XmlPullParserException, IOException {
+        String w = getXmlString(serverInfo, "CurrentDisplayWidth", false);
+        String h = getXmlString(serverInfo, "CurrentDisplayHeight", false);
+        String r = getXmlString(serverInfo, "CurrentDisplayRefreshRate", false);
+        if (w == null || h == null || r == null) {
+            return null;
+        }
+        try {
+            int[] mode = {Integer.parseInt(w.trim()), Integer.parseInt(h.trim()), Integer.parseInt(r.trim())};
+            return mode[0] > 0 && mode[1] > 0 ? mode : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     public String getMicPassthroughState(String serverInfo) throws XmlPullParserException, IOException {
         return getXmlString(serverInfo, "MicPassthroughState", false);
     }

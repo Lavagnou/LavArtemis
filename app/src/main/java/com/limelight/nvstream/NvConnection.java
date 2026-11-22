@@ -48,6 +48,8 @@ public class NvConnection {
     private LimelightCryptoProvider cryptoProvider;
     private String uniqueId;
     private ConnectionContext context;
+    // LavApollo's captured display mode at connection time, or null (other hosts)
+    private int[] hostDisplayMode;
     private static Semaphore connectionAllowed = new Semaphore(1);
     private final boolean isMonkey;
     private final Context appContext;
@@ -227,6 +229,7 @@ public class NvConnection {
         NvHTTP h = new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider);
 
         String serverInfo = h.getServerInfo(true);
+        hostDisplayMode = NvHTTP.getCurrentDisplayMode(serverInfo);
         
         context.serverAppVersion = h.getServerVersion(serverInfo);
         if (context.serverAppVersion == null) {
@@ -336,6 +339,8 @@ public class NvConnection {
         if (h.getCurrentGame(serverInfo) != 0 || (h.getCurrentGameUUID(serverInfo) != null && !h.getCurrentGameUUID(serverInfo).isEmpty())) {
             try {
                 if (h.getCurrentGame(serverInfo) == app.getAppId() || Objects.equals(h.getCurrentGameUUID(serverInfo), app.getAppUUID())) {
+                    // Joining: the host keeps its display, so stream at its mode
+                    applyHostDisplayMode(true);
                     if (!h.launchApp(context, "resume", app.getAppUUID(), app.getAppId(), context.negotiatedHdr)) {
                         context.connListener.displayMessage("Failed to resume existing session");
                         return false;
@@ -394,8 +399,25 @@ public class NvConnection {
         return launchNotRunningApp(h, context);
     }
     
+    private void applyHostDisplayMode(boolean resuming) {
+        if (hostDisplayMode == null
+                || !com.limelight.utils.HostDisplayFit.applies(resuming, context.streamConfig.getVirtualDisplay())) {
+            return;
+        }
+        com.limelight.utils.HostDisplayFit.Mode m = context.streamConfig.applyHostDisplay(hostDisplayMode);
+        LimeLog.info("Streaming at the host display's mode: " + m);
+        context.connListener.streamModeDecided(m.width, m.height, m.fps);
+    }
+
+    public int[] getHostDisplayModeAtStart() {
+        return hostDisplayMode;
+    }
+
     private boolean launchNotRunningApp(NvHTTP h, ConnectionContext context)
             throws IOException, XmlPullParserException {
+        // Without a virtual display, the host streams the display it already has
+        applyHostDisplayMode(false);
+
         // Launch the app since it's not running
         if (!h.launchApp(context, "launch", context.streamConfig.getApp().getAppUUID(), context.streamConfig.getApp().getAppId(), context.negotiatedHdr)) {
             context.connListener.displayMessage("Failed to launch application");

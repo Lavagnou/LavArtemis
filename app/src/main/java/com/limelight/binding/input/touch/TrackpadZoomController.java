@@ -58,6 +58,11 @@ public class TrackpadZoomController implements MouseMover {
         }
     }
 
+    /** The stream's size was decided by the host display's mode (HostDisplayFit). */
+    public void setStreamSize(int width, int height) {
+        cursor.resize(width, height);
+    }
+
     public void onAbsolutePosition(float fx, float fy) {
         cursor.setFraction(fx, fy);
     }

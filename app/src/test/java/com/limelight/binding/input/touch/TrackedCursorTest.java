@@ -51,4 +51,14 @@ public class TrackedCursorTest {
         assertEquals(1920, c.getX());
         assertEquals(0, c.getY());
     }
+
+    @Test
+    public void resizeKeepsFraction() {
+        TrackedCursor c = new TrackedCursor(1920, 1080);
+        c.setFraction(0.25f, 0.5f);
+        c.resize(1280, 720);
+        assertEquals(320, c.getX());
+        assertEquals(360, c.getY());
+        assertEquals(1280, c.getWidth());
+    }
 }
