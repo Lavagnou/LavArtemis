@@ -354,8 +354,11 @@ public class TrackpadContext implements TouchContext {
                 absDeltaY = Math.abs(rawDeltaY);
             }
 
-            deltaX *= precisionMultiplier;
-            deltaY *= precisionMultiplier;
+            // The pinch-zoom mover moves the cursor as far as the finger on screen: no acceleration
+            if (mouseMover == null) {
+                deltaX *= precisionMultiplier;
+                deltaY *= precisionMultiplier;
+            }
 
             deltaX *= sensitivityX;
             deltaY *= sensitivityY;

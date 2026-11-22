@@ -16,11 +16,11 @@ import static org.junit.Assert.assertTrue;
 public class TrackpadZoomControllerTest {
     /** Arithmetic stand-in for PanZoomHandler: view and parent 1000x500. */
     static final class FakeZoomView implements ZoomView {
-        float scale = 1f, childX, childY;
+        float scale = 1f, childX, childY, viewW = 1000;
         @Override public float getScaleFactor() { return scale; }
         @Override public float getChildX() { return childX; }
         @Override public float getChildY() { return childY; }
-        @Override public float getViewWidth() { return 1000; }
+        @Override public float getViewWidth() { return viewW; }
         @Override public float getViewHeight() { return 500; }
         @Override public float getParentWidth() { return 1000; }
         @Override public float getParentHeight() { return 500; }
@@ -56,7 +56,7 @@ public class TrackpadZoomControllerTest {
     @Test
     public void moveSendsAbsoluteFromCentre() {
         c.move((short) 10, (short) 0);
-        assertEquals(970, s.lastX);
+        assertEquals(979, s.lastX);       // 960 + 10 * 1920 / 1000
         assertEquals(540, s.lastY);
         assertEquals(1920, s.lastW);
         assertEquals(1080, s.lastH);
@@ -66,7 +66,7 @@ public class TrackpadZoomControllerTest {
     public void moveDividesByZoom() {
         v.scale = 2f;
         c.move((short) 10, (short) 0);
-        assertEquals(965, s.lastX);
+        assertEquals(970, s.lastX);       // 960 + 10 * 1920 / (1000 * 2)
     }
 
     @Test
@@ -75,6 +75,21 @@ public class TrackpadZoomControllerTest {
         v.childX = -1500;
         c.move((short) 2000, (short) 0);
         assertTrue(v.childX < -1500);
+    }
+
+    @Test
+    public void moveIsOneToOneOnScreen() {
+        v.scale = 2f;
+        c.move((short) 100, (short) 0);
+        assertEquals(1056, s.lastX);      // 100 px on screen = 100 * 1920 / (1000 * 2) stream px
+    }
+
+    @Test
+    public void conversionUsesCurrentViewSize() {
+        c.move((short) 100, (short) 0);   // +192
+        v.viewW = 500;                    // rotated: the image is now half as wide on screen
+        c.move((short) 100, (short) 0);   // +384
+        assertEquals(960 + 192 + 384, s.lastX);
     }
 
     @Test

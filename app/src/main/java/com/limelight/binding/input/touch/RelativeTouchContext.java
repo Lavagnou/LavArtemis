@@ -260,6 +260,9 @@ public class RelativeTouchContext implements TouchContext {
             if (actionIndex == 0) {
                 int deltaX = eventX - lastTouchX;
                 int deltaY = eventY - lastTouchY;
+                // The pinch-zoom mover wants the finger's own pixels (it converts them to the image)
+                int rawDeltaX = deltaX;
+                int rawDeltaY = deltaY;
 
                 // Scale the deltas based on the factors passed to our constructor
                 deltaX = (int) Math.round((double) Math.abs(deltaX) * xFactor);
@@ -280,7 +283,8 @@ public class RelativeTouchContext implements TouchContext {
                 } else {
                     if (mouseMover != null) {
                         // Trackpad pinch-zoom owns the cursor: it supersedes absolute mouse mode
-                        mouseMover.move((short) (deltaX*prefConfig.touchPadSensitivity*0.01f), (short) (deltaY*prefConfig.touchPadYSensitity*0.01f));
+                        // Raw finger pixels, no reference scaling: 100 % sensitivity = 1:1 on screen
+                        mouseMover.move((short) (rawDeltaX*prefConfig.touchPadSensitivity*0.01f), (short) (rawDeltaY*prefConfig.touchPadYSensitity*0.01f));
                     }
                     else if (prefConfig.absoluteMouseMode) {
                         conn.sendMouseMoveAsMousePosition(

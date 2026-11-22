@@ -32,7 +32,8 @@ import static org.robolectric.Shadows.shadowOf;
 public class TouchContextMoverTest {
     private static final class RecordingMover implements MouseMover {
         int moves;
-        @Override public void move(short dx, short dy) { moves++; }
+        short lastDx, lastDy;
+        @Override public void move(short dx, short dy) { moves++; lastDx = dx; lastDy = dy; }
     }
 
     private NvConnection conn;
@@ -102,6 +103,51 @@ public class TouchContextMoverTest {
         tc.touchDownEvent(100, 100, 0, true);
         tc.touchMoveEvent(200, 100, 10);
         verify(conn, atLeastOnce()).sendMouseMove(anyShort(), anyShort());
+    }
+
+    @Test
+    public void trackpadMoverGetsRawFingerDelta() {
+        TrackpadContext tc = new TrackpadContext(conn, 0);
+        tc.setMouseMover(mover);
+        tc.setPointerCount(1);
+        tc.touchDownEvent(100, 100, 0, true);
+        tc.touchMoveEvent(200, 100, 10);
+        assertEquals(100, mover.lastDx);
+        assertEquals(0, mover.lastDy);
+    }
+
+    @Test
+    public void gamingMoverGetsRawFingerDelta() {
+        RelativeTouchContext rc = gaming(100);
+        rc.touchMoveEvent(200, 100, 10);
+        assertEquals(100, mover.lastDx);
+    }
+
+    @Test
+    public void gamingMoverScalesBySensitivity() {
+        RelativeTouchContext rc = gaming(50);
+        rc.touchMoveEvent(200, 100, 10);
+        assertEquals(50, mover.lastDx);
+    }
+
+    @Test
+    public void noMoverKeepsAcceleration() {
+        TrackpadContext tc = new TrackpadContext(conn, 0);
+        tc.setPointerCount(1);
+        tc.touchDownEvent(100, 100, 0, true);
+        tc.touchMoveEvent(200, 100, 10);
+        verify(conn).sendMouseMove((short) (100 * Math.cbrt(100 / 8.0)), (short) 0);
+    }
+
+    private RelativeTouchContext gaming(int sensitivity) {
+        PreferenceConfiguration prefs = new PreferenceConfiguration();
+        prefs.touchPadSensitivity = sensitivity;
+        prefs.touchPadYSensitity = sensitivity;
+        RelativeTouchContext rc = new RelativeTouchContext(conn, 0, 1280, 720, view, prefs);
+        rc.setMouseMover(mover);
+        rc.setPointerCount(1);
+        rc.touchDownEvent(100, 100, 0, true);
+        return rc;
     }
 
     @Test

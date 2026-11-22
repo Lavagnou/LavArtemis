@@ -57,9 +57,18 @@ public class TrackpadZoomController implements MouseMover {
         cursor.setFraction(fx, fy);
     }
 
+    /**
+     * @param dx, dy  finger movement in screen pixels; the cursor travels the same distance on
+     *                screen, whatever the zoom and orientation (Chrome Remote Desktop's trackpad)
+     */
     @Override
     public void move(short dx, short dy) {
-        cursor.move(dx, dy, view.getScaleFactor());
+        // Read the view size now: a rotation changes it mid-stream
+        float viewW = view.getViewWidth();
+        float viewH = view.getViewHeight();
+        float toStreamX = viewW > 0 ? cursor.getWidth() / viewW : 1f;
+        float toStreamY = viewH > 0 ? cursor.getHeight() / viewH : 1f;
+        cursor.move(dx * toStreamX, dy * toStreamY, view.getScaleFactor());
         sender.send(cursor.getX(), cursor.getY(), (short) cursor.getWidth(), (short) cursor.getHeight());
 
         float[] t = ZoomFollow.followTranslation(view.getChildX(), view.getChildY(), view.getScaleFactor(),
