@@ -205,9 +205,14 @@ défaut off). `binding/input/touch/TrackpadZoomController.java` orchestre ; `Tra
 > contrôleur les convertit : `d × largeurStream / (largeurVue × zoom)`. La taille de la vue est relue **à
 > chaque mouvement** : une rotation la change en plein stream. Option off = accélération d'origine.
 
-> ⚠️ **Bug possible hérité, hors périmètre** : `getNormalizedCoordinates(streamContainer, …)` lit
-> l'échelle du **conteneur**, alors que `PanZoomHandler` zoome la `SurfaceView` : sous le mode zoom du
-> menu, un toucher absolu viserait peut-être à côté. Non vérifié sur appareil.
+> ⚠️ **On zoome le cadre du stream, pas l'image à l'intérieur.** `StreamContainer` est taillé au
+> format du stream (c'est lui qui fait les bandes noires) ; zoomer la `SurfaceView` *dans* ce cadre la
+> faisait découper par lui : l'image grossissait mais restait dans la bande, contrairement à Chrome
+> Remote Desktop. `PanZoomHandler.forStreamContainer()` zoome le **conteneur** dans l'écran entier
+> (bornes = son parent plein écran). C'était déjà l'hypothèse du reste du code :
+> `getNormalizedCoordinates(streamContainer, …)` et l'aperçu PiP lisent la transformation **du
+> conteneur** — les touchers absolus suivent donc enfin le zoom. Un zoom/pan « retenu » par une version
+> antérieure était exprimé dans le repère du conteneur : il est recadré une fois au premier stream.
 
 ## 🔄 Rotation qui suit le téléphone (Android)
 

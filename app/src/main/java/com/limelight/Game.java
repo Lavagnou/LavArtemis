@@ -519,10 +519,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         backgroundTouchView.setOnTouchListener(this);
 
 
-        panZoomHandler = new PanZoomHandler(
+        // Zoom the letterboxed container over the whole screen, not the surface inside its 16:9 box
+        panZoomHandler = PanZoomHandler.forStreamContainer(
                 getApplicationContext(),
                 this,
-                streamContainer.getSurfaceView(),
                 streamContainer,
                 prefConfig
         );

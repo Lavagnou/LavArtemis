@@ -39,6 +39,17 @@ public class PanZoomHandler implements ZoomView {
         streamView.setPivotY(0);
     }
 
+    /**
+     * Zooms the stream's letterboxed container inside the whole screen, so a zoomed stream grows
+     * into the black bars (Chrome Remote Desktop). Zooming the surface inside the container clipped it
+     * to the 16:9 box. Touch mapping (`Game.getNormalizedCoordinates`) and the PiP source hint already
+     * read the container's own transform, so they follow the zoom too.
+     */
+    public static PanZoomHandler forStreamContainer(Context context, Game game, View streamContainer,
+                                                    PreferenceConfiguration prefConfig) {
+        return new PanZoomHandler(context, game, streamContainer, (View) streamContainer.getParent(), prefConfig);
+    }
+
     public void handleTouchEvent(MotionEvent motionEvent) {
         scaleGestureDetector.onTouchEvent(motionEvent);
         gestureDetector.onTouchEvent(motionEvent);
