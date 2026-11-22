@@ -93,6 +93,7 @@ public class RelativeTouchContext implements TouchContext {
 
     // Trackpad pinch-zoom owns the cursor when set; null = today's behaviour
     private MouseMover mouseMover;
+    private float moverPendingX, moverPendingY;
 
     public void setMouseMover(MouseMover mover) {
         this.mouseMover = mover;
@@ -283,8 +284,17 @@ public class RelativeTouchContext implements TouchContext {
                 } else {
                     if (mouseMover != null) {
                         // Trackpad pinch-zoom owns the cursor: it supersedes absolute mouse mode
-                        // Raw finger pixels, no reference scaling: 100 % sensitivity = 1:1 on screen
-                        mouseMover.move((short) (rawDeltaX*prefConfig.touchPadSensitivity*0.01f), (short) (rawDeltaY*prefConfig.touchPadYSensitity*0.01f));
+                        // Raw finger pixels, no reference scaling: 100 % sensitivity = 1:1 on screen.
+                        // Keep the fraction a sensitivity below 100 % leaves, or slow moves vanish.
+                        moverPendingX += rawDeltaX * prefConfig.touchPadSensitivity * 0.01f;
+                        moverPendingY += rawDeltaY * prefConfig.touchPadYSensitity * 0.01f;
+                        short sendX = (short) moverPendingX;
+                        short sendY = (short) moverPendingY;
+                        moverPendingX -= sendX;
+                        moverPendingY -= sendY;
+                        if (sendX != 0 || sendY != 0) {
+                            mouseMover.move(sendX, sendY);
+                        }
                     }
                     else if (prefConfig.absoluteMouseMode) {
                         conn.sendMouseMoveAsMousePosition(

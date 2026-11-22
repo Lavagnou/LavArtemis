@@ -33,7 +33,8 @@ public class TouchContextMoverTest {
     private static final class RecordingMover implements MouseMover {
         int moves;
         short lastDx, lastDy;
-        @Override public void move(short dx, short dy) { moves++; lastDx = dx; lastDy = dy; }
+        int sumDx;
+        @Override public void move(short dx, short dy) { moves++; lastDx = dx; lastDy = dy; sumDx += dx; }
     }
 
     private NvConnection conn;
@@ -137,6 +138,16 @@ public class TouchContextMoverTest {
         tc.touchDownEvent(100, 100, 0, true);
         tc.touchMoveEvent(200, 100, 10);
         verify(conn).sendMouseMove((short) (100 * Math.cbrt(100 / 8.0)), (short) 0);
+    }
+
+    @Test
+    public void gamingMoverKeepsSlowMotionBelowFullSensitivity() {
+        // 1 px at 50 % is half a pixel: dropped every event, a slow finger never moved the cursor
+        RelativeTouchContext rc = gaming(50);
+        for (int i = 1; i <= 10; i++) {
+            rc.touchMoveEvent(100 + i, 100, i * 10);
+        }
+        assertEquals(5, mover.sumDx);
     }
 
     private RelativeTouchContext gaming(int sensitivity) {
