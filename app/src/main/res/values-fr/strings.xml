@@ -226,6 +226,8 @@
     <string name="summary_checkbox_touchscreen_trackpad">Si activé, l\'écran tactile agit comme un trackpad. Si désactivé, l\'écran tactile contrôle directement le curseur de la souris.</string>
     <string name="title_checkbox_absolute_mouse_mode">Mode souris pour bureau à distance</string>
     <string name="summary_checkbox_absolute_mouse_mode">Cela peut rendre l\'accélération de la souris plus naturelle pour l\'utilisation du bureau à distance, mais il est incompatible avec de nombreux jeux.</string>
+    <string name="title_trackpad_pinch_zoom">Zoom au pincement (trackpad)</string>
+    <string name="summary_trackpad_pinch_zoom">En mode trackpad, pincer zoome le stream et la vue suit le curseur. L\'appli envoie la position du curseur : l\'accélération de la souris de Windows ne s\'applique plus.</string>
     <string name="title_checkbox_mouse_nav_buttons">Activer les boutons de navigation arrière et avant de la souris</string>
     <string name="summary_checkbox_mouse_nav_buttons">L\'activation de cette option peut casser le clic droit sur certains appareils bogués</string>
 

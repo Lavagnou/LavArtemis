@@ -476,6 +476,12 @@
             android:summary="@string/summary_checkbox_absolute_mouse_mode"
             android:title="@string/title_checkbox_absolute_mouse_mode"
             app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_trackpad_pinch_zoom"
+            android:summary="@string/summary_trackpad_pinch_zoom"
+            android:title="@string/title_trackpad_pinch_zoom"
+            app:iconSpaceReserved="false" />
         <com.limelight.preferences.SeekBarPreference
             android:defaultValue="100"
             android:key="seekbar_trackpad_sensitivity_x"

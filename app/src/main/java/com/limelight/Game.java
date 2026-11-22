@@ -23,6 +23,7 @@ import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.binding.input.evdev.EvdevListener;
 import com.limelight.binding.input.touch.TouchContext;
 import com.limelight.binding.input.touch.TrackpadContext;
+import com.limelight.binding.input.touch.TrackpadZoomController;
 import com.limelight.binding.input.virtual_controller.VirtualController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
@@ -155,6 +156,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private final TouchContext[] touchContextMap = new TouchContext[2];
     private final TouchContext[] trackpadContextMap = new TouchContext[2];
     private PanZoomHandler panZoomHandler;
+    // Pinch to zoom + cursor-following view in trackpad modes; null when the setting is off
+    private TrackpadZoomController trackpadZoom;
+    // Span change that makes a two-finger gesture a pinch; below the contexts' own scroll
+    // thresholds (20/30 px per finger), which a pinch reaches at half the span rate
+    private static final float TRACKPAD_PINCH_THRESHOLD_PX = 24;
     private long threeFingerDownTime = 0;
     private long fourFingerDownTime = 0;
     private long fiveFingerDownTime = 0;
@@ -514,13 +520,39 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 prefConfig
         );
 
+        // Pinch to zoom in trackpad modes (off by default). Not on an external display: the stream
+        // isn't on this screen there, the phone is only a trackpad.
+        if (prefConfig.trackpadPinchZoom && !isOnExternalDisplay()) {
+            trackpadZoom = new TrackpadZoomController(
+                    panZoomHandler,
+                    (x, y, w, h) -> {
+                        if (conn != null) {
+                            conn.sendMousePosition(x, y, w, h);
+                        }
+                    },
+                    () -> {
+                        for (TouchContext context : touchContextMap) {
+                            if (context != null) {
+                                context.cancelTouch();
+                            }
+                        }
+                    },
+                    prefConfig.width, prefConfig.height, TRACKPAD_PINCH_THRESHOLD_PX);
+        }
+
         // Restore previous zoom & pan if enabled and saved
         if (prefConfig.rememberZoomPan) {
-            streamContainer.post(() -> panZoomHandler.setInitialZoomAndPan(
-                    prefConfig.zoomScale,
-                    prefConfig.panOffsetX,
-                    prefConfig.panOffsetY
-            ));
+            streamContainer.post(() -> {
+                panZoomHandler.setInitialZoomAndPan(
+                        prefConfig.zoomScale,
+                        prefConfig.panOffsetX,
+                        prefConfig.panOffsetY
+                );
+                // With trackpad pinch-zoom, a touch mode always starts at 1x, remembered zoom included
+                if (trackpadZoom != null && !prefConfig.touchscreenTrackpad) {
+                    panZoomHandler.resetZoom();
+                }
+            });
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -3270,6 +3302,17 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         return true;
                     }
 
+                    // Trackpad pinch-zoom: a decided pinch owns the gesture, nothing reaches the contexts
+                    if (trackpadZoom != null && !isPanZoomMode) {
+                        int pointers = event.getPointerCount();
+                        boolean twoOrMore = pointers > 1;
+                        if (trackpadZoom.onTouch(event.getActionMasked(), pointers,
+                                event.getX(0), event.getY(0),
+                                twoOrMore ? event.getX(1) : 0, twoOrMore ? event.getY(1) : 0)) {
+                            return true;
+                        }
+                    }
+
                     if (isPanZoomMode) {
                         // panning the streamView
                         panZoomHandler.handleTouchEvent(event);
@@ -4461,6 +4504,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             } else {
                 touchContextMap[i] = new TrackpadContext(conn, i);
             }
+
+            if (trackpadZoom != null) {
+                if (touchContextMap[i] instanceof TrackpadContext) {
+                    ((TrackpadContext) touchContextMap[i]).setMouseMover(trackpadZoom);
+                } else if (touchContextMap[i] instanceof RelativeTouchContext) {
+                    ((RelativeTouchContext) touchContextMap[i]).setMouseMover(trackpadZoom);
+                } else if (touchContextMap[i] instanceof AbsoluteTouchContext) {
+                    ((AbsoluteTouchContext) touchContextMap[i]).setPositionObserver(trackpadZoom::onAbsolutePosition);
+                }
+            }
+        }
+
+        if (trackpadZoom != null) {
+            // Touch modes (and "disabled") never zoom, and drop any zoom on the way in
+            trackpadZoom.setTrackpadMode(mode == 2 || mode == 3);
         }
 
         // Always exit zoom mode if mouse mode has changed

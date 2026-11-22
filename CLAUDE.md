@@ -165,6 +165,39 @@ Réglage `checkbox_voice_ptt_button` (*UI Settings*, défaut off) + entrées « 
 > `ProfileAwarePreferences.putBoolean()`, qui écrit dans le profil actif s'il porte la clé — sinon
 > `OverlaySharedPreferences.edit()` l'écrirait dans les prefs de base, masquées par le profil.
 
+## 🔍 Zoom au pincement en mode trackpad (Android)
+
+Comme Chrome Remote Desktop : en mode trackpad (souris 2 naturel / 3 gaming), **pincer zoome**
+(1×–10×) et **la vue suit le curseur** — elle ne bouge que quand le curseur quitte la moitié centrale
+de l'écran, juste assez pour l'y ramener. Réglage `checkbox_trackpad_pinch_zoom` (*Input Settings*,
+défaut off). `binding/input/touch/TrackpadZoomController.java` orchestre ; `TrackedCursor`,
+`PinchArbiter` et `utils/ZoomFollow` portent les calculs (tests JVM) ; `PanZoomHandler` implémente
+`utils/ZoomView`.
+
+> ⚠️ **L'appli tient le curseur et l'envoie en position absolue** (`sendMousePosition`) dès que
+> l'option est active. Suivre un curseur dont on n'envoie que des déplacements relatifs est impossible
+> à faire juste : l'accélération de Windows (« Améliorer la précision du pointeur », active par défaut)
+> déforme les mouvements et toute estimation dérive vers un curseur fantôme. Prix assumé : plus
+> d'accélération Windows, et les jeux à caméra souris réagissent mal (option désactivée par défaut).
+> Les contextes trackpad passent par `MouseMover` ; l'option « souris absolue » du gaming est
+> **supplantée** quand les deux sont actives (un seul propriétaire de la position).
+
+> ⚠️ **Un pincement décidé possède tout le geste** : `PinchArbiter` tranche au début (l'écart entre les
+> doigts change avant que le centre bouge), puis `cancelTouch()` sur les contextes — sinon le
+> défilement ou le clic droit à deux doigts partiraient pendant le zoom. Le seuil (24 px) doit rester
+> sous les seuils de défilement des contextes (20/30 px *par doigt*, qu'un pincement atteint à la
+> moitié de la vitesse de l'écart).
+
+> 📋 **Le suivi ne se déclenche que sur un mouvement du curseur**, jamais sur un pincement : on peut
+> zoomer loin du curseur, la vue le rattrape au prochain mouvement. Il vaut pour **tout** zoom > 1×
+> (pincement, mode zoom du menu, zoom retenu). En mode tactile, retour à 1× à l'entrée (zoom retenu
+> compris, `Game` le refait après la restauration différée) ; un toucher absolu resynchronise la
+> position tenue. Option off = aucun `MouseMover`, aucune interception : comportement d'avant.
+
+> ⚠️ **Bug possible hérité, hors périmètre** : `getNormalizedCoordinates(streamContainer, …)` lit
+> l'échelle du **conteneur**, alors que `PanZoomHandler` zoome la `SurfaceView` : sous le mode zoom du
+> menu, un toucher absolu viserait peut-être à côté. Non vérifié sur appareil.
+
 ## 🔧 Code natif / JNI
 
 - Build : **ndk-build** (`app/src/main/jni/Android.mk` aggregator ; `Application.mk` : `APP_PLATFORM android-21`, support des pages 16 KB).
