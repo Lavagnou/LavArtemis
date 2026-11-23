@@ -42,6 +42,8 @@ Shapes and colours live in `generate-icons.mjs` (and their VectorDrawable copy i
 | `lavartemis*.svg`, `lavartemis.ico`, `lavartemis-dev.ico`, `lavartemis.icns`, `lavartemis-64.png` / `-dev-64.png` (installer logo `artemis_wix*.png`), `lavartemis-128.png` (`artemis.png`) | LavArtemis-Qt `app/res/`, `app/` |
 | `lavapollo.{svg,ico,icns}`, `lavapollo-1024.png` | LavApollo root `apollo.*` |
 | `lavapollo*.{svg,ico}`, `-1024/-16/-45.png` | LavApollo `src_assets/common/assets/web{,-v2}/public/images/` as `apollo-<state>.*`, `logo-apollo*.*`, `apollo.ico` |
+| `lavapollo-128.png` | LavApollo `tools/playnite/icon.png` (the LavApollo Link extension in Playnite) |
+| `lavartemis-braise.svg`, `lavartemis-affiche-{light,dark}.svg` | LavArtemis-Qt `app/res/` (logo of the v2 header per theme; Ludique keeps `lavartemis.svg`) |
 
 ## Format choices
 

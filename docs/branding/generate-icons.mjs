@@ -20,6 +20,8 @@ const defs = `<defs>
 <linearGradient id="night" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#25325A"/><stop offset="1" stop-color="#0E1222"/></linearGradient>
 <linearGradient id="sun" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#FFD866"/><stop offset="1" stop-color="#F2AE1E"/></linearGradient>
 </defs>`;
+// Braise theme variant only (kept out of the shared defs so the app icons stay byte-identical).
+const EMBER = '<defs><linearGradient id="ember" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#FF7A3D"/><stop offset="1" stop-color="#C93A12"/></linearGradient></defs>';
 
 const tile = (fill) => `<rect width="100" height="100" rx="22" fill="${fill}"/>`;
 // Grid lines of the Dev tile, each cut to the rounded tile (no clipPath: QtSvg and Android
@@ -76,7 +78,7 @@ const lock = () => `<circle cx="78" cy="78" r="17" fill="#141A2E" stroke="#FFFFF
 const devBadge = (ring) => `<rect x="54" y="74" width="36" height="17" rx="8.5" fill="#4ADE80" stroke="${ring}" stroke-width="3"/>
 <path d="M62.6 79 V86 H64.6 C66.8 86 67.6 84.5 67.6 82.5 C67.6 80.5 66.8 79 64.6 79 Z M74.4 79 H69.8 V86 H74.4 M69.8 82.5 H73.6 M76.2 79 L79 86 L81.8 79" fill="none" stroke="#0E1222" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>`;
 
-const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024">${defs}${body}</svg>`;
+const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024">${defs}${body.includes('url(#ember)') ? EMBER : ''}${body}</svg>`;
 
 const DEV_TILE = '#1D4E89';
 export const ICONS = {
@@ -85,6 +87,11 @@ export const ICONS = {
   'lavartemis-session': svg(tile('url(#night)') + artemisOn('#DDE6F5', '#172036', '#3F6FD8')),
   'lavartemis-dev': svg(tile(DEV_TILE) + grid() + artemisOff('#FFFFFF', '#9FD3FF') + devBadge(DEV_TILE)),
   'lavartemis-dev-session': svg(tile(DEV_TILE) + grid() + artemisOn('#FFFFFF', DEV_TILE, '#2F7FD8') + devBadge(DEV_TILE)),
+  // Theme variants for the in-app header (gui/v2). A theme keeps the original logo when it already
+  // fits (Ludique has blues); Braise and Affiche recolour the same drawing.
+  'lavartemis-braise': svg(tile('url(#ember)') + artemisOff('#FFF4EC', '#4A1505')),
+  'lavartemis-affiche-light': svg(tile('#111111') + artemisOff('#EDEDE8', '#FFD60A')),
+  'lavartemis-affiche-dark': svg(tile('#FFD60A') + artemisOff('#111111', '#111111')),
   // LavApollo (host)
   'lavapollo': svg(tile('url(#sun)') + apolloOff('#141A2E', '#F8BC40')),
   'lavapollo-playing': svg(tile('url(#sun)') + apolloOn('#141A2E', '#F8BC40', '#141A2E')),
