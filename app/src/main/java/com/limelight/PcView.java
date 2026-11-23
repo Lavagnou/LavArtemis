@@ -217,15 +217,20 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // LavArtemis Dev opens the v2 interface. Kept here: a pairing link (art:// pair, which
-        // carries hostname + pin + passphrase) and an explicit request for the legacy list, until
-        // the v2 « Mes PC » page pairs by itself.
+        // LavArtemis Dev opens the v2 interface: the home, or « Mes PC » for a pairing link
+        // (art:// pair: hostname + port + pin + passphrase, sent by AddComputerManually), which
+        // pairs the PC as soon as it answers at that address. Only an explicit request keeps the
+        // legacy list.
         Intent startIntent = getIntent();
-        if (BuildConfig.LAV_DEV
-                && !startIntent.getBooleanExtra(EXTRA_LEGACY_UI, false)
-                && startIntent.getStringExtra("pin") == null) {
-            Intent home = new Intent(this, com.limelight.v2.HomeActivity.class);
-            startActivity(home);
+        if (BuildConfig.LAV_DEV && !startIntent.getBooleanExtra(EXTRA_LEGACY_UI, false)) {
+            Intent next;
+            if (startIntent.getStringExtra("pin") != null) {
+                next = new Intent(this, com.limelight.v2.HostsActivity.class);
+                next.putExtras(startIntent);
+            } else {
+                next = new Intent(this, com.limelight.v2.HomeActivity.class);
+            }
+            startActivity(next);
             finish();
             return;
         }

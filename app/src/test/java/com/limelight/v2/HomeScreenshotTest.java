@@ -94,8 +94,8 @@ public class HomeScreenshotTest {
                     {0xFF5B6B3A, 0xFF101A0C}, {0xFF2F7FB5, 0xFF0B1E33}, {0xFFB53A6B, 0xFF2A0A18}};
             int i = 0;
             for (NvApp a : apps) {
-                if (a.getAppId() == 104 || a.getAppId() == 109) {
-                    continue; // no cover on the host: the name shows
+                if (a.getAppId() == 100 || a.getAppId() == 104 || a.getAppId() == 109) {
+                    continue; // no cover on the host: the name shows (a long one: Red Dead Redemption 2)
                 }
                 int[] c = palette[i++ % palette.length];
                 bitmaps.put(a.getAppId(), cover(a.getAppName(), c[0], c[1], a.getAppId() < 100));
@@ -113,11 +113,22 @@ public class HomeScreenshotTest {
             c.drawCircle(220, 140, 110, p);
             p.setColor(Color.WHITE);
             p.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
-            p.setTextSize(landscapeArt ? 44 : 38);
-            float y = 330;
-            for (String word : title.split(" ")) {
+            // The title fits the art: one word per line from the bottom up, smaller when it is long
+            String[] words = title.split(" ");
+            float size = landscapeArt ? 44 : (words.length > 3 ? 32 : 38);
+            p.setTextSize(size);
+            for (String w : words) {
+                while (p.measureText(w.toUpperCase()) > 256 && size > 18) {
+                    size -= 2;
+                    p.setTextSize(size);
+                }
+            }
+            float line = size * 1.15f;
+            // Wide art (Bureau, Playnite) is cropped to its middle on the cards: the title stays there
+            float y = landscapeArt ? 330 : 450 - 24 - (words.length - 1) * line;
+            for (String word : words) {
                 c.drawText(word.toUpperCase(), 22, y, p);
-                y += 44;
+                y += line;
             }
             return b;
         }

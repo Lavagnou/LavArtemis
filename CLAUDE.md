@@ -178,7 +178,7 @@ avec **mode expert**, menu en jeu, raccourcis ; l'ancienne interface Qt est supp
 français (`desktop/app/gui/v2/`, voir `desktop/CLAUDE.md`). Android : phase 1 livrée (accueil +
 bibliothèque, ci-dessous).
 
-### 📱 Interface v2 Android (Dev, phase 1)
+### 📱 Interface v2 Android (Dev, phases 1 et 2a)
 
 Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-codemap.md`). Paquet
 `com.limelight.v2`, vues **construites en code** (pas de XML de layout, pas de Compose/Kotlin).
@@ -204,10 +204,50 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   (ou `$V2_SHOTS_DIR`) aux densités validées (915×412 et 960×540 dp, + portrait). Les relire avant toute
   livraison qui touche la v2.
 
+- **Mes PC** (phase 2a, = `desktop/app/gui/v2/HostsView.qml`) : `HostsActivity` (actions, portées de
+  `PcView` : `pair()` = `doPair`, `forget()` = `removeComputer` étape pour étape, ajout manuel =
+  `AddComputerManually.doAddPc` dont `parseRawUserInputToUri` / `isWrongSubnetSiteLocalAddress` sont
+  devenus `public static`), `HostsScreen` (vues, données simples, grille dont les colonnes suivent la
+  largeur : 2 à 3 sur téléphone, 5 au plus), `HostCards` (Java pur, testé par `HostCardsTest` : textes
+  d'une carte, tap, menu par état, colonnes, PIN espacé, lien d'appairage). Cartes **par nom** (elles ne
+  bougent pas quand un PC s'allume), appairés seulement ; les PC non appairés qui répondent sont dans le
+  menu « Ajouter un PC ». Un PC ajouté à la main et non appairé est appairé tout de suite. Succès de
+  l'appairage → l'accueil montre ce PC (`PREF_LAST_HOST`, relu par `HomeActivity.onResume`).
+- **Lien d'appairage** (`art://host?pin=…&passphrase=…`) : `AddComputerManually` ajoute le PC puis lance
+  `PcView` avec `hostname/port/pin/passphrase`, que `PcView` passe en Dev à `HostsActivity`, qui appaire le
+  PC dès qu'il répond à cette adresse (`HostCards.matchesLink`, port absent = 47989).
+- **Renommer** : `ComputerManagerBinder.renameComputer(uuid, nom)`. Le schéma de `computers4.db` ne bouge
+  pas : le nom choisi vit dans les prefs `HostNames` (uuid → nom) et **réappliqué après chaque poll**
+  (`pollComputer` → `HostNames.apply`), sinon le `hostname` du `serverinfo` l'écraserait au poll suivant
+  (c'est le `hasCustomName` du desktop) ; il est aussi écrit dans la base. Oublier le PC l'efface.
+- `ComputerDetails.apolloVersion` (`ApolloVersion` du `serverinfo`) : « 192.168.1.24 · LavApollo 1.2.0 ».
+- **Menu en jeu** : en Dev, `GameMenu.showMenuDialog` passe par `v2/ui/V2ListDialog` (même liste, même
+  `run()` donc même `runWithGameFocus` ; « Annuler » devient un bouton ; deux colonnes sur un écran large
+  mais bas) ; le message « Aucune commande de serveur » aussi. La stable garde l'`AlertDialog`. Libellés
+  depuis `strings.xml` + `values-fr` (traduction de `game_menu_toggle_floating_button` ajoutée,
+  « Envoyer le presse-papiers » au lieu de « Télécharger »).
+
 > ⚠️ **Le PcView sauté faisait deux choses au démarrage** que `HomeActivity` refait : la sonde du
-> renderer GL (`GlPreferences`, lue par le réglage fin des décodeurs) et le check de mise à jour. Et
-> PcView reste ouvert pour un lien d'appairage (`pin` en extra) et sur `PcView.EXTRA_LEGACY_UI` (bouton
-> du « Mes PC » provisoire) : c'est encore lui qui ajoute, appaire et oublie les PC jusqu'à la phase 2.
+> renderer GL (`GlPreferences`, lue par le réglage fin des décodeurs) et le check de mise à jour. PcView
+> ne reste ouvert que sur `PcView.EXTRA_LEGACY_UI` (tests, dépannage) : la Dev n'a plus de chemin vers lui.
+
+> ⚠️ **Appairage : pas de poll pendant `pm.pair()`** (`stopUpdates()` puis `waitForPollingStopped()` sur le
+> thread, comme PcView), et au succès `pairState = PAIRED` sur l'objet vivant du service en plus du
+> certificat : `HostList.isPaired` le lit, et sans ça l'accueil choisirait un autre PC jusqu'au poll suivant.
+
+> ⚠️ **Touches des dialogues v2 (`DialogKeys`) : un relâché ne compte que si l'appui a eu lieu dans le
+> dialogue.** A maintenu ouvre les options (`V2Activity`, délai d'appui long) et son relâché arrive dans le
+> menu ; dans le stream, le relâché de la touche qui ouvre le menu y arrive aussi. Sans ce suivi, le menu
+> validait sa première entrée ou se refermait aussitôt.
+
+> ⚠️ **Une liste qui défile dans un panneau : le panneau ne doit pas être `Ui.noClip()`.** Une vue n'est
+> coupée à ses bornes que par le `clipChildren` de son **parent** : sous un parent `noClip`, une
+> `ScrollView` dessine ses lignes hors d'elle (par-dessus le pied du menu en jeu). Et dans une grille en
+> `LinearLayout` : case vide = `Space` en `MATCH_PARENT` (une `View` simple prend toute la hauteur offerte,
+> une hauteur fixe fait ignorer les cartes `MATCH_PARENT` de la ligne, qui tombe à 0).
+
+> 📋 Jaquettes sans image : le nom tient en **3 lignes** et sa taille descend jusqu'à ce que son mot le plus
+> long tienne dans la tuile (`CoverTile.fittedSize`) — un mot n'est jamais coupé en deux (« Redem/ption »).
 
 > ⚠️ **Halo et anneau de focus sont dessinés hors des vues** (`V2Frame`) : tout parent doit avoir
 > `Ui.noClip()` (clipChildren/clipToPadding faux), sinon ils sont coupés. L'assombrissement passe par
@@ -222,9 +262,15 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > indications A/Y/LB-RB seulement à la manette ou au clavier, « … » seulement au tactile. A = clic
 > (Android n'en fait rien seul), B/Échap = retour, Y/Menu = options, LB/RB ou Q/E = PC suivant. Au
 > premier appui directionnel après le tactile, le focus va sur Reprendre (sinon la première carte), pas sur
-> l'en-tête. Densité (`Density`) : compacte sous 480 dp de petit côté ; cartes empilées sous 600 dp de
-> large ; en portrait les Récents passent en grille. Phase 2 : Mes PC, Réglages v2 (et choix du thème,
-> aujourd'hui par appui long / Y sur le bouton clair-sombre), menu en jeu.
+> l'en-tête. **A maintenu = options** (comme Y), le relâché ne clique pas. Densité (`Density`) : compacte
+> sous 480 dp de petit côté ; cartes empilées sous 600 dp de large ; en portrait les Récents passent en
+> grille. Reste (phase 2b) : Réglages v2 (et choix du thème, aujourd'hui par appui long / Y sur le bouton
+> clair-sombre).
+>
+> 📋 **Captures** : `HostsScreenshotTest` fait Mes PC (préfixe `hosts-`), le dialogue d'appairage (`pair-`)
+> et le menu en jeu (`gamemenu-`, en `fr`). Ses dialogues sont les vrais (`HostsActivity` construite par
+> Robolectric, PC posés à la main dans `computers`), dessinés par-dessus la page assombrie. Robolectric
+> garde la fenêtre en mode tactile : pour montrer un focus, `setFocusableInTouchMode(true)` dans le test.
 
 ## 🖼️ Icônes (LavArtemis + LavApollo)
 

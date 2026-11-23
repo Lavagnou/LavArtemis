@@ -10,8 +10,8 @@ Chemins relatifs à `app/src/main/java/com/limelight/` sauf mention. Relevé du 
   rappel sur un thread de fond → `runOnUiThread`, fusion par `uuid` (:909). `startPolling` dans `onResume`, `stopPolling()` dans `onPause` (:371).
 - Binder (`computers/ComputerManagerService.java`) : `startPolling` :197, `waitForReady` :227, `addComputerBlocking(ComputerDetails)` :260,
   `removeComputer` :264, `stopPolling` :268, `createAppListPoller(ComputerDetails)` :273 (`ApplistPoller.start/stop/pollNow`),
-  `getUniqueId` :277, `getComputer(uuid)` :281, `invalidateStateForComputer(uuid)` :293. **Pas de renommage** : à ajouter
-  (nom persisté par `computers/ComputerDatabaseManager`).
+  `getUniqueId` :277, `getComputer(uuid)` :281, `invalidateStateForComputer(uuid)` :293. Renommage ajouté en phase 2a :
+  `renameComputer(uuid, nom)`, nom choisi dans les prefs `computers/HostNames`, réappliqué après chaque poll.
 - `nvstream/http/ComputerDetails` : `uuid, name`, adresses `localAddress/remoteAddress/manualAddress/ipv6Address` (`AddressTuple{address,port}`),
   `macAddress`, `serverCert`, `state` (ONLINE/OFFLINE/UNKNOWN), `activeAddress`, `httpsPort`, `pairState`, `runningGameId`,
   `runningGameUUID`, `rawAppList`, `nvidiaServer`, `vDisplaySupported/vDisplayDriverReady`, `serverCommands`,

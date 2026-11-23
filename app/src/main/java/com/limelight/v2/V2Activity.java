@@ -4,9 +4,12 @@ import android.content.res.Configuration;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.Window;
 import android.view.WindowInsetsController;
 
@@ -23,6 +26,18 @@ import com.limelight.utils.UiHelper;
 public abstract class V2Activity extends AppCompatActivity implements V2Input.Listener {
     protected V2Theme theme;
     private boolean lastSystemDark;
+    protected final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean aPressed;
+    private boolean aHeldFired;
+    private final Runnable aHeld = () -> {
+        if (aPressed) {
+            aHeldFired = true;
+            View f = getCurrentFocus();
+            if (f != null) {
+                onV2Options(f);
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +79,8 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
     protected void onPause() {
         super.onPause();
         V2Input.removeListener(this);
+        handler.removeCallbacks(aHeld);
+        aPressed = false;
     }
 
     @Override
@@ -172,9 +189,19 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
 
         switch (code) {
             case KeyEvent.KEYCODE_BUTTON_A:
-                // Android has no default for A in a normal view: click the focused item
-                if (up && focused != null && focused.isClickable()) {
-                    focused.performClick();
+                // Android has no default for A in a normal view: click the focused item on release;
+                // held, A opens its options (as Y), and the release then does nothing
+                if (down && event.getRepeatCount() == 0) {
+                    aPressed = true;
+                    aHeldFired = false;
+                    handler.removeCallbacks(aHeld);
+                    handler.postDelayed(aHeld, ViewConfiguration.getLongPressTimeout());
+                } else if (up) {
+                    handler.removeCallbacks(aHeld);
+                    if (aPressed && !aHeldFired && !event.isCanceled() && focused != null && focused.isClickable()) {
+                        focused.performClick();
+                    }
+                    aPressed = false;
                 }
                 return true;
             case KeyEvent.KEYCODE_BUTTON_B:

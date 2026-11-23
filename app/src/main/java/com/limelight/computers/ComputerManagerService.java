@@ -290,6 +290,15 @@ public class ComputerManagerService extends Service {
             return null;
         }
 
+        /**
+         * Gives the PC a name in LavArtemis (null or empty: the host's name again at the next
+         * poll). Updates the live details, the database and the listener. Blocks while a poll of
+         * that PC runs: call it off the main thread.
+         */
+        public boolean renameComputer(String uuid, String name) {
+            return ComputerManagerService.this.renameComputer(uuid, name);
+        }
+
         public void invalidateStateForComputer(String uuid) {
             synchronized (pollingTuples) {
                 for (PollingTuple tuple : pollingTuples) {
@@ -500,6 +509,46 @@ public class ComputerManagerService extends Service {
         }
     }
 
+    private boolean renameComputer(String uuid, String name) {
+        if (uuid == null) {
+            return false;
+        }
+        HostNames.set(this, uuid, name);
+        String clean = HostNames.clean(name);
+
+        PollingTuple found = null;
+        synchronized (pollingTuples) {
+            for (PollingTuple tuple : pollingTuples) {
+                if (uuid.equals(tuple.computer.uuid)) {
+                    found = tuple;
+                    break;
+                }
+            }
+        }
+        if (found == null) {
+            return false;
+        }
+
+        // The network lock keeps a poll from writing the host's name back in between
+        synchronized (found.networkLock) {
+            if (clean != null) {
+                found.computer.name = clean;
+            }
+            if (getLocalDatabaseReference()) {
+                if (dbManager.getComputerByUUID(uuid) != null) {
+                    dbManager.updateComputer(found.computer);
+                }
+                releaseLocalDatabaseReference();
+            }
+        }
+
+        ComputerManagerListener l = listener;
+        if (l != null) {
+            l.notifyComputerUpdated(found.computer);
+        }
+        return true;
+    }
+
     public void removeComputer(ComputerDetails computer) {
         if (!getLocalDatabaseReference()) {
             return;
@@ -507,6 +556,7 @@ public class ComputerManagerService extends Service {
 
         // Remove it from the database
         dbManager.deleteComputer(computer);
+        HostNames.remove(this, computer.uuid);
 
         synchronized (pollingTuples) {
             // Remove the computer from the computer list
@@ -706,6 +756,8 @@ public class ComputerManagerService extends Service {
 
         if (polledDetails != null) {
             details.update(polledDetails);
+            // The host sends its own name at every poll: a name chosen in LavArtemis wins
+            HostNames.apply(this, details);
             return true;
         }
         else {

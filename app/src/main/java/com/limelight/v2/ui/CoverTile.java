@@ -22,6 +22,10 @@ public class CoverTile extends V2Frame {
     private final IconButton more;
     private int appId = Integer.MIN_VALUE;
     private boolean hiddenGame;
+    private final float nameSize;
+    private final int nameWidthPx;
+    // Only reached by one long word on the phone's narrow tiles in Affiche's wide capitals (« REDEMPTION »)
+    private static final float MIN_NAME_DP = 8;
 
     public CoverTile(Context context, V2Theme theme, float widthDp, float heightDp, String liveLabel) {
         super(context, theme);
@@ -34,13 +38,15 @@ public class CoverTile extends V2Frame {
         setBackground(Ui.roundRect(theme.surface2, rs, b, theme.borderColor));
         setRing(Math.min(theme.rs, 16), 6, theme.accent);
 
-        // Affiche writes names in wide black capitals: a size down so common words fit a line
-        float nameSize = (widthDp < 90 ? 15 : 17) - (theme.upper ? 2.5f : 0);
+        // Affiche writes names in wide black capitals: a size down so common words fit a line.
+        // Three lines at most, ellipsized, and a long name one size down: nothing is cut by the tile
+        nameSize = (widthDp < 90 ? 15 : 17) - (theme.upper ? 2.5f : 0);
         name = Ui.display(context, theme, nameSize, theme.muted);
-        name.setMaxLines(4);
+        name.setMaxLines(3);
         name.setGravity(Gravity.BOTTOM | Gravity.START);
-        int pad = Ui.dp(context, 10);
+        int pad = Ui.dp(context, widthDp < 90 ? 8 : 10);
         name.setPadding(pad, pad, pad, pad);
+        nameWidthPx = Ui.dp(context, widthDp) - 2 * pad;
         addView(name, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
         cover = new CoverView(context);
@@ -71,6 +77,7 @@ public class CoverTile extends V2Frame {
             cover.setBitmap(null);
             this.appId = appId;
         }
+        name.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, fittedSize(title));
         name.setText(title);
         setContentDescription(title);
         badge.setVisibility(running ? VISIBLE : GONE);
@@ -80,6 +87,44 @@ public class CoverTile extends V2Frame {
         // Hidden games show (faded) only with « Afficher les jeux masqués »
         setAlpha(hidden ? 0.45f : 1f);
         updateNameVisibility();
+    }
+
+    /** A name whose words would not fit three lines at the base size (« Red Dead Redemption 2 ») */
+    public static boolean longName(String title) {
+        if (title == null) {
+            return false;
+        }
+        int longestWord = 0;
+        for (String w : title.split("\\s+")) {
+            longestWord = Math.max(longestWord, w.length());
+        }
+        return title.length() > 18 || longestWord > 9;
+    }
+
+    /**
+     * The name's size: one size down for a long name, then smaller until its longest word fits the
+     * tile's width, so a word is never broken in two (« Redem / ption ») and three lines hold it.
+     */
+    private float fittedSize(String title) {
+        float size = longName(title) ? nameSize - 2 : nameSize;
+        if (title == null || nameWidthPx <= 0) {
+            return size;
+        }
+        String text = theme.upper ? title.toUpperCase(java.util.Locale.FRENCH) : title;
+        android.text.TextPaint p = new android.text.TextPaint(name.getPaint());
+        float longest;
+        do {
+            p.setTextSize(Ui.dpf(getContext(), size));
+            longest = 0;
+            for (String w : text.split("\\s+")) {
+                longest = Math.max(longest, p.measureText(w));
+            }
+            if (longest <= nameWidthPx) {
+                break;
+            }
+            size -= 0.5f;
+        } while (size > MIN_NAME_DP);
+        return Math.max(size, MIN_NAME_DP);
     }
 
     public int getAppId() {

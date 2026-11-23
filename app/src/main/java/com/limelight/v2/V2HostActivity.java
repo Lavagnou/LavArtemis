@@ -63,6 +63,9 @@ public abstract class V2HostActivity extends V2Activity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder binder) {
             final ComputerManagerService.ComputerManagerBinder localBinder = (ComputerManagerService.ComputerManagerBinder) binder;
+            if (localBinder == null) {
+                return;
+            }
             new Thread(() -> {
                 localBinder.waitForReady();
                 runOnUiThread(() -> {
@@ -122,7 +125,7 @@ public abstract class V2HostActivity extends V2Activity {
         }
     }
 
-    private void startUpdates() {
+    protected void startUpdates() {
         if (managerBinder == null || !inForeground) {
             return;
         }
@@ -141,7 +144,7 @@ public abstract class V2HostActivity extends V2Activity {
         ensurePoller();
     }
 
-    private void stopUpdates() {
+    protected void stopUpdates() {
         if (poller != null) {
             poller.stop();
             poller = null;
@@ -202,7 +205,17 @@ public abstract class V2HostActivity extends V2Activity {
             }
             ensurePoller();
         }
+        onComputerSeen(details);
         refresh();
+    }
+
+    /** Every report of the service, paired or not, before refresh() (Mes PC: pairing links) */
+    protected void onComputerSeen(ComputerDetails details) {
+    }
+
+    /** Forgets a PC the page still shows, before the next refresh */
+    protected void dropComputer(String uuid) {
+        computers.remove(uuid);
     }
 
     private static boolean containsUuid(List<ComputerDetails> hosts, String uuid) {

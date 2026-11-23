@@ -2,6 +2,7 @@ package com.limelight;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
@@ -19,6 +20,8 @@ import com.limelight.binding.input.KeyboardTranslator;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.KeyConfigHelper;
 import com.limelight.utils.KeyMapper;
+import com.limelight.v2.V2Theme;
+import com.limelight.v2.ui.V2ListDialog;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -58,7 +61,7 @@ public class GameMenu implements Game.GameMenuCallbacks {
     private final Game game;
     private final Context dialogScreenContext;
 
-    private AlertDialog currentDialog;
+    private Dialog currentDialog;
 
     public GameMenu(Game game, Context dialogScreenContext) {
         this.game = game;
@@ -105,7 +108,33 @@ public class GameMenu implements Game.GameMenuCallbacks {
         }
     }
 
+    /**
+     * LavArtemis Dev: the same options in a dialog of the v2 theme (focusable rows, A / B on a
+     * gamepad, « Annuler » as a button). A pick closes the dialog then runs the option exactly as
+     * the list below does (runWithGameFocus for the options that need the stream's focus).
+     */
+    private void showThemedMenuDialog(String title, MenuOption[] options) {
+        List<String> labels = new ArrayList<>();
+        int cancelIndex = -1;
+        String cancel = getString(R.string.game_menu_cancel);
+        for (int i = 0; i < options.length; i++) {
+            labels.add(options[i].label);
+            if (options[i].runnable == null && cancel.equals(options[i].label)) {
+                cancelIndex = i;
+            }
+        }
+        if (currentDialog != null) {
+            currentDialog.dismiss();
+        }
+        currentDialog = V2ListDialog.show(dialogScreenContext, V2Theme.load(game), title, labels, cancelIndex,
+                index -> run(options[index]), this::hideMenu);
+    }
+
     private void showMenuDialog(String title, MenuOption[] options) {
+        if (BuildConfig.LAV_DEV) {
+            showThemedMenuDialog(title, options);
+            return;
+        }
         int themeResId = game.getApplicationInfo().theme;
 
         Context themedContext = new ContextThemeWrapper(dialogScreenContext, themeResId);
@@ -307,7 +336,11 @@ public class GameMenu implements Game.GameMenuCallbacks {
         options.add(new MenuOption(getString(R.string.game_menu_server_cmd), true,
                 () -> {
                     ArrayList<String> serverCmds = game.getServerCmds();
-                    if (serverCmds.isEmpty()) {
+                    if (serverCmds.isEmpty() && BuildConfig.LAV_DEV) {
+                        V2ListDialog.message(dialogScreenContext, V2Theme.load(game),
+                                getString(R.string.game_dialog_title_server_cmd_empty),
+                                getString(R.string.game_dialog_message_server_cmd_empty), getString(R.string.v2_ok));
+                    } else if (serverCmds.isEmpty()) {
                         int themeResId = game.getApplicationInfo().theme;
                         Context themedContext = new ContextThemeWrapper(dialogScreenContext, themeResId);
                         new AlertDialog.Builder(themedContext)

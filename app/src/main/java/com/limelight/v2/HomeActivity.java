@@ -4,8 +4,6 @@ import android.content.Intent;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -37,7 +35,6 @@ public class HomeActivity extends V2HostActivity {
     private FrameLayout container;
     private HomeScreen screen;
     private boolean initialFocusDone;
-    private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable minuteTick = new Runnable() {
         @Override
         public void run() {

@@ -71,7 +71,8 @@ public class StartupTest {
     @Test
     public void testPcViewActivityWithIntent() {
         // Test PcView with various intent extras that might cause crashes
-        Intent intent = new Intent();
+        // The legacy list (the Dev build sends a pairing link to the v2 « Mes PC »: PcViewRedirectTest)
+        Intent intent = legacyPcViewIntent();
         intent.putExtra("hostname", "test.local");
         intent.putExtra("port", 47989);
         intent.putExtra("pin", "1234");

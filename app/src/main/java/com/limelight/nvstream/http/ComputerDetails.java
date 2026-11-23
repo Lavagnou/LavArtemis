@@ -96,6 +96,8 @@ public class ComputerDetails {
     // LavApollo Link (Playnite): the running app is the Playnite front end, and its running game
     public boolean playniteHostRunning;
     public String playniteGameName;
+    // ApolloVersion of serverinfo (Apollo / LavApollo), null on other hosts
+    public String apolloVersion;
     // ServerCodecModeSupport, for the benchmark to leave out codecs the host can't encode
     public long serverCodecModeSupport;
 
@@ -180,6 +182,7 @@ public class ComputerDetails {
         this.benchmarkAppUuid = details.benchmarkAppUuid;
         this.playniteHostRunning = details.playniteHostRunning;
         this.playniteGameName = details.playniteGameName;
+        this.apolloVersion = details.apolloVersion;
         this.serverCodecModeSupport = details.serverCodecModeSupport;
     }
 

@@ -57,7 +57,8 @@ public class AddComputerManually extends AppCompatActivity {
         }
     };
 
-    private boolean isWrongSubnetSiteLocalAddress(String address) {
+    /** Also used by the v2 « Mes PC » (manual add): a private IPv4 address outside every local subnet */
+    public static boolean isWrongSubnetSiteLocalAddress(String address) {
         try {
             InetAddress targetAddress = InetAddress.getByName(address);
             if (!(targetAddress instanceof Inet4Address) || !targetAddress.isSiteLocalAddress()) {
@@ -100,7 +101,8 @@ public class AddComputerManually extends AppCompatActivity {
         }
     }
 
-    private Uri parseRawUserInputToUri(String rawUserInput) {
+    /** Also used by the v2 « Mes PC »: address, address:port, [v6], [v6]:port or bare v6; null when unreadable */
+    public static Uri parseRawUserInputToUri(String rawUserInput) {
         // Try adding a scheme and parsing the remaining input.
         // This handles input like 127.0.0.1:47989, [::1], [::1]:47989, and 127.0.0.1.
         Uri uri = Uri.parse("art://" + rawUserInput);

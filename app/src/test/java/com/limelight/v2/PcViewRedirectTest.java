@@ -33,6 +33,25 @@ public class PcViewRedirectTest {
     }
 
     @Test
+    public void devPairingLinkOpensMesPcWithItsExtras() {
+        Assume.assumeTrue("Dev build only", BuildConfig.LAV_DEV);
+        Intent link = new Intent()
+                .putExtra("hostname", "192.168.1.24")
+                .putExtra("port", 47989)
+                .putExtra("pin", "1234")
+                .putExtra("passphrase", "secret");
+        PcView activity = Robolectric.buildActivity(PcView.class, link).create().get();
+        assertTrue(activity.isFinishing());
+        Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
+        assertNotNull(next);
+        assertEquals(HostsActivity.class.getName(), next.getComponent().getClassName());
+        assertEquals("1234", next.getStringExtra(HostsActivity.EXTRA_LINK_PIN));
+        assertEquals("secret", next.getStringExtra(HostsActivity.EXTRA_LINK_PASSPHRASE));
+        assertEquals("192.168.1.24", next.getStringExtra(HostsActivity.EXTRA_LINK_HOST));
+        assertEquals(47989, next.getIntExtra(HostsActivity.EXTRA_LINK_PORT, -1));
+    }
+
+    @Test
     public void legacyListStaysReachable() {
         Intent legacy = new Intent().putExtra(PcView.EXTRA_LEGACY_UI, true);
         PcView activity = Robolectric.buildActivity(PcView.class, legacy).create().get();

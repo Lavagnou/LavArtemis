@@ -4,12 +4,18 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.Bitmap;
 import android.graphics.drawable.ColorDrawable;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.TextWatcher;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -59,26 +65,9 @@ public final class V2Dialogs {
             w.setDimAmount(0.45f);
         }
         dialog.setCanceledOnTouchOutside(true);
-        dialog.setOnKeyListener((d, keyCode, event) -> {
-            V2Input.onKey(event);
-            if (keyCode == KeyEvent.KEYCODE_BUTTON_A) {
-                // A validates the focused entry (Android has no default for it)
-                if (event.getAction() == KeyEvent.ACTION_UP) {
-                    View f = dialog.getCurrentFocus();
-                    if (f != null) {
-                        f.performClick();
-                    }
-                }
-                return true;
-            }
-            if (keyCode == KeyEvent.KEYCODE_BUTTON_B || keyCode == KeyEvent.KEYCODE_BUTTON_Y) {
-                if (event.getAction() == KeyEvent.ACTION_UP) {
-                    dialog.cancel();
-                }
-                return true;
-            }
-            return false;
-        });
+        // A validates the focused entry, B / Y close; a release whose press came before the
+        // dialog (A held to open the options) is ignored
+        DialogKeys.install(dialog);
         return dialog;
     }
 
@@ -192,43 +181,163 @@ public final class V2Dialogs {
         ((TextView) row.getChildAt(1)).setTextColor(fg);
     }
 
+    /** A message with a single button (errors: "Oups") */
+    public static Dialog message(Activity activity, V2Theme theme, String title, String text, String okText) {
+        return confirm(activity, theme, title, text, okText, null, null, null);
+    }
+
+    public interface TextResult {
+        void onText(String text);
+    }
+
+    /**
+     * LavDialog with a text field (Renommer, Ajouter un PC). The accept button stays off while the
+     * field is empty; Entrée in the field accepts. The trimmed text is handed over.
+     */
+    public static Dialog prompt(Activity activity, V2Theme theme, String title, String text, String initial,
+                                String hint, int inputType, int maxLength, String acceptText, String rejectText,
+                                final TextResult onAccept) {
+        final EditText field = new EditText(activity);
+        field.setSingleLine(true);
+        field.setInputType(inputType);
+        field.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        if (maxLength > 0) {
+            field.setFilters(new InputFilter[]{new InputFilter.LengthFilter(maxLength)});
+        }
+        field.setTypeface(theme.textFont(activity, 500));
+        field.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
+        field.setTextColor(theme.fg);
+        field.setHintTextColor(Ui.withAlpha(theme.muted, 0.7f));
+        field.setHint(hint);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            // The cursor in the theme's accent, not the app theme's
+            android.graphics.drawable.GradientDrawable cursor = Ui.roundRect(theme.accent, 0, 0, 0);
+            cursor.setSize(Ui.dp(activity, 2), -1);
+            field.setTextCursorDrawable(cursor);
+        }
+        int ph = Ui.dp(activity, 14);
+        field.setPadding(ph, 0, ph, 0);
+        field.setMinHeight(Ui.dp(activity, 52));
+        final float fr = Ui.dpf(activity, theme.isAffiche() ? 0 : Math.min(theme.rs, 14));
+        field.setBackground(Ui.roundRect(theme.surface2, fr, Ui.dp(activity, Math.max(1, theme.border)), theme.borderColor));
+        field.setOnFocusChangeListener((v, has) -> v.setBackground(Ui.roundRect(theme.surface2, fr,
+                Ui.dp(activity, has ? 2 : Math.max(1, theme.border)), has ? theme.accent : theme.borderColor)));
+        if (initial != null) {
+            field.setText(initial);
+            field.setSelection(field.getText().length());
+        }
+
+        final Dialog[] holder = new Dialog[1];
+        final PillButton[] acceptHolder = new PillButton[1];
+        Runnable accept = () -> {
+            String value = field.getText().toString().trim();
+            if (value.isEmpty()) {
+                return;
+            }
+            holder[0].dismiss();
+            if (onAccept != null) {
+                onAccept.onText(value);
+            }
+        };
+        holder[0] = build(activity, theme, title, text, field, acceptText, rejectText, accept, acceptHolder);
+        field.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE
+                    || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN)) {
+                accept.run();
+                return true;
+            }
+            return false;
+        });
+        final PillButton acceptButton = acceptHolder[0];
+        Runnable updateEnabled = () -> {
+            boolean has = field.getText().toString().trim().length() > 0;
+            acceptButton.setEnabled(has);
+            acceptButton.setAlpha(has ? 1f : 0.4f);
+        };
+        field.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateEnabled.run();
+            }
+        });
+        updateEnabled.run();
+        Window w = holder[0].getWindow();
+        if (w != null) {
+            w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
+        holder[0].show();
+        field.requestFocus();
+        return holder[0];
+    }
+
     /** LavDialog: title, text, accept (accent) and cancel. Back / B / outside counts as cancel. */
     public static Dialog confirm(Activity activity, V2Theme theme, String title, String text,
                                  String acceptText, String rejectText, Runnable onAccept, Runnable onReject) {
+        final Dialog[] holder = new Dialog[1];
+        final PillButton[] acceptHolder = new PillButton[1];
+        final boolean[] accepted = {false};
+        holder[0] = build(activity, theme, title, text, null, acceptText, rejectText, () -> {
+            accepted[0] = true;
+            holder[0].dismiss();
+            if (onAccept != null) {
+                onAccept.run();
+            }
+        }, acceptHolder);
+        holder[0].setOnDismissListener(d -> {
+            if (!accepted[0] && onReject != null) {
+                onReject.run();
+            }
+        });
+        holder[0].show();
+        acceptHolder[0].requestFocus();
+        return holder[0];
+    }
+
+    /** The LavDialog panel: title, text, an optional field, the buttons. Not shown yet. */
+    private static Dialog build(Activity activity, V2Theme theme, String title, String text, View field,
+                                String acceptText, String rejectText, Runnable accept,
+                                PillButton[] acceptOut) {
         LinearLayout panel = panel(activity, theme, 24);
         if (title != null && !title.isEmpty()) {
             TextView t = Ui.display(activity, theme, 24, theme.fg);
-            t.setMaxLines(Integer.MAX_VALUE);
-            t.setText(title);
+            t.setMaxLines(3);
+            t.setText(theme.displayText(title));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.bottomMargin = Ui.dp(activity, 10);
             panel.addView(t, lp);
         }
         if (text != null && !text.isEmpty()) {
             TextView body = Ui.text(activity, theme, 16, 400, theme.muted);
-            body.setMaxLines(12);
+            body.setMaxLines(14);
             body.setLineSpacing(0, 1.15f);
             body.setText(text);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.bottomMargin = Ui.dp(activity, 18);
             panel.addView(body, lp);
         }
+        if (field != null) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.bottomMargin = Ui.dp(activity, 18);
+            panel.addView(field, lp);
+        }
         LinearLayout buttons = new LinearLayout(activity);
         buttons.setOrientation(LinearLayout.HORIZONTAL);
         Ui.noClip(buttons, panel);
         panel.addView(buttons);
 
-        final boolean[] accepted = {false};
-        final Dialog dialog = baseDialog(activity, panel, 460);
-        PillButton accept = new PillButton(activity, theme, PillButton.Style.PRIMARY, 0, acceptText, 48, 17);
-        accept.setOnClickListener(v -> {
-            accepted[0] = true;
-            dialog.dismiss();
-            if (onAccept != null) {
-                onAccept.run();
-            }
-        });
-        buttons.addView(accept);
+        final Dialog dialog = baseDialog(activity, wrapScroll(activity, panel), dialogWidthDp(activity, 460));
+        PillButton acceptButton = new PillButton(activity, theme, PillButton.Style.PRIMARY, 0, acceptText, 48, 17);
+        acceptButton.setOnClickListener(v -> accept.run());
+        buttons.addView(acceptButton);
+        acceptOut[0] = acceptButton;
         if (rejectText != null) {
             PillButton reject = new PillButton(activity, theme, PillButton.Style.SECONDARY, 0, rejectText, 48, 17);
             reject.setOnClickListener(v -> dialog.cancel());
@@ -236,13 +345,12 @@ public final class V2Dialogs {
             rlp.setMarginStart(Ui.dp(activity, 14));
             buttons.addView(reject, rlp);
         }
-        dialog.setOnDismissListener(d -> {
-            if (!accepted[0] && onReject != null) {
-                onReject.run();
-            }
-        });
-        dialog.show();
-        accept.requestFocus();
         return dialog;
+    }
+
+    /** A dialog never wider than the screen minus 16 dp each side (portrait phones) */
+    static float dialogWidthDp(android.content.Context context, float wanted) {
+        float screen = context.getResources().getConfiguration().screenWidthDp;
+        return screen > 0 ? Math.min(wanted, screen - 32) : wanted;
     }
 }

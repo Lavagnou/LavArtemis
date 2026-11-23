@@ -453,6 +453,8 @@ public class NvHTTP {
         details.benchmarkAppUuid = getXmlString(serverInfo, "BenchmarkAppUuid", false);
         details.playniteHostRunning = isPlayniteHostRunning(serverInfo);
         details.playniteGameName = getXmlString(serverInfo, "PlayniteGameName", false);
+        // Apollo / LavApollo version, shown on the « Mes PC » cards of the v2 interface
+        details.apolloVersion = getXmlString(serverInfo, "ApolloVersion", false);
         details.serverCodecModeSupport = getServerCodecModeSupport(serverInfo);
 
         // We could reach it so it's online

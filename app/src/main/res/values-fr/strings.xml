@@ -344,6 +344,7 @@
     <string name="summary_voice_ptt_button">Affiche un bouton micro pendant le stream. Le maintenir enfonce la touche ² de l\'hôte (à gauche du 1), pour un outil de dictée sur le PC.</string>
     <string name="voice_ptt_button">Vocal push-to-talk</string>
     <string name="game_menu_toggle_hud">Basculer l\'affichage des performances</string>
+    <string name="game_menu_toggle_floating_button">Afficher ou masquer le bouton flottant</string>
     <string name="game_menu_select_mouse_mode">Sélectionner le mode de la souris</string>
     <string name="game_menu_enable_zoom_mode">Activer le mode Zoom/Panoramique</string>
     <string name="game_menu_disable_zoom_mode">Désactiver le mode Zoom/Panoramique</string>
@@ -571,7 +572,7 @@
     <string name="game_menu_quit_session">Quitter la session</string>
     <string name="game_menu_server_cmd">Commandes du serveur</string>
     <string name="game_menu_fetch_clipboard">Récupérer le presse-papiers</string>
-    <string name="game_menu_upload_clipboard">Télécharger le presse-papiers</string>
+    <string name="game_menu_upload_clipboard">Envoyer le presse-papiers</string>
     <string name="game_dialog_title_server_cmd_empty">Aucune commande de serveur</string>
     <string name="game_dialog_message_server_cmd_empty">Veuillez vous assurer que vous utilisez Apollo comme logiciel serveur et que vous avez accordé à ce client l\'autorisation "Commande de serveur".</string>
     <string name="vdisplay_not_ready">Le pilote d\'affichage virtuel n\'est pas prêt sur le serveur. Veuillez vous assurer que le pilote SudoVDA est installé et activé.</string>
