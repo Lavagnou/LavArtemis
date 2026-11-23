@@ -489,8 +489,6 @@
     <string name="v2_set_releases_d">Toutes les versions de LavArtemis, avec leurs notes.</string>
     <string name="v2_set_obtainium">Suivre les mises à jour avec Obtainium</string>
     <string name="v2_set_obtainium_d">Ajoute LavArtemis à Obtainium, qui prévient des nouvelles versions.</string>
-    <string name="v2_set_sops">Laisser le PC distant adapter le jeu</string>
-    <string name="v2_set_sops_d">Le PC distant ajuste les réglages du jeu au stream.</string>
     <string name="v2_set_clipboard">Synchroniser le presse-papiers</string>
     <string name="v2_set_clipboard_d">Envoie le presse-papiers au début du stream et le récupère quand tu quittes l\'appli (Apollo / LavApollo).</string>
     <string name="v2_set_clipboard_toast">Notifier chaque synchronisation</string>

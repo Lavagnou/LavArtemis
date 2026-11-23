@@ -1110,12 +1110,15 @@ private static int getFramePacingValue(Context context) {
      * <li>resolution scaling ({@code seekbar_resolution_scale_factor}): 100 %;</li>
      * <li>gamepad mouse by holding Start ({@code checkbox_mouse_emulation}): off, the feature the
      * user wants gone (the desktop dropped it the same way). The in-game menu's mouse toggle
-     * stays.</li>
+     * stays;</li>
+     * <li>"optimize game settings" ({@code checkbox_enable_sops}): always on, as on the desktop
+     * (the user did not know what it did).</li>
      * </ul>
      */
     public static void forceRemovedSettings(PreferenceConfiguration config) {
         config.enableHdr = false;
         config.resolutionScaleFactor = DEFAULT_RESOLUTION_SCALE_FACTOR;
         config.mouseEmulation = false;
+        config.enableSops = true;
     }
 }

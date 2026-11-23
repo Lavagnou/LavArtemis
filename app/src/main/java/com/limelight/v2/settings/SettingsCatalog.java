@@ -82,6 +82,8 @@ public final class SettingsCatalog {
         m.put("checkbox_enable_hdr", false);
         m.put("seekbar_resolution_scale_factor", 100);
         m.put("checkbox_mouse_emulation", false);
+        // "Optimiser les réglages du jeu": removed and always on, like the desktop
+        m.put("checkbox_enable_sops", true);
         REMOVED = Collections.unmodifiableMap(m);
     }
 
@@ -489,7 +491,6 @@ public final class SettingsCatalog {
         action(l, AVANCE, "option_check_update", R.string.v2_set_check_update, R.string.v2_set_check).desc(R.string.v2_set_check_update_d);
         action(l, AVANCE, "option_software_release", R.string.v2_set_releases, R.string.v2_set_open).desc(R.string.v2_set_releases_d).expert();
         action(l, AVANCE, "option_follow_update", R.string.v2_set_obtainium, R.string.v2_set_open).desc(R.string.v2_set_obtainium_d).expert();
-        toggle(l, AVANCE, "checkbox_enable_sops", R.string.v2_set_sops, true).desc(R.string.v2_set_sops_d).expert();
         toggle(l, AVANCE, "checkbox_smart_clipboard_sync", R.string.v2_set_clipboard, false).desc(R.string.v2_set_clipboard_d).expert();
         toggle(l, AVANCE, "checkbox_smart_clipboard_sync_toast", R.string.v2_set_clipboard_toast, true).desc(R.string.v2_set_clipboard_toast_d).expert()
                 .dependsOn("checkbox_smart_clipboard_sync");

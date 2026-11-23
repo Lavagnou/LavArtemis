@@ -301,7 +301,7 @@ public class SettingsCatalogTest {
         for (String k : new String[]{"checkbox_vrr_pacing", "list_vrr_pacing_mode", "checkbox_pyrowave_444", "list_mic_device",
                 "seekbar_max_pending_audio_ms", "checkbox_flip_face_buttons", "checkbox_multi_controller",
                 "checkbox_smart_clipboard_sync", "checkbox_smart_clipboard_sync_toast", "checkbox_disable_warnings",
-                "checkbox_enable_perf_logging", "checkbox_enable_sops"}) {
+                "checkbox_enable_perf_logging"}) {
             assertExpert(k);
         }
         // Android-only: common ones Normal, tuning Expert
@@ -414,26 +414,30 @@ public class SettingsCatalogTest {
             assertNull(key + " is removed", SettingsCatalog.find(key));
         }
         prefs().edit().putBoolean("checkbox_enable_hdr", true).putInt("seekbar_resolution_scale_factor", 150)
-                .putBoolean("checkbox_mouse_emulation", true).commit();
+                .putBoolean("checkbox_mouse_emulation", true).putBoolean("checkbox_enable_sops", false).commit();
         PreferenceConfiguration c = PreferenceConfiguration.readPreferences(ctx);
         if (BuildConfig.LAV_DEV) {
             assertFalse(c.enableHdr);
             assertEquals(100, c.resolutionScaleFactor);
             assertFalse(c.mouseEmulation);
+            assertTrue(c.enableSops);
         } else {
             // The stable build keeps reading them
             assertTrue(c.enableHdr);
             assertEquals(150, c.resolutionScaleFactor);
             assertTrue(c.mouseEmulation);
+            assertFalse(c.enableSops);
         }
         PreferenceConfiguration forced = new PreferenceConfiguration();
         forced.enableHdr = true;
         forced.resolutionScaleFactor = 150;
         forced.mouseEmulation = true;
+        forced.enableSops = false;
         PreferenceConfiguration.forceRemovedSettings(forced);
         assertEquals(SettingsCatalog.REMOVED.get("checkbox_enable_hdr"), forced.enableHdr);
         assertEquals(SettingsCatalog.REMOVED.get("seekbar_resolution_scale_factor"), forced.resolutionScaleFactor);
         assertEquals(SettingsCatalog.REMOVED.get("checkbox_mouse_emulation"), forced.mouseEmulation);
+        assertEquals(SettingsCatalog.REMOVED.get("checkbox_enable_sops"), forced.enableSops);
     }
 
     // ---- profiles ----------------------------------------------------------------------------------
