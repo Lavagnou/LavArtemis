@@ -47,7 +47,7 @@ New-Item -ItemType Directory -Force $dist | Out-Null
 $pinned = (git ls-tree HEAD desktop).Split()[2]
 $qtHead = (git -C $qt rev-parse HEAD).Trim()
 if ($pinned -ne $qtHead) {
-    throw "LavArtemis-Qt is on $qtHead but desktop/ pins $pinned: check out the pinned commit first."
+    throw "LavArtemis-Qt is on $qtHead but desktop/ pins ${pinned}: check out the pinned commit first."
 }
 if (git status --porcelain --untracked-files=no) { throw "LavArtemis has uncommitted changes." }
 
