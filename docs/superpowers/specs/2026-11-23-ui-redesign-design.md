@@ -74,7 +74,7 @@ interface qui s'adapte à l'entrée utilisée (manette, clavier, souris, tactile
 
 ### Réglages
 
-- Pages : Général, Affichage, Vidéo, Audio, Entrées, Manettes, Apparence, PC (desktop), Avancé.
+- Pages : Général, Affichage, Vidéo, Audio, Entrées, Manettes, Apparence, PC (le presse-papiers sur Android, depuis le 2026-11-24), Avancé.
   Le mode expert affiche les 30 réglages « Expert » du tri ; les 14 « à retirer » disparaissent.
 - Phase 1 : la page Apparence (thème, clair/sombre, ancienne interface) est neuve ; les autres
   réglages ouvrent l'écran existant. Phase 2 : migration complète de `SettingsView.qml`.

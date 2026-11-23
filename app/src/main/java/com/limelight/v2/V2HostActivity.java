@@ -428,17 +428,21 @@ public abstract class V2HostActivity extends V2Activity {
 
     protected void wake() {
         final ComputerDetails c = currentComputer();
-        if (c == null || c.macAddress == null) {
-            Toast.makeText(this, R.string.wol_no_mac, Toast.LENGTH_SHORT).show();
+        if (c == null) {
+            return;
+        }
+        if (c.macAddress == null) {
+            // The v2 messages of Mes PC, which are the desktop's
+            Toast.makeText(this, getString(R.string.v2_wake_no_mac, c.name), Toast.LENGTH_LONG).show();
             return;
         }
         new Thread(() -> {
             String message;
             try {
                 WakeOnLanSender.sendWolPacket(c);
-                message = getString(R.string.wol_waking_msg);
+                message = getString(R.string.v2_wake_sent, c.name);
             } catch (IOException e) {
-                message = getString(R.string.wol_fail);
+                message = getString(R.string.v2_wake_failed, c.name);
             }
             final String toast = message;
             runOnUiThread(() -> Toast.makeText(this, toast, Toast.LENGTH_LONG).show());

@@ -507,9 +507,11 @@ public class SettingsCatalogTest {
     public void noHelpLinkRowsLeft() {
         assertNull(SettingsCatalog.find("option_help_custom_keys"));
         assertNull(SettingsCatalog.find("option_view_shared_pref_logs"));
-        // The release page and Obtainium are update links, not help: they stay
+        // The release page is an update link, not help: it stays. Obtainium is gone from the Dev
+        // build (it updates itself), and is listed as deliberately not shown
         assertNotNull(SettingsCatalog.find("option_software_release"));
-        assertNotNull(SettingsCatalog.find("option_follow_update"));
+        assertNull(SettingsCatalog.find("option_follow_update"));
+        assertTrue(SettingsCatalog.NOT_SHOWN.contains("option_follow_update"));
     }
 
     @Test

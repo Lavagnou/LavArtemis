@@ -207,9 +207,8 @@ public class ServerHelper {
                 } catch (HostHttpResponseException e) {
                     failed = true;
                     if (e.getErrorCode() == 599) {
-                        message = "This session wasn't started by this device," +
-                                " so it cannot be quit. End streaming on the original " +
-                                "device or the PC itself. (Error code: "+e.getErrorCode()+")";
+                        // Same text as the desktop client (computermanager.cpp), translated
+                        message = parent.getResources().getString(R.string.applist_quit_not_started_here);
                     }
                     else {
                         message = e.getMessage();

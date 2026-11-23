@@ -38,10 +38,10 @@
     <string name="v2_mode_system">Système</string>
     <string name="v2_mode_light">Clair</string>
     <string name="v2_mode_dark">Sombre</string>
-    <string name="v2_status_online">en ligne</string>
-    <string name="v2_status_session">en session</string>
-    <string name="v2_status_offline">hors ligne</string>
-    <string name="v2_status_unknown">recherche…</string>
+    <string name="v2_status_online">En ligne</string>
+    <string name="v2_status_session">Session en cours</string>
+    <string name="v2_status_offline">Hors ligne</string>
+    <string name="v2_status_unknown">Recherche…</string>
     <string name="v2_prev_pc">PC précédent</string>
     <string name="v2_next_pc">PC suivant</string>
     <string name="v2_pick_pc">Changer de PC</string>
@@ -142,6 +142,7 @@
     <string name="v2_set_page_manettes">Manettes</string>
     <string name="v2_set_page_controles">Contrôles à l\'écran</string>
     <string name="v2_set_page_apparence">Apparence</string>
+    <string name="v2_set_page_pc">PC</string>
     <string name="v2_set_page_avance">Avancé</string>
     <string name="v2_set_expert">Mode expert</string>
     <string name="v2_set_expert_d">Affiche les réglages avancés</string>
@@ -157,12 +158,12 @@
     <string name="v2_set_import">Importer…</string>
     <string name="v2_set_export">Exporter…</string>
     <string name="v2_set_share">Partager…</string>
-    <string name="v2_set_check">Chercher</string>
+    <string name="v2_set_check">Vérifier</string>
     <string name="v2_set_type_in">Saisir…</string>
 
     <!-- Profil -->
     <string name="v2_set_profile">Profil actif</string>
-    <string name="v2_set_profile_d">Un jeu de réglages par usage, par exemple à la maison et à distance. La langue et l\'apparence restent communes.</string>
+    <string name="v2_set_profile_d">Un jeu de réglages de stream par usage, par exemple à la maison et à distance. Ce qui tient à cet appareil reste commun : langue, apparence, mises à jour.</string>
     <string name="v2_set_profile_none">Réglages globaux (aucun profil)</string>
     <string name="v2_set_profiles_manage">Gérer les profils</string>
     <string name="v2_set_profiles_manage_d">Un nouveau profil part des réglages en cours.</string>
@@ -216,6 +217,9 @@
     <string name="v2_set_vrr">Fréquence variable (VRR)</string>
     <string name="v2_set_vrr_d">Affiche chaque image au rythme où le jeu l\'a produite, plutôt qu\'à son arrivée : la gigue du réseau n\'atteint pas l\'écran. Prend le pas sur les autres modes de régularité.</string>
     <string name="v2_set_vrr_mode">Marge du VRR</string>
+    <string name="v2_set_vrr_mode_d_low">Délai minimal ; plus de saccades si le réseau est irrégulier (jusqu\'à 1 image de réserve). Effet à la prochaine connexion.</string>
+    <string name="v2_set_vrr_mode_d_balanced">Compromis entre fluidité et latence (jusqu\'à 2 images de réserve). Effet à la prochaine connexion.</string>
+    <string name="v2_set_vrr_mode_d_smooth">Mouvement plus régulier, un peu plus de latence (jusqu\'à 4 images de réserve). Effet à la prochaine connexion.</string>
     <string name="v2_set_vrr_mode_d">Plus de marge absorbe plus de gigue, au prix d\'un peu de latence.</string>
     <string name="v2_set_vrr_low">Faible latence</string>
     <string name="v2_set_vrr_balanced">Équilibrée</string>
@@ -251,7 +255,7 @@
     <string name="v2_set_bitrate">Débit vidéo</string>
     <string name="v2_set_bitrate_d">Baisse-le si le réseau est lent, monte-le pour une image plus nette.</string>
     <string name="v2_set_bitrate_default">Revenir au débit recommandé</string>
-    <string name="v2_set_bitrate_default_d">%1$s pour cette résolution et ces images par seconde.</string>
+    <string name="v2_set_bitrate_default_d">%1$s pour cette résolution et ces images par seconde, ajusté ensuite automatiquement.</string>
     <string name="v2_set_bitrate_default_button">Rétablir</string>
     <string name="v2_set_bitrate_custom">Saisir un débit</string>
     <string name="v2_set_bitrate_custom_d">Une valeur précise, même au-delà du curseur.</string>
@@ -261,7 +265,7 @@
     <string name="v2_set_metered_d">Utilisé sur un réseau mobile ou facturé à l\'usage. Auto : le quart du débit vidéo.</string>
     <string name="v2_set_metered_auto">Auto (¼)</string>
     <string name="v2_set_codec">Format vidéo (codec)</string>
-    <string name="v2_set_codec_d">Auto choisit le meilleur que l\'appareil et le PC distant savent traiter.</string>
+    <string name="v2_set_codec_d">« Auto » choisit le meilleur format que cet appareil sait décoder.</string>
     <string name="v2_set_codec_auto">Auto</string>
     <string name="v2_set_auto_av1">AV1 en mode Auto</string>
     <string name="v2_set_auto_av1_d">Auto ne propose l\'AV1 qu\'avec un décodeur matériel reconnu, à faible débit (15 Mbit/s au plus) ou en 4K.</string>
@@ -298,7 +302,7 @@
     <string name="v2_set_audio_51">5.1</string>
     <string name="v2_set_audio_71">7.1</string>
     <string name="v2_set_mute_host">Couper le son du PC distant</string>
-    <string name="v2_set_mute_host_d">Le son ne sort que d\'ici.</string>
+    <string name="v2_set_mute_host_d">Le son ne sort que d\'ici. Relance le jeu en cours pour que ça s\'applique.</string>
     <string name="v2_set_mic">Envoyer mon micro au PC distant</string>
     <string name="v2_set_mic_d">Pour le chat vocal (LavApollo 2.2 ou plus). Prends un casque ; le menu en jeu le coupe.</string>
     <string name="v2_set_mic_device">Micro utilisé</string>
@@ -306,20 +310,43 @@
     <string name="v2_set_mic_default">Micro par défaut du système</string>
     <string name="v2_set_mic_missing">Micro débranché</string>
     <string name="v2_set_audio_buffer">Tampon audio</string>
-    <string name="v2_set_audio_buffer_d">Plus bas, moins de latence ; plus haut, moins de craquements sur un réseau instable.</string>
+    <string name="v2_set_audio_buffer_d">Plus bas, moins de latence ; plus haut, moins de craquements sur un réseau instable. Effet à la prochaine connexion.</string>
     <string name="v2_set_audiofx">Égaliseur du système</string>
     <string name="v2_set_audiofx_d">Laisse passer les effets audio d\'Android (égaliseur), au prix d\'un peu de latence.</string>
+
+    <!-- In-game menu (Dev): the labels of the desktop's menu (QuickMenu.qml), same order for the
+         entries both clients have -->
+    <string name="v2_menu_server_cmd">Commandes du PC hôte</string>
+    <string name="v2_menu_send_keys">Envoyer des touches</string>
+    <string name="v2_menu_stats">Statistiques de performance</string>
+    <!-- « Envoyer des touches »: the desktop's built-in shortcuts (KeyMacroManager), same labels -->
+    <string name="v2_keys_esc">Échap</string>
+    <string name="v2_keys_f11">F11</string>
+    <string name="v2_keys_alt_f4">Alt+F4</string>
+    <string name="v2_keys_alt_enter">Alt+Entrée</string>
+    <string name="v2_keys_ctrl_v">Ctrl+V</string>
+    <string name="v2_keys_win">Touche Windows</string>
+    <string name="v2_keys_win_d">Win+D (afficher le bureau)</string>
+    <string name="v2_keys_win_g">Win+G (Game Bar)</string>
+    <string name="v2_keys_ctrl_alt_del">Ctrl+Alt+Suppr</string>
+    <string name="v2_keys_ctrl_shift_esc">Ctrl+Maj+Échap (gestionnaire des tâches)</string>
+    <string name="v2_keys_ctrl_alt_tab">Ctrl+Alt+Tab</string>
+    <string name="v2_keys_shift_tab">Maj+Tab (overlay Steam)</string>
+    <string name="v2_keys_win_shift_left">Win+Maj+Gauche (fenêtre sur l\'autre écran)</string>
+    <string name="v2_keys_ctrl_alt_shift_f1">Ctrl+Alt+Maj+F1 (changer d\'écran)</string>
+    <string name="v2_keys_ctrl_alt_shift_f12">Ctrl+Alt+Maj+F12 (changer d\'écran)</string>
+    <string name="v2_keys_win_alt_b">Win+Alt+B (activer/désactiver le HDR)</string>
 
     <!-- In-game menu (Dev): the single touch-mode switch, Game.switchTouchMode() -->
     <string name="v2_menu_touch_to_trackpad">Passer en trackpad</string>
     <string name="v2_menu_touch_to_multitouch">Passer en multitouch</string>
-    <string name="v2_toast_touch_trackpad">Mode trackpad : appui long pour faire glisser, appui à deux doigts pour le clic droit</string>
+    <string name="v2_toast_touch_trackpad">Mode trackpad : appui long pour faire glisser, appui à deux doigts pour le clic droit, deux doigts pour défiler</string>
     <string name="v2_toast_touch_multitouch">Mode multitouch</string>
 
     <!-- Entrées -->
     <string name="v2_set_touch_mode">Écran tactile</string>
     <!-- Same wording as LavArtemis-Qt SettingsView2.qml (« Écran tactile ») -->
-    <string name="v2_set_touch_mode_d">Multitouch : les doigts touchent directement l\'écran du PC. Trackpad : le doigt déplace le curseur, appui long pour faire glisser, appui à deux doigts pour le clic droit.</string>
+    <string name="v2_set_touch_mode_d">Multitouch : les doigts touchent directement l\'écran du PC. Trackpad : le doigt déplace le curseur, appui long pour faire glisser, appui à deux doigts pour le clic droit, deux doigts pour défiler.</string>
     <string name="v2_set_touch_multi">Multitouch</string>
     <string name="v2_set_touch_trackpad">Trackpad</string>
     <string name="v2_set_pinch_zoom">Zoom au pincement (trackpad)</string>
@@ -471,7 +498,7 @@
     <string name="v2_set_theme_mode">Clair ou sombre</string>
     <string name="v2_set_theme_mode_d">« Système » suit le mode clair ou sombre de l\'appareil, en direct.</string>
     <string name="v2_set_language">Langue</string>
-    <string name="v2_set_language_d">Celle du stream et des écrans classiques ; la nouvelle interface reste en français.</string>
+    <string name="v2_set_language_d">Langue de l\'appli ; la nouvelle interface est en français.</string>
     <string name="v2_set_language_auto">Automatique</string>
     <string name="v2_set_language_restart">Langue revenue à celle du système : relance LavArtemis.</string>
     <string name="v2_set_warnings">Avertir quand la connexion se dégrade</string>
@@ -483,13 +510,11 @@
 
     <!-- Avancé -->
     <string name="v2_set_auto_update">Chercher les mises à jour au démarrage</string>
-    <string name="v2_set_auto_update_d">Au plus toutes les 12 heures.</string>
+    <string name="v2_set_auto_update_d">Vérifie s\'il existe une nouvelle version de LavArtemis, au plus toutes les 12 heures.</string>
     <string name="v2_set_check_update">Chercher une mise à jour maintenant</string>
-    <string name="v2_set_check_update_d">Sur la page des versions de LavArtemis.</string>
+    <string name="v2_set_check_update_d">Version installée : %1$s.</string>
     <string name="v2_set_releases">Page des versions</string>
     <string name="v2_set_releases_d">Toutes les versions de LavArtemis, avec leurs notes.</string>
-    <string name="v2_set_obtainium">Suivre les mises à jour avec Obtainium</string>
-    <string name="v2_set_obtainium_d">Ajoute LavArtemis à Obtainium, qui prévient des nouvelles versions.</string>
     <string name="v2_set_clipboard">Synchroniser le presse-papiers</string>
     <string name="v2_set_clipboard_d">Envoie le presse-papiers au début du stream et le récupère quand tu quittes l\'appli (Apollo / LavApollo).</string>
     <string name="v2_set_clipboard_toast">Notifier chaque synchronisation</string>
@@ -502,7 +527,7 @@
     <string name="v2_set_sustained_d">Bride le processeur et le GPU à un niveau tenable longtemps, pour éviter les à-coups dus à la chauffe.</string>
     <string name="v2_set_keepalive">Ping de maintien</string>
     <string name="v2_set_keepalive_d">Un ping régulier pendant le stream, pour les appareils qui perdent des paquets sans raison connue.</string>
-    <string name="v2_set_perf_log">Enregistrer les performances</string>
+    <string name="v2_set_perf_log">Enregistrer les performances (CSV)</string>
     <string name="v2_set_perf_log_d">Garde les mesures de chaque stream sur l\'appareil, pour comparer des réglages. Le couper efface l\'historique.</string>
     <string name="v2_set_perf_share">Partager les performances</string>
     <string name="v2_set_perf_share_d">Les mesures enregistrées, en fichier texte.</string>

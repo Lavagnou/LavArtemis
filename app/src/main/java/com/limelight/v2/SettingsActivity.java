@@ -358,9 +358,6 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
             case "option_software_release":
                 HelpLauncher.launchUrl(this, "https://github.com/Lavagnou/LavArtemis/releases");
                 break;
-            case "option_follow_update":
-                HelpLauncher.launchUrl(this, getString(R.string.obtainium_app_url));
-                break;
             default:
                 break;
         }

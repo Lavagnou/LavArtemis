@@ -144,6 +144,7 @@
     <string name="applist_quit_app">Fermeture de</string>
     <string name="applist_quit_success">Application fermée avec succès</string>
     <string name="applist_quit_fail">Échec de la fermeture</string>
+    <string name="applist_quit_not_started_here">Le jeu en cours d\'exécution n\'a pas été démarré par cet appareil. Vous devez le fermer manuellement sur le PC hôte ou depuis l\'appareil qui l\'a démarré.</string>
     <string name="applist_quit_confirmation">Voulez-vous vraiment quitter l\'application en cours d\'exécution ? Toutes les données non enregistrées seront perdues.</string>
     <string name="applist_details_id">ID de l\'appli :</string>
 

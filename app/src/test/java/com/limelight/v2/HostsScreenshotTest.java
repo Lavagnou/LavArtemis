@@ -330,9 +330,13 @@ public class HostsScreenshotTest {
         l.add(c.getString(R.string.game_menu_quit_playnite_game, "Hades II"));
         l.add(c.getString(R.string.game_menu_disconnect));
         l.add(c.getString(R.string.game_menu_quit_session));
+        // Dev: the desktop's order for the common entries (GameMenu.showMenu)
+        l.add(c.getString(R.string.v2_menu_server_cmd));
+        l.add(c.getString(R.string.v2_menu_send_keys));
         l.add(c.getString(R.string.game_menu_upload_clipboard));
         l.add(c.getString(R.string.game_menu_fetch_clipboard));
-        l.add(c.getString(R.string.game_menu_server_cmd));
+        l.add(c.getString(R.string.v2_menu_stats));
+        l.add(c.getString(R.string.game_menu_mute_microphone));
         l.add(c.getString(R.string.game_menu_toggle_keyboard));
         l.add(c.getString(R.string.game_menu_show_voice_ptt_button));
         l.add(c.getString(R.string.game_menu_enable_zoom_mode));

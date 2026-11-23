@@ -305,6 +305,12 @@ public final class SettingsScreen {
             case CHOICE: {
                 List<Option> options = def.options(ctx, env, store, expert);
                 row.bindChoice(options, store.choiceValue(def));
+                if ("list_vrr_pacing_mode".equals(def.key)) {
+                    // One description per choice, the desktop's (Marge du VRR)
+                    String v = store.choiceValue(def);
+                    row.setDescription(ctx.getString("0".equals(v) ? R.string.v2_set_vrr_mode_d_low
+                            : "2".equals(v) ? R.string.v2_set_vrr_mode_d_smooth : R.string.v2_set_vrr_mode_d_balanced));
+                }
                 break;
             }
             case SLIDER:
@@ -313,6 +319,9 @@ public final class SettingsScreen {
             case ACTION:
                 if (SettingsCatalog.KEY_BITRATE_DEFAULT.equals(def.key)) {
                     row.setDescription(ctx.getString(R.string.v2_set_bitrate_default_d, SettingsCatalog.mbps(ctx, store.defaultBitrate())));
+                } else if ("option_check_update".equals(def.key)) {
+                    // As on the desktop: the installed version
+                    row.setDescription(ctx.getString(R.string.v2_set_check_update_d, com.limelight.BuildConfig.VERSION_NAME));
                 }
                 break;
             case BUTTONS:

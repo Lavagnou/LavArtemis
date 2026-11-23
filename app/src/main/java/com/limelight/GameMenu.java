@@ -181,10 +181,40 @@ public class GameMenu implements Game.GameMenuCallbacks {
         }
     }
 
+    /**
+     * LavArtemis Dev: the built-in shortcuts of the desktop client (KeyMacroManager presets), in its
+     * order and with its labels, so « Envoyer des touches » is the same list on both clients.
+     */
+    private static final short VK_LCONTROL = 0xA2, VK_LMENU = 0xA4, VK_LSHIFT = 0xA0, VK_LWIN = 0x5B,
+            VK_DELETE = 0x2E;
+    private static final Object[][] DEV_SEND_KEYS = {
+            {R.string.v2_keys_esc, new short[]{0x1B}},
+            {R.string.v2_keys_f11, new short[]{0x7A}},
+            {R.string.v2_keys_alt_f4, new short[]{VK_LMENU, 0x73}},
+            {R.string.v2_keys_alt_enter, new short[]{VK_LMENU, 0x0D}},
+            {R.string.v2_keys_ctrl_v, new short[]{VK_LCONTROL, 0x56}},
+            {R.string.v2_keys_win, new short[]{VK_LWIN}},
+            {R.string.v2_keys_win_d, new short[]{VK_LWIN, 0x44}},
+            {R.string.v2_keys_win_g, new short[]{VK_LWIN, 0x47}},
+            {R.string.v2_keys_ctrl_alt_del, new short[]{VK_LCONTROL, VK_LMENU, VK_DELETE}},
+            {R.string.v2_keys_ctrl_shift_esc, new short[]{VK_LCONTROL, VK_LSHIFT, 0x1B}},
+            {R.string.v2_keys_ctrl_alt_tab, new short[]{VK_LCONTROL, VK_LMENU, 0x09}},
+            {R.string.v2_keys_shift_tab, new short[]{VK_LSHIFT, 0x09}},
+            {R.string.v2_keys_win_shift_left, new short[]{VK_LWIN, VK_LSHIFT, 0x25}},
+            {R.string.v2_keys_ctrl_alt_shift_f1, new short[]{VK_LCONTROL, VK_LMENU, VK_LSHIFT, 0x70}},
+            {R.string.v2_keys_ctrl_alt_shift_f12, new short[]{VK_LCONTROL, VK_LMENU, VK_LSHIFT, 0x7B}},
+            {R.string.v2_keys_win_alt_b, new short[]{VK_LWIN, VK_LMENU, 0x42}},
+    };
+
     private void showSpecialKeysMenu() {
         List<MenuOption> options = new ArrayList<>();
 
-        if(!PreferenceConfiguration.readPreferences(game).disableDefaultExtraKeys){
+        if (BuildConfig.LAV_DEV && !PreferenceConfiguration.readPreferences(game).disableDefaultExtraKeys) {
+            for (Object[] key : DEV_SEND_KEYS) {
+                short[] codes = (short[]) key[1];
+                options.add(new MenuOption(getString((Integer) key[0]), () -> sendKeys(codes)));
+            }
+        } else if(!PreferenceConfiguration.readPreferences(game).disableDefaultExtraKeys){
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_esc),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_ESCAPE})));
 
@@ -268,7 +298,8 @@ public class GameMenu implements Game.GameMenuCallbacks {
         }
         options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
 
-        showMenuDialog(getString(R.string.game_menu_send_keys), options.toArray(new MenuOption[options.size()]));
+        showMenuDialog(getString(BuildConfig.LAV_DEV ? R.string.v2_menu_send_keys : R.string.game_menu_send_keys),
+                options.toArray(new MenuOption[options.size()]));
     }
 
     private void showAdvancedMenu(GameInputDevice device) {
@@ -284,20 +315,26 @@ public class GameMenu implements Game.GameMenuCallbacks {
             options.add(new MenuOption(getString(R.string.game_menu_select_mouse_mode), true, () -> game.selectMouseMode(dialogScreenContext)));
         }
         
-        options.add(new MenuOption(getString(R.string.game_menu_toggle_hud), true, game::toggleHUD));
+        if (!BuildConfig.LAV_DEV) {
+            // Dev: « Statistiques de performance » is in the main menu, as on the desktop
+            options.add(new MenuOption(getString(R.string.game_menu_toggle_hud), true, game::toggleHUD));
+        }
         options.add(new MenuOption(getString(R.string.game_menu_toggle_floating_button), true, game::toggleFloatingButtonVisibility));
         options.add(new MenuOption(getString(R.string.game_menu_toggle_keyboard_model), true, game::toggleKeyboardController));
         if (!game.isOnExternalDisplay()) {
             options.add(new MenuOption(getString(R.string.game_menu_toggle_virtual_model), true, game::toggleVirtualController));
         }
         options.add(new MenuOption(getString(R.string.game_menu_toggle_virtual_keyboard_model), true, game::toggleFullKeyboard));
-        options.add(new MenuOption(getString(R.string.game_menu_task_manager), true, () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_ESCAPE})));
+        if (!BuildConfig.LAV_DEV) {
+            // Dev: both in the main menu's « Envoyer des touches » (Ctrl+Maj+Échap is one of its keys)
+            options.add(new MenuOption(getString(R.string.game_menu_task_manager), true, () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_ESCAPE})));
 
-        // **FIXED:** This is a UI navigation action, so it should not use withGameFocus.
-        options.add(new MenuOption(getString(R.string.game_menu_send_keys), () -> {
-            hideMenu();
-            showSpecialKeysMenu();
-        }));
+            // **FIXED:** This is a UI navigation action, so it should not use withGameFocus.
+            options.add(new MenuOption(getString(R.string.game_menu_send_keys), () -> {
+                hideMenu();
+                showSpecialKeysMenu();
+            }));
+        }
 
         options.add(new MenuOption(getString(R.string.game_menu_switch_touch_sensitivity_model), true, game::switchTouchSensitivity));
         if (device != null) {
@@ -318,7 +355,16 @@ public class GameMenu implements Game.GameMenuCallbacks {
 
         options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
 
-        showMenuDialog(getString(R.string.game_menu_server_cmd), options.toArray(new MenuOption[options.size()]));
+        showMenuDialog(getString(BuildConfig.LAV_DEV ? R.string.v2_menu_server_cmd : R.string.game_menu_server_cmd),
+                options.toArray(new MenuOption[options.size()]));
+    }
+
+    private void addMicrophoneOption(List<MenuOption> options) {
+        if (game.isMicrophoneActive()) {
+            options.add(new MenuOption(getString(game.isMicrophoneMuted() ?
+                    R.string.game_menu_unmute_microphone : R.string.game_menu_mute_microphone), true,
+                    game::toggleMicrophoneMute));
+        }
     }
 
     public void showMenu(GameInputDevice device) {
@@ -334,13 +380,18 @@ public class GameMenu implements Game.GameMenuCallbacks {
 
         options.add(new MenuOption(getString(R.string.game_menu_quit_session), game::quit));
 
-        options.add(new MenuOption(getString(R.string.game_menu_upload_clipboard), true,
-                () -> game.sendClipboard(true)));
+        MenuOption uploadClipboard = new MenuOption(getString(R.string.game_menu_upload_clipboard), true,
+                () -> game.sendClipboard(true));
+        MenuOption fetchClipboard = new MenuOption(getString(R.string.game_menu_fetch_clipboard), true,
+                () -> game.getClipboard(0));
+        if (!BuildConfig.LAV_DEV) {
+            options.add(uploadClipboard);
+            options.add(fetchClipboard);
+        }
 
-        options.add(new MenuOption(getString(R.string.game_menu_fetch_clipboard), true,
-                () -> game.getClipboard(0)));
-
-        options.add(new MenuOption(getString(R.string.game_menu_server_cmd), true,
+        // Dev: the entries both clients have come first, in the desktop's order (Commandes du PC
+        // hôte, Envoyer des touches, presse-papiers, Statistiques, micro), then Android's own
+        options.add(new MenuOption(getString(BuildConfig.LAV_DEV ? R.string.v2_menu_server_cmd : R.string.game_menu_server_cmd), true,
                 () -> {
                     ArrayList<String> serverCmds = game.getServerCmds();
                     if (serverCmds.isEmpty() && BuildConfig.LAV_DEV) {
@@ -360,6 +411,17 @@ public class GameMenu implements Game.GameMenuCallbacks {
                     }
                 }));
 
+        if (BuildConfig.LAV_DEV) {
+            options.add(new MenuOption(getString(R.string.v2_menu_send_keys), () -> {
+                hideMenu();
+                showSpecialKeysMenu();
+            }));
+            options.add(uploadClipboard);
+            options.add(fetchClipboard);
+            options.add(new MenuOption(getString(R.string.v2_menu_stats), true, game::toggleHUD));
+            addMicrophoneOption(options);
+        }
+
         options.add(new MenuOption(getString(R.string.game_menu_toggle_keyboard), true,
                 game::toggleKeyboard));
 
@@ -372,10 +434,8 @@ public class GameMenu implements Game.GameMenuCallbacks {
                     game::startMovingVoicePttButton));
         }
 
-        if (game.isMicrophoneActive()) {
-            options.add(new MenuOption(getString(game.isMicrophoneMuted() ?
-                    R.string.game_menu_unmute_microphone : R.string.game_menu_mute_microphone), true,
-                    game::toggleMicrophoneMute));
+        if (!BuildConfig.LAV_DEV) {
+            addMicrophoneOption(options);
         }
 
         options.add(new MenuOption(getString(game.isZoomModeEnabled() ? R.string.game_menu_disable_zoom_mode : R.string.game_menu_enable_zoom_mode), true,

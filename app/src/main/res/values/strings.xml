@@ -167,6 +167,7 @@
     <string name="applist_quit_app">Quitting</string>
     <string name="applist_quit_success">Successfully quit</string>
     <string name="applist_quit_fail">Failed to quit</string>
+    <string name="applist_quit_not_started_here">The running game wasn\'t started by this device. You must quit the game on the host PC manually or use the device that originally started the game.</string>
     <string name="applist_quit_confirmation">Are you sure you want to quit the running app? All unsaved data will be lost.</string>
     <string name="applist_details_id">App ID:</string>
 

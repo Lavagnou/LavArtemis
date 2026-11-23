@@ -295,15 +295,16 @@ public final class HomeScreen {
             sblp.setMarginStart(Ui.dp(context, 14));
         }
         scene.addView(sceneButtons, sblp);
-        quitButton = new PillButton(context, theme, PillButton.Style.SECONDARY, R.drawable.v2_ic_stop, context.getString(R.string.v2_quit), 52, 17);
-        quitButton.setOnClickListener(v -> actions.quitRunning());
-        LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        qlp.setMarginEnd(Ui.dp(context, 12));
-        sceneButtons.addView(quitButton, qlp);
+        // Reprendre then Quitter, the desktop's order (HomeView.qml)
         resumeButton = new PillButton(context, theme, PillButton.Style.PRIMARY, R.drawable.v2_ic_play, context.getString(R.string.v2_resume), 52, 17);
         resumeButton.setHints("A", context.getString(R.string.v2_key_enter));
         resumeButton.setOnClickListener(v -> actions.resumeRunning());
-        sceneButtons.addView(resumeButton);
+        LinearLayout.LayoutParams resumeLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        resumeLp.setMarginEnd(Ui.dp(context, 12));
+        sceneButtons.addView(resumeButton, resumeLp);
+        quitButton = new PillButton(context, theme, PillButton.Style.SECONDARY, R.drawable.v2_ic_stop, context.getString(R.string.v2_quit), 52, 17);
+        quitButton.setOnClickListener(v -> actions.quitRunning());
+        sceneButtons.addView(quitButton);
 
         // ---- Bureau + Playnite Fullscreen ----------------------------------------------------
         cardsRow = new LinearLayout(context);

@@ -40,6 +40,7 @@ public final class SettingsCatalog {
     public static final String MANETTES = "manettes";
     public static final String CONTROLES = "controles";
     public static final String APPARENCE = "apparence";
+    public static final String PC = "pc";
     public static final String AVANCE = "avance";
 
     public static final class Page {
@@ -61,6 +62,7 @@ public final class SettingsCatalog {
             new Page(MANETTES, R.string.v2_set_page_manettes),
             new Page(CONTROLES, R.string.v2_set_page_controles),
             new Page(APPARENCE, R.string.v2_set_page_apparence),
+            new Page(PC, R.string.v2_set_page_pc),
             new Page(AVANCE, R.string.v2_set_page_avance)));
 
     // ---- keys that are not preferences of the legacy screen ---------------------------------------
@@ -98,7 +100,10 @@ public final class SettingsCatalog {
             // typed in through the « Personnalisée… » / « Autre… » options of the lists
             "edit_diy_w_h", "custom_refresh_rate",
             // help links (Artemis wiki pages, in English): the user wants no help button left
-            "option_help_custom_keys", "option_view_shared_pref_logs")));
+            "option_help_custom_keys", "option_view_shared_pref_logs",
+            // Obtainium: the Dev build updates itself (Avancé › Chercher une mise à jour); the user
+            // does not use Obtainium with it. The stable app keeps the link in its legacy screen.
+            "option_follow_update")));
 
     // ---- rows ------------------------------------------------------------------------------------
 
@@ -274,9 +279,9 @@ public final class SettingsCatalog {
                 .options((c, env, v, expert) -> {
                     List<Option> out = new ArrayList<>();
                     out.add(new Option("auto", c.getString(R.string.v2_set_codec_auto)));
+                    out.add(new Option("neverh265", "H.264"));
                     out.add(new Option("forceh265", "HEVC"));
                     out.add(new Option("forceav1", "AV1"));
-                    out.add(new Option("neverh265", "H.264"));
                     // PyroWave: expert mode only (triage), on a device that decodes it
                     if (env.pyroWave && (expert || "forcepyrowave".equals(v.getString("video_format")))) {
                         out.add(new Option("forcepyrowave", "PyroWave"));
@@ -483,20 +488,22 @@ public final class SettingsCatalog {
                     }
                     return out;
                 });
-        toggle(l, APPARENCE, "checkbox_disable_warnings", R.string.v2_set_warnings, false).desc(R.string.v2_set_warnings_d).expert().inverted();
         toggle(l, APPARENCE, "checkbox_enable_post_stream_toast", R.string.v2_set_latency_toast, false).desc(R.string.v2_set_latency_toast_d).expert();
         toggle(l, APPARENCE, "checkbox_enable_pip", R.string.v2_set_pip, false).desc(R.string.v2_set_pip_d).expert()
                 .when(e -> e.pip);
 
+        // ================================== PC ==================================
+        // The page of the desktop that holds the clipboard (Réglages v2 › PC)
+        toggle(l, PC, "checkbox_smart_clipboard_sync", R.string.v2_set_clipboard, false).desc(R.string.v2_set_clipboard_d).expert();
+        toggle(l, PC, "checkbox_smart_clipboard_sync_toast", R.string.v2_set_clipboard_toast, true).desc(R.string.v2_set_clipboard_toast_d).expert()
+                .dependsOn("checkbox_smart_clipboard_sync");
+        toggle(l, PC, "checkbox_hide_clipboard_content", R.string.v2_set_clipboard_hide, true).desc(R.string.v2_set_clipboard_hide_d).expert();
+
         // ================================= Avancé ===============================
         toggle(l, AVANCE, "checkbox_auto_update", R.string.v2_set_auto_update, true).desc(R.string.v2_set_auto_update_d).global();
         action(l, AVANCE, "option_check_update", R.string.v2_set_check_update, R.string.v2_set_check).desc(R.string.v2_set_check_update_d);
+        toggle(l, AVANCE, "checkbox_disable_warnings", R.string.v2_set_warnings, false).desc(R.string.v2_set_warnings_d).expert().inverted();
         action(l, AVANCE, "option_software_release", R.string.v2_set_releases, R.string.v2_set_open).desc(R.string.v2_set_releases_d).expert();
-        action(l, AVANCE, "option_follow_update", R.string.v2_set_obtainium, R.string.v2_set_open).desc(R.string.v2_set_obtainium_d).expert();
-        toggle(l, AVANCE, "checkbox_smart_clipboard_sync", R.string.v2_set_clipboard, false).desc(R.string.v2_set_clipboard_d).expert();
-        toggle(l, AVANCE, "checkbox_smart_clipboard_sync_toast", R.string.v2_set_clipboard_toast, true).desc(R.string.v2_set_clipboard_toast_d).expert()
-                .dependsOn("checkbox_smart_clipboard_sync");
-        toggle(l, AVANCE, "checkbox_hide_clipboard_content", R.string.v2_set_clipboard_hide, true).desc(R.string.v2_set_clipboard_hide_d).expert();
         toggle(l, AVANCE, "checkbox_enable_adpf", R.string.v2_set_adpf, true).desc(R.string.v2_set_adpf_d).expert();
         toggle(l, AVANCE, "checkbox_sustained_performance", R.string.v2_set_sustained, false).desc(R.string.v2_set_sustained_d).expert();
         toggle(l, AVANCE, "checkbox_prevent_packet_loss", R.string.v2_set_keepalive, false).desc(R.string.v2_set_keepalive_d).expert();

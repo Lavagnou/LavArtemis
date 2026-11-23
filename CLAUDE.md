@@ -178,6 +178,17 @@ avec **mode expert**, menu en jeu, raccourcis ; l'ancienne interface Qt est supp
 français (`desktop/app/gui/v2/`, voir `desktop/CLAUDE.md`). Android : phase 1 livrée (accueil +
 bibliothèque, ci-dessous).
 
+### 🤝 Parité PC / Android (règle de l'utilisateur)
+
+« Il faut garder une constance le plus possible entre les deux versions. Les seules choses qui diffèrent
+doivent être des features précises d'une version. Le reste doit être commun, au maximum. » Donc :
+**même libellé, même description, mêmes options, même défaut, même place et même ordre** pour tout ce que
+les deux clients ont ; une différence n'est acceptable que pour une feature propre à une plateforme
+(multi-écran, raccourcis clavier, VRR Windows côté PC ; contrôles à l'écran, bouton vocal, rotation, ADPF
+côté Android). Tout changement d'un texte, d'un menu ou d'un réglage commun se fait **des deux côtés dans
+le même passage**, ou est noté comme écart. État et écarts restants :
+`docs/superpowers/specs/2026-11-24-pc-android-parity.md` (le tenir à jour).
+
 ### 📱 Interface v2 Android (Dev, phases 1, 2a et 2b)
 
 Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-codemap.md`). Paquet
@@ -225,7 +236,12 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   `run()` donc même `runWithGameFocus` ; « Annuler » devient un bouton ; deux colonnes sur un écran large
   mais bas) ; le message « Aucune commande de serveur » aussi. La stable garde l'`AlertDialog`. Libellés
   depuis `strings.xml` + `values-fr` (traduction de `game_menu_toggle_floating_button` ajoutée,
-  « Envoyer le presse-papiers » au lieu de « Télécharger »).
+  « Envoyer le presse-papiers » au lieu de « Télécharger »). **Ordre et libellés du menu rapide du desktop
+  pour les entrées communes** (Dev) : Quitter <jeu Playnite>, Déconnecter, Quitter la session, Commandes du
+  PC hôte, Envoyer des touches, presse-papiers ×2, Statistiques de performance, micro (seulement s'il est
+  envoyé), puis les entrées Android. « Envoyer des touches » = les 16 raccourcis du desktop
+  (`GameMenu.DEV_SEND_KEYS` = presets de `KeyMacroManager`, mêmes libellés `v2_keys_*`) ; « Menu avancé »
+  ne garde que ce qui est propre à Android (le gestionnaire des tâches est Ctrl+Maj+Échap de la liste).
 - **Réglages v2** (phase 2b, = `desktop/app/gui/v2/SettingsView2.qml`) : `v2.SettingsActivity` + `SettingsScreen`
   (liste des pages à gauche, « Mode expert » en tête, lignes à droite ; < 640 dp de large : la liste, puis une
   page seule, Retour revient à la liste). L'accueil y mène en Dev ; `StreamSettings` reste celui de la stable.
@@ -233,7 +249,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   choix, curseur, action), page, expert, `when()` (l'appareil la propose : mêmes règles que
   `StreamSettings.initializePreferences`, relues par `SettingsEnv.detect`), `dependsOn()` (grisée, comme
   `android:dependency`). Une page sans ligne visible disparaît. Pages : Profil, Affichage, Vidéo, Audio,
-  Entrées, Manettes, Contrôles à l'écran, Apparence, Avancé.
+  Entrées, Manettes, Contrôles à l'écran, Apparence, PC (presse-papiers, comme le desktop), Avancé.
   - **Classement** : le tri de l'utilisateur (Normal / Expert / Supprimer) pour tout ce qu'il couvre ; pour
     les réglages Android seuls, ce qu'on change couramment est Normal (mode tactile, zoom au pincement, suivre
     la rotation, manette à l'écran, bouton vocal, vibrations…), le réglage fin et le diagnostic Expert. PyroWave
@@ -308,8 +324,10 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   « input only » : Trackpad (3) au lieu du 2.
 - **Aucun bouton « Aide » en Dev** : `utils/Dialog` n'a plus que OK (l'Aide ouvrait le wiki de dépannage de
   Moonlight), et Réglages n'a plus les liens wiki d'Artemis (aide des commandes spéciales, tableau des
-  performances : `NOT_SHOWN`). Restent des liens qui ne sont pas de l'aide : page des releases, Obtainium, la
+  performances : `NOT_SHOWN`). Restent des liens qui ne sont pas de l'aide : page des releases et la
   page de release ouverte par la mise à jour quand aucun APK ne convient. Même règle côté desktop.
+  **Plus de lien Obtainium en Dev** (demande de l'utilisateur : la Dev se met à jour seule) :
+  `option_follow_update` est dans `NOT_SHOWN` ; la stable le garde dans son écran de réglages.
 - **Hôte non pris en charge** (`v2/HostSupport`, = `ServerSupportedRole` du desktop) : `appversion` du `serverinfo`
   (`ComputerDetails.serverAppVersion`) doit être un quadruplet de nombres (Sunshine finit par `-1`) de génération
   ≥ 3 (la plus ancienne de moonlight-common-c) ; inconnu ou PC hors ligne = accepté. Vérifié avant d'ouvrir un PC,
@@ -686,7 +704,8 @@ sont des builds portables sans installeur dedans.
 
 ### 🔄 Mise à jour in-app (Android)
 
-`utils/UpdateChecker.java` + `UpdateDownloader.java` + `UpdateDialogHelper.java`, en plus d'Obtainium.
+`utils/UpdateChecker.java` + `UpdateDownloader.java` + `UpdateDialogHelper.java`, en plus d'Obtainium
+(stable seulement : la Dev n'a plus le lien).
 
 > ⚠️ **L'APK se choisit par ABI** (`UpdateChecker.pickAsset()` sur `Build.SUPPORTED_ABIS`) : un Fire TV ou un Chromecast with Google TV ne peut pas installer l'APK arm64. Sans asset compatible, le dialogue ouvre la page de release.
 >
