@@ -166,12 +166,14 @@ Chaque jeu installé de Playnite devient une appli de l'hôte, lancée **dans** 
   (`AppView`), et `NvConnection` envoie alors un **`resume`** avec ce jeu : LavApollo le démarre dans
   Playnite et la session continue, au lieu de quitter l'appli en cours.
 - Desktop : même logique (`AppModel::startsInsidePlaynite()`, `Session`).
+- **« Quitter le jeu »** (menu en jeu, Android `GameMenu` et desktop `QuickMenu`) : `/playnite-quit-game`
+  ferme seulement le jeu lancé dans Playnite, le stream continue et revient à Playnite.
 
 ## 🎨 Refonte de l'interface (Dev)
 
 Spec `docs/superpowers/specs/2026-11-23-ui-redesign-design.md`, prototype validé de référence dans
 `docs/ui-redesign/prototype/`, copie locale hors git car elle contient des noms de machines (`lavartemis-prototype.html#braise-pc`, `#affiche`, `#ludique-pc`…,
-images absentes hors claude.ai). Phase 1 livrée côté desktop (`desktop/app/gui/v2/`, voir
+images absentes hors claude.ai). Phases 1 (accueil, thèmes, Mes PC) et 2 (Réglages v2 avec **mode expert**, `SettingsView2.qml`) livrées côté desktop (`desktop/app/gui/v2/`, voir
 `desktop/CLAUDE.md`) ; Android à venir.
 
 ## ⚡ Hot path streaming — valeur ajoutée LavArtemis
