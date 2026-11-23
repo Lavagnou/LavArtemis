@@ -265,6 +265,46 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     pas grandissent avec la valeur. Toute écriture est immédiate, pas de bouton « Enregistrer ».
   - Captures : `SettingsScreenshotTest` (préfixe `settings-`, dont `settings-full-<page>` : chaque page entière
     en mode expert) vérifie aussi qu'aucun texte anglais n'est à l'écran.
+  - **Android 9** : la résolution native sans l'encoche se lit dans les insets de la fenêtre (`Display.getCutout()`
+    est Android 10+). `V2Activity.onAttachedToWindow` → `SettingsEnv.rememberCutout()` (dernière valeur non nulle
+    gardée, statique) ; Réglages relit la liste quand l'encoche devient connue (`onCutoutKnown`).
+- **Plus aucun écran « Moonlight » en Dev** (`v2/ui/ThemedDialogs`, `V2Alert`, `V2Page`) :
+  - `ThemedDialogs.enabled()` (= `LAV_DEV`) est demandé **par l'appelant**, qui garde sa branche `AlertDialog`
+    intacte pour la stable. Passent par là : `utils/Dialog.displayDialog` (OK + Aide, non annulable,
+    `closeDialogs()` le ferme toujours), `SpinnerDialog` (spinner, annulable seulement si `finish`, **jamais au
+    toucher extérieur** : annuler termine l'activité, donc le stream qui démarre), `UiHelper.displayConfirmationDialog`
+    (texte HTML, liens cliquables ; Retour ne lance ni oui ni non, comme l'AlertDialog), `Game.quit()` /
+    `selectMouseMode()`, `UpdateDialogHelper` (3 boutons + téléchargement avec barre), dialogues des commandes à
+    l'écran (`VirtualControllerElement`, `keyBoardVirtualControllerElement`, `KeyBoardController` : effacer tout,
+    choix multiple des touches = `V2ListDialog.showMultiChoice`), lien `art://` d'`AddComputerManually` (question v2
+    sur le fond v2, l'écran d'ajout hérité n'apparaît plus ; même ordre qu'avant : `finish()` puis ajout).
+  - `V2Alert` : titre, texte, spinner ou barre, vue en plus, jusqu'à 3 boutons (le 1er en accent) ; un bouton
+    ferme **puis** agit. ⚠️ `ButtonRow` passe en colonne quand les boutons ne tiennent pas, et pose `leftMargin`
+    en plus de `setMarginStart` : la marge de début est déjà résolue avant son `onMeasure`, la changer seule
+    n'avait aucun effet (boutons collés).
+  - `V2Page` habille une activité plein écran **sans toucher à sa logique** : couleurs de fenêtre, en-tête retour +
+    titre, colonne qui défile, `text/heading/button/buttonRow/choice`. L'activité relaie toucher / touches à
+    `V2Input` (anneau de focus manette seulement). Utilisé par `BenchmarkActivity` (modes et objectif = choix v2 ;
+    noms de mode/objectif traduits au lieu des `id` du JSON) et `DebugInfoActivity` (mêmes ids de boutons, donc
+    même `onClick`).
+  - `ShortcutTrampoline` : un raccourci de PC ouvre l'accueil v2 sur ce PC (plus `PcView` + `AppView`).
+  - **Textes** : les messages anglais en dur de `NvConnection` (`text(id, anglais)`, repli anglais sans contexte),
+    de `Game` (toasts HEVC/AV1/HDR, H.264 absent) et le nom des étapes de moonlight-common-c (`utils/StreamStages` :
+    « Échec au démarrage : négociation RTSP (erreur -408) ») passent par `strings.xml` + `values-fr`. Le défaut
+    anglais = l'ancien texte, la stable anglaise ne change pas. Restent anglais : les notes des runs de benchmark
+    (données du rapport JSON partagé avec le desktop) et les toasts système (non thémés, en français).
+- **Hôte non pris en charge** (`v2/HostSupport`, = `ServerSupportedRole` du desktop) : `appversion` du `serverinfo`
+  (`ComputerDetails.serverAppVersion`) doit être un quadruplet de nombres (Sunshine finit par `-1`) de génération
+  ≥ 3 (la plus ancienne de moonlight-common-c) ; inconnu ou PC hors ligne = accepté. Vérifié avant d'ouvrir un PC,
+  de le benchmarker (Mes PC) et de lancer (accueil, bibliothèque) : message « Oups » au lieu d'un lancement qui
+  échoue à mi-chemin. Le desktop compare la version de GeForce Experience à une liste en ligne ; les hôtes
+  Apollo / Sunshine passent toujours ce test-là.
+- **Polices sous Android 8** : l'axe `wght` des polices variables n'existe qu'à partir de l'API 26 ; en dessous
+  l'instance par défaut s'affichait partout (Archivo 600, Bricolage 800, Space Grotesk 300) avec un faux gras.
+  `V2Theme` charge alors des **instances statiques** de `assets/fonts/` (400, 700, + Archivo 900 et Bricolage 800 pour
+  les titres d'Affiche / Ludique ; latin seulement, ~700 Ko), générées par `scripts/v2-static-fonts.py` (fontTools) :
+  **le relancer quand une police de `res/font` change**. Plus de faux gras nulle part.
+- Captures : `GapsScreenshotTest` (préfixe `gaps-`, en `fr`, refuse l'anglais à l'écran) ; logique : `GapsLogicTest`.
 
 > ⚠️ **Le PcView sauté faisait deux choses au démarrage** que `HomeActivity` refait : la sonde du
 > renderer GL (`GlPreferences`, lue par le réglage fin des décodeurs) et le check de mise à jour. PcView

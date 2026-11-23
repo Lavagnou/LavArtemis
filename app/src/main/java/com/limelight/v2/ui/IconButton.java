@@ -63,7 +63,6 @@ public class IconButton extends V2Frame {
         badgePaint.setColor(theme.fg);
         badgePaint.setTextSize(Ui.dpf(context, 10));
         badgePaint.setTypeface(theme.textFont(context, 800));
-        badgePaint.setFakeBoldText(V2Theme.needsFakeBold(800));
         // The ring circles the disc 4 dp out; it is drawn relative to the view's (bigger) bounds
         float outset = 4 - (sizeDp - discDp) / 2f;
         setRing(theme.square() ? 0 : sizeDp / 2f, outset, theme.accent);

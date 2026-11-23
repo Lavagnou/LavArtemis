@@ -63,6 +63,19 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
     }
 
     @Override
+    public void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        // Android 9: the cutout-safe native resolution of Réglages needs the window's insets
+        if (com.limelight.v2.settings.SettingsEnv.rememberCutout(this)) {
+            onCutoutKnown();
+        }
+    }
+
+    /** Android 9: the display cutout became known (Réglages re-reads its resolutions) */
+    protected void onCutoutKnown() {
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         V2Input.addListener(this);

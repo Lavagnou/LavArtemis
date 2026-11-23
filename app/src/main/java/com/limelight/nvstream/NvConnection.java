@@ -32,6 +32,7 @@ import javax.crypto.SecretKey;
 import org.xmlpull.v1.XmlPullParserException;
 
 import com.limelight.LimeLog;
+import com.limelight.R;
 import com.limelight.nvstream.av.audio.AudioRenderer;
 import com.limelight.nvstream.av.video.VideoDecoderRenderer;
 import com.limelight.nvstream.http.ComputerDetails;
@@ -226,6 +227,20 @@ public class NvConnection {
         return StreamConfiguration.STREAM_CFG_AUTO;
     }
     
+    /**
+     * A message for the user in the app's language (French on a French device), the English
+     * text when there are no resources to read it from.
+     */
+    private String text(int resId, String english, Object... args) {
+        try {
+            if (appContext != null) {
+                return appContext.getString(resId, args);
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return String.format(java.util.Locale.US, english, args);
+    }
+
     private boolean startApp() throws XmlPullParserException, IOException
     {
         NvHTTP h = new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider);
@@ -242,7 +257,7 @@ public class NvConnection {
         
         context.serverAppVersion = h.getServerVersion(serverInfo);
         if (context.serverAppVersion == null) {
-            context.connListener.displayMessage("Server version malformed");
+            context.connListener.displayMessage(text(R.string.conn_msg_server_version, "Server version malformed"));
             return false;
         }
 
@@ -253,7 +268,7 @@ public class NvConnection {
         context.serverGfeVersion = h.getGfeVersion(serverInfo);
                 
         if (h.getPairState(serverInfo) != PairingManager.PairState.PAIRED) {
-            context.connListener.displayMessage("Device not paired with computer");
+            context.connListener.displayMessage(text(R.string.conn_msg_not_paired, "Device not paired with computer"));
             return false;
         }
 
@@ -268,22 +283,22 @@ public class NvConnection {
                 context.micRequested = true;
             }
             else if ("disabled".equals(micState)) {
-                context.connListener.displayTransientMessage("Your microphone won't be sent: microphone passthrough is turned off on the host (LavApollo, Audio/Video settings).");
+                context.connListener.displayTransientMessage(text(R.string.conn_msg_mic_disabled, "Your microphone won't be sent: microphone passthrough is turned off on the host (LavApollo, Audio/Video settings)."));
             }
             else if ("no_permission".equals(micState)) {
-                context.connListener.displayTransientMessage("Your microphone won't be sent: the host hasn't given this device the Microphone permission (LavApollo, Clients).");
+                context.connListener.displayTransientMessage(text(R.string.conn_msg_mic_no_permission, "Your microphone won't be sent: the host hasn't given this device the Microphone permission (LavApollo, Clients)."));
             }
             else if ("no_device".equals(micState)) {
-                context.connListener.displayTransientMessage("Your microphone won't be sent: the host has no virtual microphone. Installing Steam on the host provides one.");
+                context.connListener.displayTransientMessage(text(R.string.conn_msg_mic_no_device, "Your microphone won't be sent: the host has no virtual microphone. Installing Steam on the host provides one."));
             }
             else {
-                context.connListener.displayTransientMessage("Your microphone won't be sent: this host doesn't support microphone passthrough. It needs LavApollo 2.2 or later.");
+                context.connListener.displayTransientMessage(text(R.string.conn_msg_mic_unsupported, "Your microphone won't be sent: this host doesn't support microphone passthrough. It needs LavApollo 2.2 or later."));
             }
         }
 
         context.negotiatedHdr = (context.streamConfig.getSupportedVideoFormats() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0;
         if ((context.serverCodecModeSupport & 0x20200) == 0 && context.negotiatedHdr) {
-            context.connListener.displayTransientMessage("Your PC GPU does not support streaming HDR. The stream will be SDR.");
+            context.connListener.displayTransientMessage(text(R.string.conn_msg_no_hdr, "Your PC GPU does not support streaming HDR. The stream will be SDR."));
             context.negotiatedHdr = false;
         }
         
@@ -294,17 +309,17 @@ public class NvConnection {
         // Check for a supported stream resolution
         if ((context.streamConfig.getWidth() > 4096 || context.streamConfig.getHeight() > 4096) &&
                 (h.getServerCodecModeSupport(serverInfo) & 0x200) == 0 && context.isNvidiaServerSoftware) {
-            context.connListener.displayMessage("Your host PC does not support streaming at resolutions above 4K.");
+            context.connListener.displayMessage(text(R.string.conn_msg_no_4k_host, "Your host PC does not support streaming at resolutions above 4K."));
             return false;
         }
         else if ((context.streamConfig.getWidth() > 4096 || context.streamConfig.getHeight() > 4096) &&
                 (context.streamConfig.getSupportedVideoFormats() & ~MoonBridge.VIDEO_FORMAT_MASK_H264) == 0) {
-            context.connListener.displayMessage("Your streaming device must support HEVC or AV1 to stream at resolutions above 4K.");
+            context.connListener.displayMessage(text(R.string.conn_msg_no_4k_codec, "Your streaming device must support HEVC or AV1 to stream at resolutions above 4K."));
             return false;
         }
         else if (context.streamConfig.getHeight() >= 2160 && !h.supports4K(serverInfo)) {
             // Client wants 4K but the server can't do it
-            context.connListener.displayTransientMessage("You must update GeForce Experience to stream in 4K. The stream will be 1080p.");
+            context.connListener.displayTransientMessage(text(R.string.conn_msg_gfe_4k, "You must update GeForce Experience to stream in 4K. The stream will be 1080p."));
             
             // Lower resolution to 1080p
             context.negotiatedWidth = 1920;
@@ -339,7 +354,7 @@ public class NvConnection {
             LimeLog.info("Using deprecated app lookup method - Please specify an app ID in your StreamConfiguration instead");
             app = h.getAppByName(context.streamConfig.getApp().getAppName());
             if (app == null) {
-                context.connListener.displayMessage("The app " + context.streamConfig.getApp().getAppName() + " is not in GFE app list");
+                context.connListener.displayMessage(text(R.string.conn_msg_app_missing, "The app %1$s is not in GFE app list", context.streamConfig.getApp().getAppName()));
                 return false;
             }
         }
@@ -351,7 +366,7 @@ public class NvConnection {
                     // Joining: the host keeps its display, so stream at its mode
                     applyHostDisplayMode(true);
                     if (!h.launchApp(context, "resume", app.getAppUUID(), app.getAppId(), context.negotiatedHdr)) {
-                        context.connListener.displayMessage("Failed to resume existing session");
+                        context.connListener.displayMessage(text(R.string.conn_msg_resume_failed, "Failed to resume existing session"));
                         return false;
                     }
                 } else if (Objects.equals(NvApp.REMOTE_INPUT_UUID, app.getAppUUID())) {
@@ -362,7 +377,7 @@ public class NvConnection {
                     // runs starts inside it; LavApollo answers the resume and the session goes on.
                     applyHostDisplayMode(true);
                     if (!h.launchApp(context, "resume", app.getAppUUID(), app.getAppId(), context.negotiatedHdr)) {
-                        context.connListener.displayMessage("Failed to start the game inside Playnite");
+                        context.connListener.displayMessage(text(R.string.conn_msg_playnite_failed, "Failed to start the game inside Playnite"));
                         return false;
                     }
                 } else {
@@ -372,14 +387,14 @@ public class NvConnection {
                 if (e.getErrorCode() == 470) {
                     // This is the error you get when you try to resume a session that's not yours.
                     // Because this is fairly common, we'll display a more detailed message.
-                    context.connListener.displayMessage("This session wasn't started by this device," +
-                            " so it cannot be resumed. End streaming on the original " +
-                            "device or the PC itself and try again. (Error code: "+e.getErrorCode()+")");
+                    context.connListener.displayMessage(text(R.string.conn_msg_resume_not_owner,
+                            "This session wasn't started by this device, so it cannot be resumed. End streaming on the original device or the PC itself and try again. (Error code: %1$d)",
+                            e.getErrorCode()));
                     return false;
                 }
                 else if (e.getErrorCode() == 525) {
-                    context.connListener.displayMessage("The application is minimized. Resume it on the PC manually or " +
-                            "quit the session and start streaming again.");
+                    context.connListener.displayMessage(text(R.string.conn_msg_minimized,
+                            "The application is minimized. Resume it on the PC manually or quit the session and start streaming again."));
                     return false;
                 } else {
                     throw e;
@@ -414,14 +429,14 @@ public class NvConnection {
             XmlPullParserException {
         try {
             if (!h.quitApp()) {
-                context.connListener.displayMessage("Failed to quit previous session! You must quit it manually");
+                context.connListener.displayMessage(text(R.string.conn_msg_quit_failed, "Failed to quit previous session! You must quit it manually"));
                 return false;
             } 
         } catch (HostHttpResponseException e) {
             if (e.getErrorCode() == 599) {
-                context.connListener.displayMessage("This session wasn't started by this device," +
-                        " so it cannot be quit. End streaming on the original " +
-                        "device or the PC itself. (Error code: "+e.getErrorCode()+")");
+                context.connListener.displayMessage(text(R.string.conn_msg_quit_not_owner,
+                        "This session wasn't started by this device, so it cannot be quit. End streaming on the original device or the PC itself. (Error code: %1$d)",
+                        e.getErrorCode()));
                 return false;
             }
             else {
@@ -506,7 +521,7 @@ public class NvConnection {
 
         // Launch the app since it's not running
         if (!h.launchApp(context, "launch", context.streamConfig.getApp().getAppUUID(), context.streamConfig.getApp().getAppId(), context.negotiatedHdr)) {
-            context.connListener.displayMessage("Failed to launch application");
+            context.connListener.displayMessage(text(R.string.conn_msg_launch_failed, "Failed to launch application"));
             return false;
         }
         

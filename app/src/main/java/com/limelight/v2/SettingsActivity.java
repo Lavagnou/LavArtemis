@@ -101,6 +101,15 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
     }
 
     @Override
+    protected void onCutoutKnown() {
+        // Android 9: the native resolution without the cutout joins the list
+        if (envOverride == null && store != null) {
+            readEnv();
+            rebuild();
+        }
+    }
+
+    @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         if (screen != null) {

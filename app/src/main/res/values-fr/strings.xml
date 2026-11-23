@@ -36,8 +36,8 @@
     <string name="nettest_title_waiting">Test de la connexion réseau</string>
     <string name="nettest_text_waiting">LavArtemis teste votre connexion réseau pour déterminer si les ports requis sont bloqués.\n\nCela peut prendre quelques secondes…</string>
     <string name="nettest_title_done">Test du réseau terminé</string>
-    <string name="nettest_text_success">Votre réseau ne semble pas bloquer LavArtemis. Si vous avez encore des difficultés à vous connecter, vérifiez les paramètres du pare-feu de votre PC.\n\nSi vous essayez de streamer depuis Internet, installez l\'outil LavArtemis Internet Hosting Tool sur votre PC et exécutez le testeur de streaming Internet inclus pour vérifier la connexion Internet de votre PC.</string>
-    <string name="nettest_text_inconclusive">Le test réseau n\'a pas pu être effectué car aucun des serveurs de test de connexion d\'LavArtemis n\'était accessible. Vérifiez votre connexion Internet ou réessayez plus tard.</string>
+    <string name="nettest_text_success">Votre réseau ne semble pas bloquer LavArtemis. Si vous avez encore des difficultés à vous connecter, vérifiez les paramètres du pare-feu de votre PC.\n\nPour streamer depuis Internet, vérifiez que votre box redirige les ports vers le PC (ou activez l\'UPnP dans LavApollo).</string>
+    <string name="nettest_text_inconclusive">Le test réseau n\'a pas pu être effectué car aucun des serveurs de test de connexion de LavArtemis n\'était accessible. Vérifiez votre connexion Internet ou réessayez plus tard.</string>
     <string name="nettest_text_failure">La connexion réseau actuelle de votre appareil semble bloquer LavArtemis. Le streaming sur Internet peut ne pas fonctionner lorsque vous êtes connecté à ce réseau.\n\nLes ports réseau suivants ont été bloqués :</string>
     <string name="nettest_text_blocked">Votre appareil bloque LavArtemis. Le streaming sur Internet peut ne pas fonctionner lorsque vous êtes connecté à ce réseau.</string>
 
@@ -207,7 +207,7 @@
     <string name="title_checkbox_xb1_driver">Pilote USB pour manette Xbox 360/One/NintendoPro</string>
     <string name="summary_checkbox_xb1_driver">Active un pilote USB intégré pour les appareils sans prise en charge native des manettes Xbox/Nintendo Pro</string>
     <string name="title_checkbox_usb_bind_all">Remplacer le support natif des manettes Xbox</string>
-    <string name="summary_checkbox_usb_bind_all">Utilise le pilote USB d\'LavArtemis pour toutes les manettes prises en charge, même si le support natif des manettes Xbox/Nintendo Pro est présent</string>
+    <string name="summary_checkbox_usb_bind_all">Utilise le pilote USB de LavArtemis pour toutes les manettes prises en charge, même si le support natif des manettes Xbox/Nintendo Pro est présent</string>
     <string name="title_checkbox_mouse_emulation">Émulation de la souris via la manette</string>
     <string name="summary_checkbox_mouse_emulation">Appuyez longuement sur le bouton Start pour basculer la manette en mode souris</string>
     <string name="title_checkbox_flip_face_buttons">Inverser les boutons de façade</string>
@@ -292,7 +292,7 @@
     <string name="title_troubleshooting">Guide de dépannage</string>
     <string name="summary_troubleshooting">Voir des conseils pour diagnostiquer et résoudre les problèmes de streaming courants</string>
     <string name="title_privacy_policy">Politique de confidentialité</string>
-    <string name="summary_privacy_policy">Voir la politique de confidentialité d\'LavArtemis</string>
+    <string name="summary_privacy_policy">Voir la politique de confidentialité de LavArtemis</string>
     <string name="title_special_key_help">Aide sur les touches spéciales personnalisées</string>
     <string name="summary_special_key_help">Instructions sur la configuration des touches spéciales personnalisées</string>
 
@@ -424,7 +424,7 @@
     <string name="title_software_update">Mise à jour du logiciel</string>
     <string name="summary_software_update">Visitez la page des versions GitHub pour obtenir la dernière version</string>
     <string name="title_follow_update">Suivre les mises à jour</string>
-    <string name="summary_follow_update">Suivre les mises à jour d\'LavArtemis avec Obtainium</string>
+    <string name="summary_follow_update">Suivre les mises à jour de LavArtemis avec Obtainium</string>
     <string name="title_special_key_layout">Disposition des touches spéciales</string>
     <string name="title_show_virtual_key">Afficher les touches virtuelles à l\'écran</string>
     <string name="summary_show_virtual_key">Affiche une couche de touches spéciales virtuelles sur l\'écran tactile.\nL\'opacité des touches est partagée avec la manette virtuelle ci-dessus.</string>
@@ -469,7 +469,7 @@
     <string name="title_touchpad_sensitivity_y">Sensibilité du trackpad Y</string>
     <string name="summary_touchpad_sensitivity_y">Pour le mode souris trackpad et le contrôle du bouton tactile spécial du trackpad ;\nLes deux partagent une valeur de sensibilité, mais les performances de sensibilité peuvent être différentes.\nQuelqu\'un utilise-t-il les deux ensemble ?</string>
     <string name="title_device_rumble">Forcer les vibrations sur l\'appareil</string>
-    <string name="summary_device_rumble">Si vous n\'êtes pas satisfait des vibrations de la manette connectée, vous pouvez activer cette option.\nNon valide pour l\'utilisation forcée du pilote USB intégré d\'LavArtemis</string>
+    <string name="summary_device_rumble">Si vous n\'êtes pas satisfait des vibrations de la manette connectée, vous pouvez activer cette option.\nSans effet quand le pilote USB intégré de LavArtemis est forcé</string>
     <string name="title_clear_default_special_button">Désactiver les touches spéciales par défaut</string>
     <string name="summary_clear_default_special_button">Si vous trouvez que les commandes intégrées dans le menu Retour sont inutiles, vous pouvez les désactiver et utiliser celles que vous avez importées.</string>
     <string name="title_trackpad_sensitivity_x">Sensibilité du trackpad X</string>
@@ -565,7 +565,7 @@
     <string name="pref_save_keyboard_profile">Enregistrer le profil OSK</string>
     <string name="game_menu_advanced">Menu avancé</string>
     <string name="game_dialog_title_quit_confirm">Voulez-vous vraiment quitter ?</string>
-    <string name="game_dialog_message_quit_confirm">Veuillez vous assurer que vous n\'avez aucune progression non enregistrée. La quittance de la session mettra fin à l\'application en cours d\'exécution.</string>
+    <string name="game_dialog_message_quit_confirm">Vérifiez que votre progression est enregistrée : quitter la session ferme l\'application qui tourne sur le PC.</string>
     <string name="game_menu_quit_playnite_game">Quitter %1$s (retour à Playnite)</string>
     <string name="playnite_game_quitting">Fermeture du jeu, retour à Playnite…</string>
     <string name="playnite_game_quit_failed">Impossible de fermer le jeu dans Playnite</string>
@@ -576,8 +576,8 @@
     <string name="game_dialog_title_server_cmd_empty">Aucune commande de serveur</string>
     <string name="game_dialog_message_server_cmd_empty">Veuillez vous assurer que vous utilisez Apollo comme logiciel serveur et que vous avez accordé à ce client l\'autorisation "Commande de serveur".</string>
     <string name="vdisplay_not_ready">Le pilote d\'affichage virtuel n\'est pas prêt sur le serveur. Veuillez vous assurer que le pilote SudoVDA est installé et activé.</string>
-    <string name="vdisplay_not_supported"><![CDATA[L\'affichage virtuel n\'est pas pris en charge sur ce serveur. Veuillez utiliser <a href=\"https://github.com/ClassicOldSong/Apollo\">Apollo</a> comme logiciel de streaming hôte.]]></string>
-    <string name="clipboard_sync_unsupported">Ce serveur ne prend pas en charge la synchronisation du presse-papiers. Veuillez installer ou mettre à jour votre serveur vers la dernière version d\'Apollo.</string>
+    <string name="vdisplay_not_supported"><![CDATA[L\'affichage virtuel n\'est pas pris en charge sur ce serveur. Utilisez <a href=\"https://github.com/Lavagnou/LavApollo\">LavApollo</a> comme logiciel hôte.]]></string>
+    <string name="clipboard_sync_unsupported">Ce serveur ne gère pas la synchronisation du presse-papiers. Installez ou mettez à jour LavApollo sur le PC.</string>
     <string name="send_clipboard_failed">Échec de l\'envoi du presse-papiers : </string>
     <string name="get_clipboard_failed">Échec de la récupération du presse-papiers : </string>
     <string name="send_clipboard_success">Presse-papiers envoyé avec succès</string>
@@ -702,4 +702,99 @@
     <string name="benchmark_pacing_vsync_off">V-Sync désactivée</string>
     <string name="benchmark_pacing_vsync">V-Sync</string>
     <string name="benchmark_pacing_vsync_paced">V-Sync + frame pacing</string>
+
+    <!-- Stream messages, connection stages, on-screen controls (LavArtemis: were English literals) -->
+    <string name="osc_config_title">Configuration</string>
+    <string name="osc_config_move">Déplacer</string>
+    <string name="osc_config_resize">Redimensionner</string>
+    <string name="conn_starting_stage">Démarrage : %1$s</string>
+    <string name="conn_error_stage">Échec au démarrage : %1$s (erreur %2$d)</string>
+    <string name="stage_platform_init">initialisation de la plateforme</string>
+    <string name="stage_name_resolution">résolution du nom</string>
+    <string name="stage_audio_init">initialisation du flux audio</string>
+    <string name="stage_rtsp_handshake">négociation RTSP</string>
+    <string name="stage_control_init">initialisation du flux de contrôle</string>
+    <string name="stage_video_init">initialisation du flux vidéo</string>
+    <string name="stage_input_init">initialisation du flux d\'entrées</string>
+    <string name="stage_control_start">ouverture du flux de contrôle</string>
+    <string name="stage_video_start">ouverture du flux vidéo</string>
+    <string name="stage_audio_start">ouverture du flux audio</string>
+    <string name="stage_input_start">ouverture du flux d\'entrées</string>
+    <string name="conn_msg_server_version">Version du serveur illisible</string>
+    <string name="conn_msg_not_paired">Cet appareil n\'est pas appairé avec le PC</string>
+    <string name="conn_msg_mic_disabled">Votre micro ne sera pas envoyé : le passthrough du micro est désactivé sur l\'hôte (LavApollo, réglages Audio/Vidéo).</string>
+    <string name="conn_msg_mic_no_permission">Votre micro ne sera pas envoyé : l\'hôte n\'a pas donné la permission Micro à cet appareil (LavApollo, Clients).</string>
+    <string name="conn_msg_mic_no_device">Votre micro ne sera pas envoyé : l\'hôte n\'a pas de micro virtuel. Installer Steam sur l\'hôte en fournit un.</string>
+    <string name="conn_msg_mic_unsupported">Votre micro ne sera pas envoyé : cet hôte ne gère pas le passthrough du micro. Il faut LavApollo 2.2 ou plus récent.</string>
+    <string name="conn_msg_no_hdr">La carte graphique du PC ne sait pas streamer en HDR. Le stream sera en SDR.</string>
+    <string name="conn_msg_no_4k_host">Le PC hôte ne sait pas streamer au-delà de la 4K.</string>
+    <string name="conn_msg_no_4k_codec">Au-delà de la 4K, cet appareil doit décoder le HEVC ou l\'AV1.</string>
+    <string name="conn_msg_gfe_4k">Mettez à jour GeForce Experience pour streamer en 4K. Le stream sera en 1080p.</string>
+    <string name="conn_msg_app_missing">L\'application %1$s n\'est pas dans la liste de l\'hôte</string>
+    <string name="conn_msg_resume_failed">Impossible de reprendre la session en cours</string>
+    <string name="conn_msg_playnite_failed">Impossible de lancer le jeu dans Playnite</string>
+    <string name="conn_msg_resume_not_owner">Cette session n\'a pas été lancée par cet appareil : elle ne peut pas être reprise. Arrêtez le stream sur l\'appareil d\'origine ou sur le PC, puis réessayez. (Code d\'erreur : %1$d)</string>
+    <string name="conn_msg_minimized">L\'application est réduite. Rouvrez-la sur le PC ou quittez la session et relancez le stream.</string>
+    <string name="conn_msg_quit_failed">Impossible de quitter la session précédente. Quittez-la à la main.</string>
+    <string name="conn_msg_quit_not_owner">Cette session n\'a pas été lancée par cet appareil : elle ne peut pas être quittée d\'ici. Arrêtez le stream sur l\'appareil d\'origine ou sur le PC. (Code d\'erreur : %1$d)</string>
+    <string name="conn_msg_launch_failed">Impossible de lancer l\'application</string>
+    <string name="toast_hdr_display_unsupported">L\'écran ne gère pas le HDR10</string>
+    <string name="toast_hdr_needs_android_7">Le HDR demande Android 7.0 ou plus récent</string>
+    <string name="toast_hdr_decoder_unsupported">Le décodeur ne gère pas le profil HDR10</string>
+    <string name="toast_no_hevc_decoder">Aucun décodeur HEVC trouvé</string>
+    <string name="toast_no_av1_decoder">Aucun décodeur AV1 trouvé</string>
+    <string name="error_no_h264_decoder">Cet appareil ou cette ROM ne décode pas le H.264 en matériel.</string>
+    <string name="toast_mouse_emulation_on">Émulation de la souris : activée</string>
+    <string name="toast_mouse_emulation_off">Émulation de la souris : désactivée</string>
+
+    <!-- Benchmark: short names of the modes (history, report heading) -->
+    <string name="benchmark_mode_quick_short">Rapide</string>
+    <string name="benchmark_mode_full_short">Complet</string>
+    <string name="benchmark_mode_adaptive_short">Adaptatif</string>
+
+    <!-- Shown in LavArtemis Dev (stream, in-game menu, on-screen keyboard, external display, exports) -->
+    <string name="menu_button">Menu</string>
+    <string name="toggle_pan_zoom_mode">Activer / désactiver le zoom</string>
+    <string name="pan_zoom_mode_enabled">Mode zoom activé</string>
+    <string name="pan_zoom_mode_disabled">Mode zoom désactivé</string>
+    <string name="email_chooser_title">Envoyer le journal de performances…</string>
+    <string name="email_prefix_message">Journal de performances de LavArtemis en pièce jointe.\n\n</string>
+    <string name="email_subject">LavArtemis - Journal de performances</string>
+    <string name="error_code_prefix">Code d\'erreur :</string>
+    <string name="error_writing_file">Erreur d\'écriture du fichier : %s</string>
+    <string name="export_launcher_app_details_incomplete">Export impossible : les informations de l\'application sont incomplètes.</string>
+    <string name="export_launcher_computer_details_incomplete">Export impossible : les informations du PC sont incomplètes.</string>
+    <string name="external_display_info">Écran externe connecté : %1$dx%2$d à %3$.1f Hz</string>
+    <string name="failed_to_initiate_file_export">Impossible de lancer l\'export du fichier : %s</string>
+    <string name="failed_to_open_file_for_writing">Impossible d\'ouvrir le fichier en écriture.</string>
+    <string name="file_export_failed_no_content_to_write">Échec de l\'export : rien à écrire.</string>
+    <string name="file_export_failed_no_location_selected">Échec de l\'export : aucun emplacement choisi.</string>
+    <string name="file_exported_successfully">Fichier exporté.</string>
+    <string name="keyboard_add">Ajouter</string>
+    <string name="keyboard_add_keys">Ajouter des touches</string>
+    <string name="keyboard_clear_all">Tout effacer</string>
+    <string name="keyboard_clear_all_confirm_message">Masquer toutes les commandes à l\'écran ? Vous pourrez les remettre plus tard en mode configuration.</string>
+    <string name="keyboard_clear_all_confirm_title">Effacer toutes les touches</string>
+    <string name="keyboard_configure_movable">Vous pouvez maintenant déplacer le bouton de réglages.</string>
+    <string name="keyboard_duplicates_skipped">%d doublons ignorés</string>
+    <string name="keyboard_key_custom">%s (personnalisée)</string>
+    <string name="keyboard_keys_added">%d touches ajoutées</string>
+    <string name="keyboard_load_error">Erreur au chargement de la configuration du clavier : %s</string>
+    <string name="keyboard_select_keys">Touches à ajouter</string>
+    <string name="no_external_display">Aucun écran externe détecté</string>
+    <string name="no_game_instance">Aucun stream en cours</string>
+    <string name="notification_channel_name">Contrôle de l\'écran externe</string>
+    <string name="notification_text">Toucher pour ouvrir le pavé tactile</string>
+    <string name="notification_title">Écran externe actif</string>
+    <string name="perf_overlay_ai_delegate">Délégué :</string>
+    <string name="perf_overlay_ai_fps">FPS 3D :</string>
+    <string name="perf_overlay_drawdelay"> Délai : %1$.2f ms</string>
+    <string name="perf_overlay_pacing">Frame pacing : %1$.1f / %2$.1f / %3$.1f ms (p50/p95/p99)</string>
+    <string name="permission_denied">Permission de notification refusée</string>
+    <string name="thermal_throttling_warning">L\'appareil chauffe : les performances peuvent baisser. Pensez à réduire le débit ou la fréquence d\'images.</string>
+    <string name="toast_no_email_clients">Aucune application de messagerie installée.</string>
+    <string name="toast_no_logs">Aucune donnée de performances enregistrée pour l\'instant.</string>
+    <string name="toast_pyrowave_3d">PyroWave ne fonctionne pas avec les modes 3D. Un autre codec est utilisé.</string>
+    <string name="toast_pyrowave_unsupported">PyroWave demande un appareil 64 bits avec un GPU Vulkan 1.3. Un autre codec est utilisé.</string>
+    <string name="unexpected_error_during_file_export">Erreur inattendue pendant l\'export du fichier.</string>
 </resources>

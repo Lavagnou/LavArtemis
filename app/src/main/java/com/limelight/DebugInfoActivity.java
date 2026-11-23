@@ -11,6 +11,8 @@ import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.view.InputDevice;
+import android.view.KeyEvent;
+import android.widget.LinearLayout;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -23,6 +25,10 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.limelight.utils.DeviceUtils;
+import com.limelight.v2.V2Theme;
+import com.limelight.v2.ui.ThemedDialogs;
+import com.limelight.v2.ui.V2Alert;
+import com.limelight.v2.ui.V2Page;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,21 +37,29 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
 
     private TextView tx_gamepad_info;
     private Vibrator vibrator;
-    private Button bt_vibrator;
+    private View bt_vibrator;
     private List<InputDevice> ids = new ArrayList<>();
     private Vibrator vibratorOnline;
-    private Button bt_vibrator_value;
+    private View bt_vibrator_value;
     private int simulatedAmplitude = 220;
+    // LavArtemis Dev: the screen in the v2 theme (null in the stable, which keeps its layout)
+    private V2Page page;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_axitest);
+        TextView tx_content;
+        if (ThemedDialogs.enabled()) {
+            tx_content = buildV2Page();
+        }
+        else {
+            setContentView(R.layout.activity_axitest);
 
-        tx_gamepad_info = findViewById(R.id.tx_game_pad_info);
-        TextView tx_content = findViewById(R.id.tx_content);
-        bt_vibrator = findViewById(R.id.bt_vibrator);
-        bt_vibrator_value = findViewById(R.id.bt_vibrator_value);
+            tx_gamepad_info = findViewById(R.id.tx_game_pad_info);
+            tx_content = findViewById(R.id.tx_content);
+            bt_vibrator = findViewById(R.id.bt_vibrator);
+            bt_vibrator_value = findViewById(R.id.bt_vibrator_value);
+        }
 
         vibrator = (Vibrator) this.getSystemService(VIBRATOR_SERVICE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -60,13 +74,81 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
 
         boolean hasVibrator = ((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).hasVibrator();
         String content = hasVibrator ? getString(R.string.debug_info_has_vibration_motor) : getString(R.string.debug_info_no_vibration_motor);
-        bt_vibrator.setText(getString(R.string.debug_info_test_device_vibration, content));
+        setLabel(bt_vibrator, getString(R.string.debug_info_test_device_vibration, content));
 
         showSimlateAmp();
     }
 
     private void showSimlateAmp() {
-        bt_vibrator_value.setText(getString(R.string.debug_info_vibration_amplitude, simulatedAmplitude));
+        setLabel(bt_vibrator_value, getString(R.string.debug_info_vibration_amplitude, simulatedAmplitude));
+    }
+
+    private static void setLabel(View button, String text) {
+        if (button instanceof com.limelight.v2.ui.PillButton) {
+            ((com.limelight.v2.ui.PillButton) button).setText(text);
+        }
+        else {
+            ((Button) button).setText(text);
+        }
+    }
+
+    /**
+     * The same buttons and texts as activity_axitest.xml, in the v2 theme: a header with back and
+     * the title, the buttons keep their ids so onClick() does not change.
+     */
+    private TextView buildV2Page() {
+        page = new V2Page(this, V2Theme.load(this), getString(R.string.title_debug_info), this::finish);
+        LinearLayout c = page.content();
+        LinearLayout row = page.buttonRow(c);
+        bt_vibrator = button(row, R.id.bt_vibrator, getString(R.string.debug_info_test_device_vibration, ""));
+        button(row, R.id.bt_update_gamepad, getString(R.string.debug_info_refresh_gamepad_list));
+        button(row, R.id.bt_vibrator_gamepad, getString(R.string.debug_info_test_gamepad_rumble));
+        LinearLayout row2 = page.buttonRow(c);
+        bt_vibrator_value = button(row2, R.id.bt_vibrator_value, getString(R.string.debug_info_vibration_amplitude, simulatedAmplitude));
+        button(row2, R.id.bt_vibrator_cancle, getString(R.string.debug_info_stop_vibration));
+        TextView content = page.text(c, getString(R.string.debug_info_refresh_gamepad_info), true);
+        tx_gamepad_info = page.text(c, "", false);
+        setContentView(page.getView());
+        return content;
+    }
+
+    private View button(LinearLayout row, int id, String label) {
+        View b = page.button(row, label, false, this);
+        b.setId(id);
+        return b;
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (page != null) {
+            V2Page.onTouch(ev);
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent ev) {
+        if (page != null) {
+            V2Page.onMotion(ev);
+        }
+        return super.dispatchGenericMotionEvent(ev);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (page != null) {
+            V2Page.onKey(event);
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    /** setItems() of an AlertDialog, or the v2 list in LavArtemis Dev */
+    private void choose(String[] items, DialogInterface.OnClickListener onPick) {
+        if (page != null) {
+            ThemedDialogs.list(this, getString(R.string.debug_info_please_choose), items, which -> onPick.onClick(null, which));
+            return;
+        }
+        new AlertDialog.Builder(this).setItems(items, onPick).setTitle(getString(R.string.debug_info_please_choose)).create().show();
     }
 
     private void cancleRumble() {
@@ -87,10 +169,12 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
         // Device Vibration
         if (v.getId() == R.id.bt_vibrator) {
             String[] titles = new String[]{getString(R.string.debug_info_simple_vibration), getString(R.string.debug_info_continuous_hd_vibration)};
-            new AlertDialog.Builder(this).setItems(titles, new DialogInterface.OnClickListener() {
+            choose(titles, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
+                    if (dialog != null) {
+                        dialog.dismiss();
+                    }
                     switch (which) {
                         case 0:
                             vibrator.vibrate(1000);
@@ -100,7 +184,7 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
                             break;
                     }
                 }
-            }).setTitle(getString(R.string.debug_info_please_choose)).create().show();
+            });
             return;
         }
 
@@ -114,16 +198,20 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
             for (int i = 0; i < ids.size(); i++) {
                 strings[i] = ids.get(i).getName();
             }
-            new AlertDialog.Builder(this).setItems(strings, new DialogInterface.OnClickListener() {
+            choose(strings, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
+                    if (dialog != null) {
+                        dialog.dismiss();
+                    }
                     if (ids.get(which).getVibrator().hasVibrator()) {
                         String[] titles = new String[]{getString(R.string.debug_info_simple_vibration), getString(R.string.debug_info_continuous_hd_vibration)};
-                        new AlertDialog.Builder(DebugInfoActivity.this).setItems(titles, new DialogInterface.OnClickListener() {
+                        choose(titles, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which2) {
-                                dialog.dismiss();
+                                if (dialog != null) {
+                                    dialog.dismiss();
+                                }
                                 switch (which2) {
                                     case 0:
                                         ids.get(which).getVibrator().vibrate(1000);
@@ -135,12 +223,12 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
                                         break;
                                 }
                             }
-                        }).setTitle(getString(R.string.debug_info_please_choose)).create().show();
+                        });
                     } else {
                         Toast.makeText(DebugInfoActivity.this, getString(R.string.debug_info_no_vibrator), Toast.LENGTH_SHORT).show();
                     }
                 }
-            }).setTitle(getString(R.string.debug_info_please_choose)).create().show();
+            });
             return;
         }
 
@@ -152,6 +240,13 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
 
         if (v.getId() == R.id.bt_vibrator_value) {
             SeekBar mSeekBar = getSeekBar();
+            if (page != null) {
+                mSeekBar.setProgressTintList(android.content.res.ColorStateList.valueOf(page.theme.accent));
+                mSeekBar.setThumbTintList(android.content.res.ColorStateList.valueOf(page.theme.accent));
+                new V2Alert(this, page.theme).title(getString(R.string.debug_info_set_amplitude))
+                        .content(mSeekBar).button(getString(R.string.v2_ok), null).show();
+                return;
+            }
             AlertDialog.Builder editDialog = new AlertDialog.Builder(this);
             editDialog.setTitle(getString(R.string.debug_info_set_amplitude));
             editDialog.setView(mSeekBar);

@@ -28,6 +28,7 @@ import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.v2.ui.ThemedDialogs;
 
 import java.util.Locale;
 
@@ -218,6 +219,11 @@ public class UiHelper {
     }
 
     public static <T> void displayConfirmationDialog(Activity parent, String title, String message, String btnYesText, String btnNoText, final Runnable onYes, final Runnable onNo) {
+        if (ThemedDialogs.enabled()) {
+            // LavArtemis Dev: the v2 dialog, same buttons; Back closes without either, as below
+            ThemedDialogs.confirm(parent, title, Html.fromHtml(message), btnYesText, btnNoText, onYes, onNo);
+            return;
+        }
         DialogInterface.OnClickListener dialogClickListener = (dialog, which) -> {
             switch (which){
                 case DialogInterface.BUTTON_POSITIVE:

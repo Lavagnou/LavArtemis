@@ -241,7 +241,22 @@ public class HostsActivity extends V2HostActivity {
     }
 
     /** Back to the home, showing this PC (the home reads the remembered PC when it resumes) */
+    /**
+     * A host whose server software LavArtemis cannot stream from (HostSupport): the message the
+     * desktop shows (HostsView.openHost), and false. Opening, launching, benchmarking ask it first.
+     */
+    boolean checkSupported(ComputerDetails d) {
+        if (HostSupport.isSupported(d)) {
+            return true;
+        }
+        error(getString(R.string.v2_host_unsupported, d.name, d.serverAppVersion));
+        return false;
+    }
+
     private void openHost(ComputerDetails d) {
+        if (!checkSupported(d)) {
+            return;
+        }
         PreferenceManager.getDefaultSharedPreferences(this).edit().putString(PREF_LAST_HOST, d.uuid).apply();
         if (isTaskRoot()) {
             // Opened by a pairing link: there is no home under this page
@@ -294,6 +309,9 @@ public class HostsActivity extends V2HostActivity {
                     break;
                 case BENCHMARK:
                     entries.add(new V2Dialogs.Entry(getString(R.string.v2_host_benchmark), R.drawable.v2_ic_gauge, first, () -> {
+                        if (!checkSupported(d)) {
+                            return;
+                        }
                         Intent i = new Intent(this, BenchmarkActivity.class);
                         i.putExtra(BenchmarkActivity.EXTRA_PC_UUID, d.uuid);
                         i.putExtra(BenchmarkActivity.EXTRA_PC_NAME, d.name);

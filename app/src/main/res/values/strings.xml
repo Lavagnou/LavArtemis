@@ -41,7 +41,7 @@
     <string name="nettest_title_waiting">Testing Network Connection</string>
     <string name="nettest_text_waiting">LavArtemis is testing your network connection to determine if any required ports are blocked.\n\nThis may take a few seconds…</string>
     <string name="nettest_title_done">Network Test Complete</string>
-    <string name="nettest_text_success">Your network does not appear to be blocking LavArtemis. If you still have trouble connecting, check your PC\'s firewall settings.\n\nIf you are trying to stream over the Internet, install the LavArtemis Internet Hosting Tool on your PC and run the included Internet Streaming Tester to check your PC\'s Internet connection.</string>
+    <string name="nettest_text_success">Your network does not appear to be blocking LavArtemis. If you still have trouble connecting, check your PC\'s firewall settings.\n\nIf you are trying to stream over the Internet, check that your router forwards the ports to your PC (or turn on UPnP in LavApollo).</string>
     <string name="nettest_text_inconclusive">The network test could not be performed because none of LavArtemis\'s connection testing servers were reachable. Check your Internet connection or try again later.</string>
     <string name="nettest_text_failure">Your device\'s current network connection seems to be blocking LavArtemis. Streaming over the Internet may not work while connected to this network.\n\nThe following network ports were blocked:\n</string>
     <string name="nettest_text_blocked">Your device\'s current network connection is blocking LavArtemis. Streaming over the Internet may not work while connected to this network.</string>
@@ -689,8 +689,8 @@
     <string name="game_dialog_title_server_cmd_empty">No Server Commands</string>
     <string name="game_dialog_message_server_cmd_empty">Please make sure you\'re using Apollo as server software and has been granted this client with "Server Command" permission.</string>
     <string name="vdisplay_not_ready">Virtual display driver isn\'t ready on the server. Please make sure the SudoVDA driver is installed and enabled.</string>
-    <string name="vdisplay_not_supported"><![CDATA[Virtual display isn\'t supported on this server. Please use <a href=\"https://github.com/ClassicOldSong/Apollo\">Apollo</a> as the host streaming software.]]></string>
-    <string name="clipboard_sync_unsupported">This server does not support clipboard sync. Please install or upgrade your server to the latest version of Apollo.</string>
+    <string name="vdisplay_not_supported"><![CDATA[Virtual display isn\'t supported on this server. Please use <a href=\"https://github.com/Lavagnou/LavApollo\">LavApollo</a> as the host streaming software.]]></string>
+    <string name="clipboard_sync_unsupported">This server does not support clipboard sync. Please install or upgrade LavApollo on your PC.</string>
     <string name="send_clipboard_failed">Failed to send clipboard: </string>
     <string name="external_display_info">External Display connected with: %1$dx%2$d at %3$.1fHz</string>
     <string name="notification_channel_name">External Display Control</string>
@@ -861,4 +861,53 @@
     <string name="benchmark_pacing_vsync_off">V-Sync off</string>
     <string name="benchmark_pacing_vsync">V-Sync</string>
     <string name="benchmark_pacing_vsync_paced">V-Sync + frame pacing</string>
+
+    <!-- Stream messages, connection stages, on-screen controls (LavArtemis: were English literals) -->
+    <string name="osc_config_title">Configuration</string>
+    <string name="osc_config_move">Move</string>
+    <string name="osc_config_resize">Resize</string>
+    <string name="conn_starting_stage">Starting %1$s</string>
+    <string name="conn_error_stage">Failed to start %1$s (error %2$d)</string>
+    <string name="stage_platform_init">platform initialization</string>
+    <string name="stage_name_resolution">name resolution</string>
+    <string name="stage_audio_init">audio stream initialization</string>
+    <string name="stage_rtsp_handshake">RTSP handshake</string>
+    <string name="stage_control_init">control stream initialization</string>
+    <string name="stage_video_init">video stream initialization</string>
+    <string name="stage_input_init">input stream initialization</string>
+    <string name="stage_control_start">control stream establishment</string>
+    <string name="stage_video_start">video stream establishment</string>
+    <string name="stage_audio_start">audio stream establishment</string>
+    <string name="stage_input_start">input stream establishment</string>
+    <string name="conn_msg_server_version">Server version malformed</string>
+    <string name="conn_msg_not_paired">Device not paired with computer</string>
+    <string name="conn_msg_mic_disabled">Your microphone won\'t be sent: microphone passthrough is turned off on the host (LavApollo, Audio/Video settings).</string>
+    <string name="conn_msg_mic_no_permission">Your microphone won\'t be sent: the host hasn\'t given this device the Microphone permission (LavApollo, Clients).</string>
+    <string name="conn_msg_mic_no_device">Your microphone won\'t be sent: the host has no virtual microphone. Installing Steam on the host provides one.</string>
+    <string name="conn_msg_mic_unsupported">Your microphone won\'t be sent: this host doesn\'t support microphone passthrough. It needs LavApollo 2.2 or later.</string>
+    <string name="conn_msg_no_hdr">Your PC GPU does not support streaming HDR. The stream will be SDR.</string>
+    <string name="conn_msg_no_4k_host">Your host PC does not support streaming at resolutions above 4K.</string>
+    <string name="conn_msg_no_4k_codec">Your streaming device must support HEVC or AV1 to stream at resolutions above 4K.</string>
+    <string name="conn_msg_gfe_4k">You must update GeForce Experience to stream in 4K. The stream will be 1080p.</string>
+    <string name="conn_msg_app_missing">The app %1$s is not in GFE app list</string>
+    <string name="conn_msg_resume_failed">Failed to resume existing session</string>
+    <string name="conn_msg_playnite_failed">Failed to start the game inside Playnite</string>
+    <string name="conn_msg_resume_not_owner">This session wasn\'t started by this device, so it cannot be resumed. End streaming on the original device or the PC itself and try again. (Error code: %1$d)</string>
+    <string name="conn_msg_minimized">The application is minimized. Resume it on the PC manually or quit the session and start streaming again.</string>
+    <string name="conn_msg_quit_failed">Failed to quit previous session! You must quit it manually</string>
+    <string name="conn_msg_quit_not_owner">This session wasn\'t started by this device, so it cannot be quit. End streaming on the original device or the PC itself. (Error code: %1$d)</string>
+    <string name="conn_msg_launch_failed">Failed to launch application</string>
+    <string name="toast_hdr_display_unsupported">Display does not support HDR10</string>
+    <string name="toast_hdr_needs_android_7">HDR requires Android 7.0 or later</string>
+    <string name="toast_hdr_decoder_unsupported">Decoder does not support HDR10 profile</string>
+    <string name="toast_no_hevc_decoder">No HEVC decoder found</string>
+    <string name="toast_no_av1_decoder">No AV1 decoder found</string>
+    <string name="error_no_h264_decoder">This device or ROM doesn\'t support hardware accelerated H.264 playback.</string>
+    <string name="toast_mouse_emulation_on">Mouse emulation is: ON</string>
+    <string name="toast_mouse_emulation_off">Mouse emulation is: OFF</string>
+
+    <!-- Benchmark: short names of the modes (history, report heading) -->
+    <string name="benchmark_mode_quick_short">Quick</string>
+    <string name="benchmark_mode_full_short">Full</string>
+    <string name="benchmark_mode_adaptive_short">Adaptive</string>
 </resources>

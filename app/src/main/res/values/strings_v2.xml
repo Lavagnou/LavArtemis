@@ -511,4 +511,9 @@
     <string name="v2_set_debug_d">Tester les vibrations de la manette, les capteurs et le reste.</string>
     <string name="v2_set_joyconfix">Joy-Con de la Switch</string>
     <string name="v2_set_joyconfix_d">Si un Joy-Con n\'est pas reconnu ou mélange ses boutons (Android 10 et plus).</string>
+
+    <!-- Hôte non pris en charge (HostSupport, = HostsView.openHost du desktop) -->
+    <string name="v2_host_unsupported">La version du logiciel hôte de %1$s n\'est pas prise en charge (%2$s). Mets à jour LavApollo sur ce PC.</string>
+    <!-- Lien art:// sans appairage (AddComputerManually) -->
+    <string name="v2_link_add_text">Ajouter %1$s à tes PC ?</string>
 </resources>

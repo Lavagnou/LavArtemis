@@ -21,6 +21,9 @@ import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.SpinnerDialog;
 import com.limelight.utils.UiHelper;
+import com.limelight.v2.V2Theme;
+import com.limelight.v2.ui.ThemedDialogs;
+import com.limelight.v2.ui.V2Alert;
 
 import android.app.AlertDialog;
 import android.app.Service;
@@ -324,6 +327,13 @@ public class AddComputerManually extends AppCompatActivity {
 
         UiHelper.setLocale(this);
 
+        if (ThemedDialogs.enabled() && server != null && !server.isEmpty()) {
+            // LavArtemis Dev: a link only asks, in a v2 dialog over the v2 background; the legacy
+            // add screen behind it never shows. Same steps as below once the user agrees.
+            showThemedLinkConfirm(data, server, query);
+            return;
+        }
+
         setContentView(R.layout.activity_add_computer_manually);
 
         UiHelper.notifyNewRootView(this);
@@ -392,6 +402,37 @@ public class AddComputerManually extends AppCompatActivity {
             AlertDialog dialog = builder.create();
             dialog.show();
         }
+    }
+
+    private void showThemedLinkConfirm(Uri data, String server, String query) {
+        V2Theme theme = ThemedDialogs.theme(this);
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(theme.bg));
+        bindService(new Intent(AddComputerManually.this,
+                ComputerManagerService.class), serviceConnection, Service.BIND_AUTO_CREATE);
+
+        String text;
+        if (query != null && !query.isEmpty()) {
+            String hostName = data.getQueryParameter("name");
+            if (hostName != null && !hostName.isEmpty()) {
+                hostName = hostName + " (" + server + ")";
+            } else {
+                hostName = server;
+            }
+            text = getString(R.string.pair_pc_confirm_message, hostName);
+        } else {
+            text = getString(R.string.v2_link_add_text, server);
+        }
+        final String toAdd = query != null && !query.isEmpty() ? server + '?' + query : server;
+        new V2Alert(this, theme)
+                .title(getString(query != null && !query.isEmpty() ? R.string.pair_pc_confirm_title : R.string.v2_add_pc))
+                .text(text)
+                .button(getString(R.string.proceed), () -> {
+                    finish();
+                    computersToAdd.add(toAdd);
+                })
+                .button(getString(R.string.cancel), this::finish)
+                .onCancel(this::finish)
+                .show();
     }
 
     // Returns true if the event should be eaten

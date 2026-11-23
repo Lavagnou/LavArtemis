@@ -207,6 +207,118 @@ public final class V2ListDialog {
         return d;
     }
 
+    public interface Checked {
+        void onAccept(boolean[] checked);
+    }
+
+    /**
+     * Multiple choice (the keys to add to the on-screen keyboard): a tap checks or unchecks a
+     * row, « accept » hands the choices over, « cancel », B and Back close without a change.
+     */
+    public static Dialog showMultiChoice(Context context, V2Theme theme, String title, List<String> labels,
+                                         boolean[] initial, String acceptText, String cancelText, Checked onAccept) {
+        final boolean[] checked = initial != null ? initial.clone() : new boolean[labels.size()];
+        final Dialog dialog = new ThemedDialog(context);
+        Configuration config = context.getResources().getConfiguration();
+        int cols = columnsFor(labels.size(), config.screenWidthDp, config.screenHeightDp);
+        float widthDp = V2Dialogs.dialogWidthDp(context, cols == 2 ? 660 : 400);
+
+        LinearLayout panel = new LinearLayout(context);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        int pad = Ui.dp(context, 14);
+        panel.setPadding(pad, pad, pad, pad);
+        float radius = Ui.dpf(context, theme.isAffiche() ? 0 : (theme.isLudique() ? 24 : 16));
+        panel.setBackground(Ui.roundRect(theme.surface, radius, Ui.dp(context, Math.max(1, theme.border)), theme.borderColor));
+        panel.setClipToPadding(false);
+
+        TextView t = Ui.display(context, theme, 20, theme.fg);
+        t.setText(theme.displayText(title));
+        t.setPadding(Ui.dp(context, 8), Ui.dp(context, 4), Ui.dp(context, 8), Ui.dp(context, 10));
+        panel.addView(t, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        int screenH = Ui.dp(context, config.screenHeightDp > 0 ? config.screenHeightDp : 600);
+        MaxHeightScrollView scroll = new MaxHeightScrollView(context, Math.round(screenH * 0.92f) - Ui.dp(context, 120));
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        LinearLayout list = new LinearLayout(context);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(0, Ui.dp(context, 2), 0, Ui.dp(context, 2));
+        scroll.addView(list, new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        final float rowRadius = Ui.dpf(context, theme.isAffiche() ? 0 : (theme.isLudique() ? 16 : 10));
+        List<View> rows = new ArrayList<>();
+        LinearLayout line = null;
+        for (int i = 0; i < labels.size(); i++) {
+            final int index = i;
+            final TextView[] holder = new TextView[1];
+            View row = row(context, theme, labels.get(i), checked[i], () -> {
+                checked[index] = !checked[index];
+                holder[0].setSelected(checked[index]);
+                paint(holder[0], theme, rowRadius);
+            });
+            holder[0] = (TextView) row;
+            if (i % cols == 0) {
+                line = new LinearLayout(context);
+                line.setOrientation(LinearLayout.HORIZONTAL);
+                LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                if (i > 0) {
+                    llp.topMargin = Ui.dp(context, 2);
+                }
+                list.addView(line, llp);
+            }
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            if (i % cols != 0) {
+                rlp.setMarginStart(Ui.dp(context, 6));
+            }
+            line.addView(row, rlp);
+            rows.add(row);
+        }
+        if (line != null && labels.size() % cols != 0) {
+            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(0, 1, 1f);
+            slp.setMarginStart(Ui.dp(context, 6));
+            line.addView(new View(context), slp);
+        }
+
+        LinearLayout footer = new LinearLayout(context);
+        footer.setOrientation(LinearLayout.HORIZONTAL);
+        footer.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+        footer.setPadding(Ui.dp(context, 8), Ui.dp(context, 12), Ui.dp(context, 6), Ui.dp(context, 6));
+        Ui.noClip(footer);
+        PillButton cancel = new PillButton(context, theme, PillButton.Style.SECONDARY, 0, cancelText, 44, 16);
+        cancel.setOnClickListener(v -> dialog.cancel());
+        PillButton accept = new PillButton(context, theme, PillButton.Style.PRIMARY, 0, acceptText, 44, 16);
+        accept.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (onAccept != null) {
+                onAccept.onAccept(checked.clone());
+            }
+        });
+        footer.addView(accept);
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        clp.setMarginStart(Ui.dp(context, 12));
+        footer.addView(cancel, clp);
+        panel.addView(footer, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        FrameLayout host = new FrameLayout(context);
+        host.addView(panel, new FrameLayout.LayoutParams(Ui.dp(context, widthDp), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(host);
+        Window w = dialog.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(0));
+            w.setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            w.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            w.setDimAmount(0.5f);
+        }
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.setOnKeyListener(new DialogKeys(dialog, null));
+        dialog.show();
+        if (!rows.isEmpty() && V2Input.showFocus(context)) {
+            rows.get(0).requestFocus();
+        }
+        return dialog;
+    }
+
     private static View row(Context context, V2Theme theme, String label, boolean selected, Runnable click) {
         final float radius = Ui.dpf(context, theme.isAffiche() ? 0 : (theme.isLudique() ? 16 : 10));
         final TextView row = new TextView(context) {
@@ -224,7 +336,6 @@ public final class V2ListDialog {
         };
         row.setSelected(selected);
         row.setTypeface(theme.textFont(context, 600));
-        row.getPaint().setFakeBoldText(V2Theme.needsFakeBold(600));
         row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 16);
         row.setIncludeFontPadding(false);
         row.setMaxLines(2);
@@ -256,6 +367,10 @@ public final class V2ListDialog {
             row.setCompoundDrawablesRelative(null, null, check, null);
             row.setCompoundDrawablePadding(Ui.dp(row.getContext(), 10));
             row.setTypeface(theme.textFont(row.getContext(), 700));
+        } else if (row.getCompoundDrawablesRelative()[2] != null) {
+            // Unchecked again (multiple choice)
+            row.setCompoundDrawablesRelative(null, null, null, null);
+            row.setTypeface(theme.textFont(row.getContext(), 600));
         }
         if (focus) {
             // The ring of the v2 focus, inside the row: the list scrolls and would cut it outside

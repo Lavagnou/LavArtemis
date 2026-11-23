@@ -15,6 +15,8 @@ import android.view.View;
 import android.widget.FrameLayout;
 
 import com.limelight.Game;
+import com.limelight.R;
+import com.limelight.v2.ui.ThemedDialogs;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -183,6 +185,20 @@ public abstract class VirtualControllerElement extends View {
     }
 
     protected void showConfigurationDialog() {
+        if (ThemedDialogs.enabled()) {
+            // LavArtemis Dev: the v2 list, same actions (B / Back / outside = cancel)
+            Context c = getContext();
+            CharSequence[] items = {c.getString(R.string.osc_config_move), c.getString(R.string.osc_config_resize),
+                    c.getString(R.string.v2_cancel)};
+            ThemedDialogs.listWithCancel(c, c.getString(R.string.osc_config_title), items, 2, which -> {
+                if (which == 0) {
+                    actionEnableMove();
+                } else if (which == 1) {
+                    actionEnableResize();
+                }
+            }, this::actionCancel);
+            return;
+        }
         AlertDialog.Builder alertBuilder = new AlertDialog.Builder(getContext());
 
         alertBuilder.setTitle("Configuration");

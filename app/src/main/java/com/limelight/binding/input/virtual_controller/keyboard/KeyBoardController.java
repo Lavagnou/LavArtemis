@@ -33,6 +33,8 @@ import com.limelight.nvstream.NvConnection;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.KeyConfigHelper;
 import com.limelight.utils.KeyMapper;
+import com.limelight.v2.ui.ThemedDialogs;
+import com.limelight.v2.ui.V2ListDialog;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -195,6 +197,20 @@ public class KeyBoardController {
         buttonClearAll.setAlpha(0.7f);
         buttonClearAll.setVisibility(View.GONE);
         buttonClearAll.setOnClickListener(v -> {
+            if (ThemedDialogs.enabled()) {
+                // LavArtemis Dev: the v2 dialog, same answers
+                ThemedDialogs.confirm(context, context.getString(R.string.keyboard_clear_all_confirm_title),
+                        context.getString(R.string.keyboard_clear_all_confirm_message),
+                        context.getString(R.string.yes), context.getString(R.string.no), () -> {
+                            for (keyBoardVirtualControllerElement element : elements) {
+                                element.hidden = true;
+                                element.setVisibility(View.GONE);
+                            }
+                            KeyBoardControllerConfigurationLoader.saveProfile(KeyBoardController.this, context);
+                            vibrate(KeyEvent.ACTION_DOWN);
+                        }, null);
+                return;
+            }
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle(context.getString(R.string.keyboard_clear_all_confirm_title));
             builder.setMessage(context.getString(R.string.keyboard_clear_all_confirm_message));
@@ -495,20 +511,14 @@ public class KeyBoardController {
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    Toast.makeText(context, "Error loading custom keys: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, context.getString(R.string.keyboard_load_error, e.getMessage()), Toast.LENGTH_SHORT).show();
                 }
             }
 
             String[] keyNames = keyNamesList.toArray(new String[0]);
             boolean[] checkedItems = new boolean[keyNames.length];
 
-            AlertDialog.Builder builder = new AlertDialog.Builder(context);
-            builder.setTitle(context.getString(R.string.keyboard_select_keys));
-            builder.setMultiChoiceItems(keyNames, checkedItems, (dialog, which, isChecked) -> {
-                checkedItems[which] = isChecked;
-            });
-
-            builder.setPositiveButton(context.getString(R.string.keyboard_add), (dialog, which) -> {
+            Runnable addChecked = () -> {
                 DisplayMetrics screen = context.getResources().getDisplayMetrics();
                 int height = screen.heightPixels;
                 
@@ -688,8 +698,25 @@ public class KeyBoardController {
                 if (feedback.length() > 0) {
                     Toast.makeText(context, feedback.toString(), Toast.LENGTH_LONG).show();
                 }
-            });
+            };
 
+            if (ThemedDialogs.enabled()) {
+                // LavArtemis Dev: the v2 multiple choice, same result
+                V2ListDialog.showMultiChoice(context, ThemedDialogs.theme(context), context.getString(R.string.keyboard_select_keys),
+                        keyNamesList, checkedItems, context.getString(R.string.keyboard_add), context.getString(R.string.cancel),
+                        checked -> {
+                            System.arraycopy(checked, 0, checkedItems, 0, checkedItems.length);
+                            addChecked.run();
+                        });
+                return;
+            }
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            builder.setTitle(context.getString(R.string.keyboard_select_keys));
+            builder.setMultiChoiceItems(keyNames, checkedItems, (dialog, which, isChecked) -> {
+                checkedItems[which] = isChecked;
+            });
+            builder.setPositiveButton(context.getString(R.string.keyboard_add), (dialog, which) -> addChecked.run());
             builder.setNegativeButton(context.getString(R.string.cancel), null);
             builder.show();
 

@@ -111,6 +111,27 @@ public final class SettingsEnv {
 
     private int nativeStart = Integer.MAX_VALUE;
 
+    /** Android 9: the display cutout, from the root insets of an attached v2 window */
+    static DisplayCutout cutoutP;
+
+    /**
+     * Android 9 has no Display.getCutout(): the cutout comes from the window insets, which are
+     * only there once the window is attached (and can be null after a rotation, so the last one
+     * seen is kept). Returns true when it was not known before.
+     */
+    public static boolean rememberCutout(Activity activity) {
+        if (Build.VERSION.SDK_INT != Build.VERSION_CODES.P) {
+            return false;
+        }
+        android.view.WindowInsets insets = activity.getWindow().getDecorView().getRootWindowInsets();
+        DisplayCutout cutout = insets != null ? insets.getDisplayCutout() : null;
+        if (cutout == null || cutout.equals(cutoutP)) {
+            return false;
+        }
+        cutoutP = cutout;
+        return true;
+    }
+
     private void readDisplayModes(Activity activity, SharedPreferences prefs) {
         for (String[] r : BASE_RESOLUTIONS) {
             resolutions.add(new Option(r[0], r[1]));
@@ -149,8 +170,10 @@ public final class SettingsEnv {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             int maxResW = 0;
             boolean hasInsets = false;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                DisplayCutout cutout = display.getCutout();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                // Display.getCutout() is Android 10+; Android 9 has the cutout only through the
+                // window's insets, read when a v2 window was attached (StreamSettings' hack)
+                DisplayCutout cutout = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ? display.getCutout() : cutoutP;
                 if (cutout != null) {
                     int wi = cutout.getSafeInsetLeft() + cutout.getSafeInsetRight();
                     int hi = cutout.getSafeInsetBottom() + cutout.getSafeInsetTop();

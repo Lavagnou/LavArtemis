@@ -17,6 +17,8 @@ import androidx.core.content.FileProvider;
 
 import com.limelight.LimeLog;
 import com.limelight.R;
+import com.limelight.v2.ui.ThemedDialogs;
+import com.limelight.v2.ui.V2Alert;
 
 import java.io.File;
 
@@ -42,6 +44,24 @@ public class UpdateDialogHelper {
 
         String message = activity.getString(R.string.update_available_message,
                 info.version, com.limelight.BuildConfig.VERSION_NAME);
+
+        if (ThemedDialogs.enabled()) {
+            // LavArtemis Dev: the v2 dialog, same three answers
+            new V2Alert(activity, ThemedDialogs.theme(activity))
+                    .title(activity.getString(R.string.update_available_title))
+                    .text(message)
+                    .button(activity.getString(R.string.update_download), () -> {
+                        if (info.downloadUrl != null) {
+                            startDownload(activity, info);
+                        } else {
+                            HelpLauncher.launchUrl(activity, info.pageUrl);
+                        }
+                    })
+                    .button(activity.getString(R.string.update_later), null)
+                    .button(activity.getString(R.string.update_skip), () -> UpdateChecker.skipVersion(activity, info.version))
+                    .show();
+            return;
+        }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(activity)
                 .setTitle(R.string.update_available_title)
@@ -80,6 +100,16 @@ public class UpdateDialogHelper {
                     return;
                 }
                 if (!isAlive(activity)) {
+                    return;
+                }
+                if (ThemedDialogs.enabled()) {
+                    new V2Alert(activity, ThemedDialogs.theme(activity))
+                            .title(activity.getString(R.string.update_ready_title))
+                            .text(activity.getString(R.string.update_ready_message, update.version))
+                            .button(activity.getString(R.string.update_install), () -> UpdateDownloader.installApk(activity, update.apk))
+                            .button(activity.getString(R.string.update_later), null)
+                            .button(activity.getString(R.string.update_skip), () -> UpdateChecker.skipVersion(activity, update.version))
+                            .show();
                     return;
                 }
                 new AlertDialog.Builder(activity)
@@ -121,6 +151,11 @@ public class UpdateDialogHelper {
 
         final Context appContext = activity.getApplicationContext();
 
+        if (ThemedDialogs.enabled()) {
+            startThemedDownload(activity, info, appContext);
+            return;
+        }
+
         ProgressDialog progressDialog = new ProgressDialog(activity);
         progressDialog.setTitle(R.string.update_available_title);
         progressDialog.setMessage(activity.getString(R.string.update_downloading, 0));
@@ -158,6 +193,52 @@ public class UpdateDialogHelper {
                         if (!isAlive(activity)) {
                             return;
                         }
+                        if (e instanceof UpdateDownloader.VerificationException) {
+                            Toast.makeText(activity, activity.getString(R.string.update_verification_failed,
+                                    e.getMessage()), Toast.LENGTH_LONG).show();
+                            HelpLauncher.launchUrl(activity, info.pageUrl);
+                        } else {
+                            Toast.makeText(activity, R.string.update_download_failed,
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
+    }
+
+    /** startDownload() in the v2 theme (LavArtemis Dev): same steps, a themed progress dialog */
+    private static void startThemedDownload(Activity activity, UpdateChecker.UpdateInfo info, Context appContext) {
+        final V2Alert.Shown progress = new V2Alert(activity, ThemedDialogs.theme(activity))
+                .title(activity.getString(R.string.update_available_title))
+                .text(activity.getString(R.string.update_downloading, 0))
+                .progressBar(0)
+                .cancelable(false)
+                .show();
+        UpdateDownloader.download(appContext, info.downloadUrl, info.version,
+                new UpdateDownloader.Callback() {
+                    @Override
+                    public void onProgress(int percent) {
+                        if (isAlive(activity) && progress.dialog.isShowing()) {
+                            progress.setProgress(percent);
+                            progress.setText(activity.getString(R.string.update_downloading, percent));
+                        }
+                    }
+
+                    @Override
+                    public void onDownloaded(File apkFile) {
+                        if (isAlive(activity)) {
+                            progress.dismiss();
+                            UpdateDownloader.installApk(activity, apkFile);
+                        } else {
+                            notifyUpdateReady(appContext, apkFile, info.version);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        if (!isAlive(activity)) {
+                            return;
+                        }
+                        progress.dismiss();
                         if (e instanceof UpdateDownloader.VerificationException) {
                             Toast.makeText(activity, activity.getString(R.string.update_verification_failed,
                                     e.getMessage()), Toast.LENGTH_LONG).show();

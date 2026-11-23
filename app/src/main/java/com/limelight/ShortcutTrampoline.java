@@ -181,17 +181,26 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                                 // Close this activity
                                                 finish();
 
-                                                // Add the PC view at the back (and clear the task)
                                                 Intent i;
-                                                i = new Intent(ShortcutTrampoline.this, PcView.class);
-                                                i.setAction(Intent.ACTION_MAIN);
-                                                i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                                                intentStack.add(i);
+                                                if (BuildConfig.LAV_DEV) {
+                                                    // LavArtemis Dev: the v2 home on this PC replaces
+                                                    // the legacy PC list + app grid (and clears the task)
+                                                    i = new Intent(ShortcutTrampoline.this, com.limelight.v2.HomeActivity.class);
+                                                    i.putExtra(com.limelight.v2.V2HostActivity.EXTRA_PC_UUID, details.uuid);
+                                                    i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                                    intentStack.add(i);
+                                                } else {
+                                                    // Add the PC view at the back (and clear the task)
+                                                    i = new Intent(ShortcutTrampoline.this, PcView.class);
+                                                    i.setAction(Intent.ACTION_MAIN);
+                                                    i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                                    intentStack.add(i);
 
-                                                // Take this intent's data and create an intent to start the app view
-                                                i = new Intent(getIntent());
-                                                i.setClass(ShortcutTrampoline.this, AppView.class);
-                                                intentStack.add(i);
+                                                    // Take this intent's data and create an intent to start the app view
+                                                    i = new Intent(getIntent());
+                                                    i.setClass(ShortcutTrampoline.this, AppView.class);
+                                                    intentStack.add(i);
+                                                }
 
                                                 // If a game is running, we'll make the stream the top level activity
                                                 if (details.runningGameId != 0) {

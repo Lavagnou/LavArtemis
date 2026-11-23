@@ -279,7 +279,9 @@ public final class V2Theme {
         int w = nearestWeight(family, weight);
         Typeface tf = null;
         try {
-            tf = ResourcesCompat.getFont(context, resource(family, w));
+            tf = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    ? ResourcesCompat.getFont(context, resource(family, w))
+                    : staticFont(context, family, w);
         } catch (Exception ignored) {
             // A font that fails to load must never take the screen down
         }
@@ -291,9 +293,41 @@ public final class V2Theme {
 
     /**
      * Variable fonts carry their weights as variation settings, which Android applies from API 26
-     * only. Older devices get the font's default instance: a fake bold keeps the hierarchy readable.
+     * only: below, every weight would show the font's default instance (Archivo 600, Bricolage
+     * 800, Space Grotesk 300). Those versions read static instances from assets/fonts instead
+     * (scripts/v2-static-fonts.py): a regular, a bold, and the display weight of Affiche / Ludique.
      */
-    public static boolean needsFakeBold(int weight) {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.O && weight >= 600;
+    private static final java.util.Map<String, Typeface> STATIC_FONTS = new java.util.HashMap<>();
+
+    static int staticWeight(String family, int weight) {
+        int[] available;
+        switch (family) {
+            case "archivo": available = new int[]{400, 700, 900}; break;
+            case "bricolage": available = new int[]{400, 700, 800}; break;
+            default: available = new int[]{400, 700}; break;
+        }
+        int best = 400;
+        int bestDistance = Integer.MAX_VALUE;
+        for (int w : available) {
+            // A tie goes to the heavier one: 500 / 600 text keeps more weight than the body
+            int d = Math.abs(w - weight);
+            if (d < bestDistance || (d == bestDistance && w > best)) {
+                bestDistance = d;
+                best = w;
+            }
+        }
+        return best;
+    }
+
+    private static Typeface staticFont(Context context, String family, int weight) {
+        String path = "fonts/v2_" + family + "_" + staticWeight(family, weight) + ".ttf";
+        synchronized (STATIC_FONTS) {
+            Typeface tf = STATIC_FONTS.get(path);
+            if (tf == null) {
+                tf = Typeface.createFromAsset(context.getAssets(), path);
+                STATIC_FONTS.put(path, tf);
+            }
+            return tf;
+        }
     }
 }

@@ -8,11 +8,16 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 
+import com.limelight.v2.ui.ThemedDialogs;
+import com.limelight.v2.ui.V2Alert;
+
 public class SpinnerDialog implements Runnable,OnCancelListener {
     private final String title;
     private final String message;
     private final Activity activity;
     private ProgressDialog progress;
+    // LavArtemis Dev: the same dialog in the v2 theme
+    private V2Alert.Shown themed;
     private final boolean finish;
 
     private static final ArrayList<SpinnerDialog> rundownDialogs = new ArrayList<>();
@@ -41,7 +46,10 @@ public class SpinnerDialog implements Runnable,OnCancelListener {
                 SpinnerDialog dialog = i.next();
                 if (dialog.activity == activity) {
                     i.remove();
-                    if (dialog.progress.isShowing()) {
+                    if (dialog.themed != null) {
+                        dialog.themed.dismiss();
+                    }
+                    else if (dialog.progress.isShowing()) {
                         dialog.progress.dismiss();
                     }
                 }
@@ -60,7 +68,12 @@ public class SpinnerDialog implements Runnable,OnCancelListener {
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                progress.setMessage(message);
+                if (themed != null) {
+                    themed.setText(message);
+                }
+                else if (progress != null) {
+                    progress.setMessage(message);
+                }
             }
         });
     }
@@ -73,7 +86,30 @@ public class SpinnerDialog implements Runnable,OnCancelListener {
             return;
         }
 
-        if (progress == null)
+        if (themed == null && progress == null && ThemedDialogs.enabled())
+        {
+            // Same rules as below: cancelable (and finishing the activity) only when asked
+            synchronized (rundownDialogs) {
+                rundownDialogs.add(this);
+                themed = new V2Alert(activity, ThemedDialogs.theme(activity))
+                        .title(title)
+                        .text(message)
+                        .spinner()
+                        .cancelable(finish)
+                        .cancelOnTouchOutside(false)
+                        .onCancel(() -> onCancel(null))
+                        .show();
+            }
+        }
+        else if (themed != null)
+        {
+            synchronized (rundownDialogs) {
+                if (rundownDialogs.remove(this)) {
+                    themed.dismiss();
+                }
+            }
+        }
+        else if (progress == null)
         {
             progress = new ProgressDialog(activity);
 

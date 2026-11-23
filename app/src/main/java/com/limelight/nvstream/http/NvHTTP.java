@@ -455,6 +455,7 @@ public class NvHTTP {
         details.playniteGameName = getXmlString(serverInfo, "PlayniteGameName", false);
         // Apollo / LavApollo version, shown on the « Mes PC » cards of the v2 interface
         details.apolloVersion = getXmlString(serverInfo, "ApolloVersion", false);
+        details.serverAppVersion = getXmlString(serverInfo, "appversion", false);
         details.serverCodecModeSupport = getServerCodecModeSupport(serverInfo);
 
         // We could reach it so it's online

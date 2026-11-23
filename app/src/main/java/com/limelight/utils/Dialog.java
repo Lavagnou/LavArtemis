@@ -8,6 +8,8 @@ import android.content.DialogInterface;
 import android.widget.Button;
 
 import com.limelight.R;
+import com.limelight.v2.ui.ThemedDialogs;
+import com.limelight.v2.ui.V2Alert;
 
 public class Dialog implements Runnable {
     private final String title;
@@ -15,7 +17,7 @@ public class Dialog implements Runnable {
     private final Activity activity;
     private final Runnable runOnDismiss;
 
-    private AlertDialog alert;
+    private android.app.Dialog alert;
 
     private static final ArrayList<Dialog> rundownDialogs = new ArrayList<>();
 
@@ -63,7 +65,13 @@ public class Dialog implements Runnable {
         if (activity.isFinishing())
             return;
 
-        alert = new AlertDialog.Builder(activity).create();
+        if (ThemedDialogs.enabled()) {
+            showThemed();
+            return;
+        }
+
+        AlertDialog alert = new AlertDialog.Builder(activity).create();
+        this.alert = alert;
 
         alert.setTitle(title);
         alert.setMessage(message);
@@ -110,4 +118,30 @@ public class Dialog implements Runnable {
         }
     }
 
+
+    /**
+     * LavArtemis Dev: the same dialog in the v2 theme. Same buttons (OK, Aide), same rules: not
+     * cancelable, both buttons run {@code runOnDismiss}, closeDialogs() still closes it.
+     */
+    private void showThemed() {
+        Runnable dismissed = () -> {
+            synchronized (rundownDialogs) {
+                rundownDialogs.remove(Dialog.this);
+            }
+            runOnDismiss.run();
+        };
+        synchronized (rundownDialogs) {
+            rundownDialogs.add(this);
+            alert = new V2Alert(activity, ThemedDialogs.theme(activity))
+                    .title(title)
+                    .text(message)
+                    .button(activity.getString(R.string.v2_ok), dismissed)
+                    .button(activity.getString(R.string.help), () -> {
+                        dismissed.run();
+                        HelpLauncher.launchTroubleshooting(activity);
+                    })
+                    .cancelable(false)
+                    .show().dialog;
+        }
+    }
 }

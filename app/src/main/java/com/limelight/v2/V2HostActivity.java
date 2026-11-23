@@ -332,6 +332,12 @@ public abstract class V2HostActivity extends V2Activity {
         if (c == null || m == null || managerBinder == null) {
             return;
         }
+        if (!HostSupport.isSupported(c)) {
+            // As the desktop: a message instead of a launch that fails half-way
+            V2Dialogs.message(this, theme, getString(R.string.v2_oops),
+                    getString(R.string.v2_host_unsupported, c.name, c.serverAppVersion), getString(R.string.v2_ok));
+            return;
+        }
         final PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(this);
         switch (m.decide(app)) {
             case RESUME:

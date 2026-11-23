@@ -37,7 +37,6 @@ public final class Ui {
     public static TextView text(Context context, V2Theme theme, float sizeDp, int weight, int color) {
         TextView t = new TextView(context);
         t.setTypeface(theme.textFont(context, weight));
-        t.getPaint().setFakeBoldText(V2Theme.needsFakeBold(weight));
         t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, sizeDp);
         t.setTextColor(color);
         t.setIncludeFontPadding(false);
@@ -50,7 +49,6 @@ public final class Ui {
     public static TextView display(Context context, V2Theme theme, float sizeDp, int color) {
         TextView t = new TextView(context);
         t.setTypeface(theme.displayFont(context));
-        t.getPaint().setFakeBoldText(V2Theme.needsFakeBold(theme.displayWeight));
         t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, sizeDp);
         t.setTextColor(color);
         t.setIncludeFontPadding(false);

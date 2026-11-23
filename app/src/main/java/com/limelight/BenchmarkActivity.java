@@ -11,6 +11,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -46,6 +48,9 @@ import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.UiHelper;
+import com.limelight.v2.V2Theme;
+import com.limelight.v2.ui.ThemedDialogs;
+import com.limelight.v2.ui.V2Page;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -86,6 +91,8 @@ public class BenchmarkActivity extends Activity {
     private String message = "";
 
     private LinearLayout content;
+    // LavArtemis Dev: the screen in the v2 theme (null in the stable, which keeps its widgets)
+    private V2Page page;
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -117,13 +124,20 @@ public class BenchmarkActivity extends Activity {
         pcName = getIntent().getStringExtra(EXTRA_PC_NAME);
         setTitle(getString(R.string.benchmark_title, pcName));
 
-        ScrollView scroll = new ScrollView(this);
-        content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(16);
-        content.setPadding(pad, pad, pad, pad);
-        scroll.addView(content);
-        setContentView(scroll);
+        if (ThemedDialogs.enabled()) {
+            page = new V2Page(this, V2Theme.load(this), getString(R.string.benchmark_title, pcName), this::finish);
+            content = page.content();
+            setContentView(page.getView());
+        }
+        else {
+            ScrollView scroll = new ScrollView(this);
+            content = new LinearLayout(this);
+            content.setOrientation(LinearLayout.VERTICAL);
+            int pad = dp(16);
+            content.setPadding(pad, pad, pad, pad);
+            scroll.addView(content);
+            setContentView(scroll);
+        }
 
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection, BIND_AUTO_CREATE);
         render();
@@ -161,6 +175,32 @@ public class BenchmarkActivity extends Activity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    // The v2 screen shows the focus ring only for a gamepad or a keyboard: it follows the input
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (page != null) {
+            V2Page.onTouch(ev);
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent ev) {
+        if (page != null) {
+            V2Page.onMotion(ev);
+        }
+        return super.dispatchGenericMotionEvent(ev);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (page != null) {
+            V2Page.onKey(event);
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     // ---- Running ------------------------------------------------------------------------------
@@ -346,6 +386,22 @@ public class BenchmarkActivity extends Activity {
         }
     }
 
+    private String modeLabel(Mode m) {
+        switch (m) {
+            case FULL: return getString(R.string.benchmark_mode_full_short);
+            case ADAPTIVE: return getString(R.string.benchmark_mode_adaptive_short);
+            default: return getString(R.string.benchmark_mode_quick_short);
+        }
+    }
+
+    private String goalLabel(Goal g) {
+        switch (g) {
+            case LATENCY: return getString(R.string.benchmark_goal_latency);
+            case SMOOTHNESS: return getString(R.string.benchmark_goal_smoothness);
+            default: return getString(R.string.benchmark_goal_balanced);
+        }
+    }
+
     private String configLabel(RunConfig c) {
         String codec;
         switch (c.codec) {
@@ -371,6 +427,9 @@ public class BenchmarkActivity extends Activity {
     // ---- Views --------------------------------------------------------------------------------
 
     private TextView text(CharSequence s) {
+        if (page != null) {
+            return page.text(content, s, false);
+        }
         TextView t = new TextView(this);
         t.setText(s);
         t.setPadding(0, dp(4), 0, dp(4));
@@ -379,13 +438,24 @@ public class BenchmarkActivity extends Activity {
     }
 
     private TextView heading(CharSequence s) {
+        if (page != null) {
+            return page.heading(content, s);
+        }
         TextView t = text(s);
         t.setTypeface(Typeface.DEFAULT_BOLD);
         t.setPadding(0, dp(12), 0, dp(4));
         return t;
     }
 
-    private Button button(ViewGroup parent, CharSequence label, View.OnClickListener onClick) {
+    private View button(ViewGroup parent, CharSequence label, View.OnClickListener onClick) {
+        return button(parent, label, false, onClick);
+    }
+
+    /** @param main the screen's main action (« Lancer », « Appliquer »): the accent in the v2 look */
+    private View button(ViewGroup parent, CharSequence label, boolean main, View.OnClickListener onClick) {
+        if (page != null) {
+            return page.button(parent, label.toString(), main, onClick);
+        }
         Button b = new Button(this);
         b.setText(label);
         b.setOnClickListener(onClick);
@@ -394,6 +464,9 @@ public class BenchmarkActivity extends Activity {
     }
 
     private LinearLayout row() {
+        if (page != null) {
+            return page.buttonRow(content);
+        }
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         content.addView(row);
@@ -417,10 +490,30 @@ public class BenchmarkActivity extends Activity {
         }
     }
 
-    private void renderSetup() {
-        text(getString(R.string.benchmark_intro, pcName));
+    /** Mode and goal as v2 choices (LavArtemis Dev) */
+    private void renderChoices() {
+        int[] labels = {R.string.benchmark_mode_quick, R.string.benchmark_mode_full, R.string.benchmark_mode_adaptive};
+        Mode[] values = {Mode.QUICK, Mode.FULL, Mode.ADAPTIVE};
+        for (int i = 0; i < values.length; i++) {
+            final Mode value = values[i];
+            page.choice(content, getString(labels[i]), mode == value, () -> {
+                mode = value;
+                render();
+            });
+        }
+        heading(getString(R.string.benchmark_goal_label));
+        int[] goalLabels = {R.string.benchmark_goal_balanced, R.string.benchmark_goal_latency, R.string.benchmark_goal_smoothness};
+        Goal[] goalValues = {Goal.BALANCED, Goal.LATENCY, Goal.SMOOTHNESS};
+        for (int i = 0; i < goalValues.length; i++) {
+            final Goal value = goalValues[i];
+            page.choice(content, getString(goalLabels[i]), goal == value, () -> {
+                goal = value;
+                render();
+            });
+        }
+    }
 
-        heading(getString(R.string.benchmark_mode_label));
+    private void renderLegacyChoices() {
         RadioGroup modes = new RadioGroup(this);
         content.addView(modes);
         int[] labels = {R.string.benchmark_mode_quick, R.string.benchmark_mode_full, R.string.benchmark_mode_adaptive};
@@ -464,6 +557,18 @@ public class BenchmarkActivity extends Activity {
             }
         });
         content.addView(goals);
+    }
+
+    private void renderSetup() {
+        text(getString(R.string.benchmark_intro, pcName));
+
+        heading(getString(R.string.benchmark_mode_label));
+        if (page != null) {
+            renderChoices();
+        }
+        else {
+            renderLegacyChoices();
+        }
 
         boolean available = false;
         if (computer == null) {
@@ -489,8 +594,13 @@ public class BenchmarkActivity extends Activity {
         }
 
         LinearLayout actions = row();
-        Button startButton = button(actions, getString(R.string.benchmark_start), v -> start());
-        startButton.setEnabled(available);
+        View startButton = button(actions, getString(R.string.benchmark_start), true, v -> start());
+        if (page != null) {
+            V2Page.setUsable(startButton, available);
+        }
+        else {
+            startButton.setEnabled(available);
+        }
         button(actions, getString(R.string.benchmark_open_file), v -> {
             Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             pick.addCategory(Intent.CATEGORY_OPENABLE);
@@ -510,7 +620,7 @@ public class BenchmarkActivity extends Activity {
         for (BenchmarkReport report : reports) {
             RunResult best = bestRun(report);
             StringBuilder line = new StringBuilder(getString(R.string.benchmark_history_item,
-                    format.format(new Date(report.createdAtMs)), report.mode.id, report.goal.id));
+                    format.format(new Date(report.createdAtMs)), modeLabel(report.mode), goalLabel(report.goal)));
             if (!"android".equals(report.platform)) {
                 line.append(" (").append(report.platform).append(')');
             }
@@ -539,7 +649,15 @@ public class BenchmarkActivity extends Activity {
 
     private void renderRunning(BenchmarkController controller) {
         ProgressBar progress = new ProgressBar(this);
-        content.addView(progress);
+        if (page != null) {
+            progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(page.theme.accent));
+            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(dp(40), dp(40));
+            plp.topMargin = dp(8);
+            content.addView(progress, plp);
+        }
+        else {
+            content.addView(progress);
+        }
         text(message);
         button(row(), getString(R.string.benchmark_stop), v -> {
             controller.cancel();
@@ -569,7 +687,7 @@ public class BenchmarkActivity extends Activity {
 
     private void renderReport(BenchmarkReport report, boolean running) {
         DateFormat format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT);
-        heading(report.hostName + " · " + format.format(new Date(report.createdAtMs)) + " · " + report.mode.id + ", " + report.goal.id
+        heading(report.hostName + " · " + format.format(new Date(report.createdAtMs)) + " · " + modeLabel(report.mode) + ", " + goalLabel(report.goal)
                 + " · " + report.width + "x" + report.height + " " + Math.round(report.fps) + " FPS");
         if (report.unstable()) {
             text(getString(R.string.benchmark_unstable, report.baselineDrift)).setTextColor(WORSE);
@@ -628,7 +746,7 @@ public class BenchmarkActivity extends Activity {
             if (!running && applicable && r.role == Role.CANDIDATE) {
                 final RunConfig config = r.effective.copy();
                 LinearLayout buttons = row();
-                button(buttons, getString(R.string.benchmark_apply), v -> {
+                button(buttons, getString(R.string.benchmark_apply), true, v -> {
                     BenchmarkSettings.applyToSettings(this, config);
                     Toast.makeText(this, getString(R.string.benchmark_applied, configLabel(config)), Toast.LENGTH_LONG).show();
                 });

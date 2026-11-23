@@ -60,7 +60,9 @@ import com.limelight.benchmark.BenchmarkTypes;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.SpinnerDialog;
+import com.limelight.utils.StreamStages;
 import com.limelight.utils.UiHelper;
+import com.limelight.v2.ui.ThemedDialogs;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
@@ -695,11 +697,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                     if (!willStreamHdr) {
                         // Nope, no HDR for us :(
-                        Toast.makeText(this, "Display does not support HDR10", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, getString(R.string.toast_hdr_display_unsupported), Toast.LENGTH_LONG).show();
                     }
                 }
                 else {
-                    Toast.makeText(this, "HDR requires Android 7.0 or later", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.toast_hdr_needs_android_7), Toast.LENGTH_LONG).show();
                 }
             }
         }
@@ -767,16 +769,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 // Don't stream HDR if the decoder can't support it
         if (willStreamHdr && !decoderRenderer.isHevcMain10Hdr10Supported() && !decoderRenderer.isAv1Main10Supported()) {
             willStreamHdr = false;
-            Toast.makeText(this, "Decoder does not support HDR10 profile", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.toast_hdr_decoder_unsupported), Toast.LENGTH_LONG).show();
         }
         // Display a message to the user if HEVC was forced on but we still didn't find a decoder
         if (prefConfig.videoFormat == PreferenceConfiguration.FormatOption.FORCE_HEVC && !decoderRenderer.isHevcSupported()) {
-            Toast.makeText(this, "No HEVC decoder found", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.toast_no_hevc_decoder), Toast.LENGTH_LONG).show();
         }
 
         // Display a message to the user if AV1 was forced on but we still didn't find a decoder
         if (prefConfig.videoFormat == PreferenceConfiguration.FormatOption.FORCE_AV1 && !decoderRenderer.isAv1Supported()) {
-            Toast.makeText(this, "No AV1 decoder found", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.toast_no_av1_decoder), Toast.LENGTH_LONG).show();
         }
 
         // H.264 is always supported
@@ -938,7 +940,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             // If we can't find an AVC decoder, we can't proceed
             Dialog.displayDialog(this, getResources().getString(R.string.conn_error_title),
-                    "This device or ROM doesn't support hardware accelerated H.264 playback.", true);
+                    getString(R.string.error_no_h264_decoder), true);
             return;
         }
 
@@ -3708,7 +3710,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             @Override
             public void run() {
                 if (spinner != null) {
-                    spinner.setMessage(getResources().getString(R.string.conn_starting) + " " + stage);
+                    spinner.setMessage(getString(R.string.conn_starting_stage, StreamStages.label(Game.this, stage)));
                 }
             }
         });
@@ -3794,7 +3796,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         Toast.makeText(Game.this, getResources().getText(R.string.video_decoder_init_failed), Toast.LENGTH_LONG).show();
                     }
 
-                    String dialogText = getResources().getString(R.string.conn_error_msg) + " " + stage +" (error "+errorCode+")";
+                    String dialogText = getString(R.string.conn_error_stage, StreamStages.label(Game.this, stage), errorCode);
 
                     switch (errorCode) {
                         case 403: {
@@ -4536,25 +4538,35 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
         final MouseModeOption[] optionArray = options.toArray(new MouseModeOption[0]);
 
+        if (ThemedDialogs.enabled()) {
+            // LavArtemis Dev: the menu's own look; the pick runs as below
+            ThemedDialogs.list(context, getString(R.string.game_menu_select_mouse_mode), labels,
+                    which -> onMouseModePicked(optionArray[which]));
+            return;
+        }
+
         new AlertDialog.Builder(context)
                 .setTitle(getString(R.string.game_menu_select_mouse_mode))
                 .setItems(labels, (dialog, which) -> {
                     dialog.dismiss();
-                    MouseModeOption selected = optionArray[which];
-                    if (selected.index == -1) {
-                        toggleMouseLocalCursor();
-                    } else {
-                        applyMouseMode(selected.index);
-                        if (prefConfig.rememberMouseMode) {
-                            ProfilesManager.getInstance().getOverlayingSharedPreferences(this)
-                                    .edit()
-                                    .putString("mouse_mode_list", String.valueOf(selected.index))
-                                    .apply();
-                        }
-                    }
+                    onMouseModePicked(optionArray[which]);
                 })
                 .create()
                 .show();
+    }
+
+    private void onMouseModePicked(MouseModeOption selected) {
+        if (selected.index == -1) {
+            toggleMouseLocalCursor();
+        } else {
+            applyMouseMode(selected.index);
+            if (prefConfig.rememberMouseMode) {
+                ProfilesManager.getInstance().getOverlayingSharedPreferences(this)
+                        .edit()
+                        .putString("mouse_mode_list", String.valueOf(selected.index))
+                        .apply();
+            }
+        }
     }
 
     //本地鼠标光标切换
@@ -4679,6 +4691,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             context = ExternalDisplayControlActivity.instance;
         } else {
             context = this;
+        }
+        if (ThemedDialogs.enabled()) {
+            // LavArtemis Dev: the v2 dialog, same answers
+            ThemedDialogs.confirm(context, getString(R.string.game_dialog_title_quit_confirm),
+                    getString(R.string.game_dialog_message_quit_confirm), getString(R.string.yes), getString(R.string.no),
+                    () -> {
+                        quitOnStop = true;
+                        finish();
+                    }, null);
+            return;
         }
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setTitle(R.string.game_dialog_title_quit_confirm);

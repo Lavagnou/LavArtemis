@@ -98,6 +98,9 @@ public class ComputerDetails {
     public String playniteGameName;
     // ApolloVersion of serverinfo (Apollo / LavApollo), null on other hosts
     public String apolloVersion;
+    // appversion of serverinfo (the protocol generation), null until the PC answered:
+    // v2.HostSupport refuses a host LavArtemis cannot stream from
+    public String serverAppVersion;
     // ServerCodecModeSupport, for the benchmark to leave out codecs the host can't encode
     public long serverCodecModeSupport;
 
@@ -183,6 +186,7 @@ public class ComputerDetails {
         this.playniteHostRunning = details.playniteHostRunning;
         this.playniteGameName = details.playniteGameName;
         this.apolloVersion = details.apolloVersion;
+        this.serverAppVersion = details.serverAppVersion;
         this.serverCodecModeSupport = details.serverCodecModeSupport;
     }
 
