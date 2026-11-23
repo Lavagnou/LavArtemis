@@ -52,3 +52,5 @@ app/.externalNativeBuild/
 
 # agent files
 AGENTS.md
+# Local release builds (scripts/local-release.ps1)
+/dist/

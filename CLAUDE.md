@@ -833,7 +833,14 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
 
 ## 🤖 CI/CD & release
 
-- **`.github/workflows/release.yml`** : trigger sur **tag `v*`** (release) ou `workflow_dispatch` (prerelease `v<version>-ci.<run>`). **Une seule release contient Android + Windows + Linux.**
+- **Les releases se construisent sur le PC du mainteneur** (depuis le 2026-11-23, quota Actions trop juste) :
+  `scripts/local-release.ps1 -NotesFile <notes.md>` construit les APK signés (`key/release.keystore`, mot de
+  passe dans `key/keystore.properties`, hors git — ne jamais l'ouvrir ni l'afficher), le client Windows **x64
+  seulement** (pas de kit Qt arm64 ici : `LAV_X64_ONLY=1` donne un installeur sans ARM64), le zip portable,
+  puis tag, push et `gh release create` (prerelease pour une `-dev.`). Pas d'AppImage Linux en local.
+  ⚠️ Le clone `LavArtemis-Qt` doit être sur le commit épinglé par `desktop/` (le script le vérifie).
+- **`.github/workflows/release.yml`** : **manuel seulement** (`workflow_dispatch`), plus déclenché par un tag ; reste
+  le secours pour une release avec Linux et ARM64. **Une seule release contient Android + Windows + Linux.**
   - Job `version` : lit `lavVersionName` dans `app/build.gradle`. Sur tag push, **échoue si le tag ≠ versionName** → `versionName` reste la source de vérité unique ; `desktop/app/version.txt` est écrit depuis le tag au build (sa valeur committée est périmée et ignorée). Une version `-dev.` publie une **prerelease** Dev sans le job Linux (voir « Stable / Dev »).
   - Job `build-android` : Ubuntu, JDK 17, NDK `27.0.12077973`, `assembleNonRoot_gameRelease`. N'initialise **que** le sous-module natif (pas `desktop/`).
   - Job `build-windows` : `windows-2025`, Qt 6.11, build x64 **et** arm64 dans le même job (l'installeur combiné a besoin des deux MSI), depuis le commit `desktop/` épinglé ici.
