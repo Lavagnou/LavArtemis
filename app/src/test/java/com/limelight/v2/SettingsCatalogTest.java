@@ -440,6 +440,20 @@ public class SettingsCatalogTest {
         assertEquals(SettingsCatalog.REMOVED.get("checkbox_enable_sops"), forced.enableSops);
     }
 
+    @Test
+    public void joyConFixReadsTheKeyTheScreensWrite() {
+        // Regression: the option was written as checkbox_enable_joyconfix and read as
+        // checkbox_joycon_fix, so it never did anything.
+        assertNotNull(SettingsCatalog.find("checkbox_enable_joyconfix"));
+        prefs().edit().putBoolean("checkbox_enable_joyconfix", true).commit();
+        assertTrue(PreferenceConfiguration.readPreferences(ctx).enableJoyConFix);
+        prefs().edit().putBoolean("checkbox_enable_joyconfix", false).commit();
+        assertFalse(PreferenceConfiguration.readPreferences(ctx).enableJoyConFix);
+        // The old key still counts when the new one was never written
+        prefs().edit().remove("checkbox_enable_joyconfix").putBoolean("checkbox_joycon_fix", true).commit();
+        assertTrue(PreferenceConfiguration.readPreferences(ctx).enableJoyConFix);
+    }
+
     // ---- profiles ----------------------------------------------------------------------------------
 
     @Test

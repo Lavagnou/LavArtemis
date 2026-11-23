@@ -509,4 +509,6 @@
     <string name="v2_set_perf_dashboard_d">Un tableau tenu par la communauté (en anglais).</string>
     <string name="v2_set_debug">Infos de débogage</string>
     <string name="v2_set_debug_d">Tester les vibrations de la manette, les capteurs et le reste.</string>
+    <string name="v2_set_joyconfix">Joy-Con de la Switch</string>
+    <string name="v2_set_joyconfix_d">Si un Joy-Con n\'est pas reconnu ou mélange ses boutons (Android 10 et plus).</string>
 </resources>

@@ -65,6 +65,7 @@ public class PreferenceConfiguration {
     private static final String RESUME_WITHOUT_CONFIRM_PREF_STRING = "checkbox_resume_without_confirm";
     private static final String VIDEO_SCALE_MODE_PREF_STRING = "list_video_scale_mode";
     private static final String SOPS_PREF_STRING = "checkbox_enable_sops";
+    static final String JOYCON_FIX_PREF_STRING = "checkbox_enable_joyconfix";
     private static final String DISABLE_TOASTS_PREF_STRING = "checkbox_disable_warnings";
     private static final String HOST_AUDIO_PREF_STRING = "checkbox_host_audio";
     private static final String DEADZONE_PREF_STRING = "seekbar_deadzone";
@@ -249,7 +250,6 @@ public class PreferenceConfiguration {
     public int width, height, bitrate;
     public float fps;
 //    public String customBitrate;
-    public boolean forceTightThresholds = false; // default off
     public boolean enableUltraLowLatency;
     public boolean enableAdpf;
     public boolean enableSustainedPerformance;
@@ -1003,8 +1003,10 @@ private static int getFramePacingValue(Context context) {
         config.enableKeyboard = prefs.getBoolean(CHECKBOX_ENABLE_KEYBOARD,false);
 
         config.enableKeyboardVibrate = prefs.getBoolean(CHECKBOX_ENABLE_KEYBOARD_VIBRATE,false);
-        //兼容joycon手柄
-        config.enableJoyConFix = prefs.getBoolean("checkbox_joycon_fix",false);
+        // Switch Joy-Con fix. The settings screens write "checkbox_enable_joyconfix"; this used to read
+        // "checkbox_joycon_fix", which nothing writes, so the option never did anything. The old key is
+        // still honoured in case a profile or an import carries it.
+        config.enableJoyConFix = prefs.getBoolean(JOYCON_FIX_PREF_STRING, prefs.getBoolean("checkbox_joycon_fix", false));
         //全键盘透明度
         config.oscKeyboardOpacity = prefs.getInt("seekbar_keyboard_axi_opacity",DEFAULT_OPACITY);
 

@@ -89,12 +89,10 @@ public final class SettingsCatalog {
 
     /**
      * Preferences of the legacy screen deliberately without a row: settings nothing reads any more
-     * (checkbox_forceTightThresholds is never read; PreferenceConfiguration reads the Joy-Con fix
-     * from "checkbox_joycon_fix", not from the key the legacy screen writes) and the two options of
-     * the legacy app grid, which the v2 interface does not have (small icons, quick resume).
+     * (none left) and the two options of the legacy app grid, which the v2 interface does not have
+     * (small icons, quick resume).
      */
     public static final Set<String> NOT_SHOWN = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-            "checkbox_forceTightThresholds", "checkbox_enable_joyconfix",
             "checkbox_small_icon_mode", "checkbox_resume_without_confirm",
             // typed in through the « Personnalisée… » / « Autre… » options of the lists
             "edit_diy_w_h", "custom_refresh_rate")));
@@ -384,6 +382,7 @@ public final class SettingsCatalog {
                 .when(e -> e.vibrator && e.amplitudeControl)
                 .dependsOn(v -> v.getBool("checkbox_enable_rumble") && v.getBool("checkbox_vibrate_fallback"));
         toggle(l, MANETTES, "checkbox_flip_face_buttons", R.string.v2_set_flip_buttons, false).desc(R.string.v2_set_flip_buttons_d).expert();
+        toggle(l, MANETTES, "checkbox_enable_joyconfix", R.string.v2_set_joyconfix, false).desc(R.string.v2_set_joyconfix_d).expert();
         toggle(l, MANETTES, "checkbox_multi_controller", R.string.v2_set_force_pad, true).desc(R.string.v2_set_force_pad_d).expert().inverted();
         slider(l, MANETTES, "seekbar_deadzone", R.string.v2_set_deadzone, 5).desc(R.string.v2_set_deadzone_d).expert()
                 .range(-20, 20, 1, 1).format(SIGNED_PERCENT);

@@ -51,10 +51,6 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private boolean preferLowerDelays = false;
 
 
-    // Force tight thresholds regardless of device refresh (use vsyncPeriodNs always)
-    private volatile boolean forceTightThresholds = false;
-    /** Toggle tight frame pacing thresholds globally. */
-    public void setForceTightThresholds(boolean v) { this.forceTightThresholds = v; }
     // Toggle at runtime if needed
     // Decode latency tracking: map PTS(us) -> enqueue time (ns).
     // Written by the thread feeding the decoder (the native depacketizer with direct submit),

@@ -603,8 +603,6 @@
     <string name="summary_checkbox_enforce_display_mode">Force surface to use the optimal display mode.\nRequired by some systems (such as ColorOS) to set refresh rate/resolution properly.\nDo not enable on ChromeCast 4K as it might lead to bugs.</string>
     <string name="title_checkbox_ultra_low_latency">Ultra Low Latency (experimental)</string>
     <string name="summary_checkbox_ultra_low_latency">Only effective for SD8Gen2/8(s)Gen3/8Elite and MTK devices.</string>
-   	<string name="title_checkbox_forceTightThresholds">Tight Vsync (Experimental)</string>
-    <string name="summary_checkbox_forceTightThresholds">Tighter VSYNC thresholds for lower latency; may increase drops.</string>
     <string name="title_checkbox_enable_adpf">Performance hints (ADPF)</string>
     <string name="summary_checkbox_enable_adpf">Tell the system\'s CPU governor to keep decoding threads fast enough for the stream frame rate. Requires Android 12+.</string>
     <string name="title_checkbox_sustained_performance">Sustained performance mode</string>
