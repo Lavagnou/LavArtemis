@@ -127,7 +127,7 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
 | | Stable | Dev |
 |---|---|---|
 | applicationId release / debug | `com.limelight.lav` / `.lavdebug` | `com.limelight.lav.dev` / `.lavdebug.dev` |
-| Nom, icône | LavArtemis, fond noir | LavArtemis Dev, fond orange (`app/src/dev/res`, ajouté aux source sets des flavors) |
+| Nom, icône | LavArtemis, logo lune | LavArtemis Dev, plan d'atelier bleu + pastille DEV (`app/src/dev/res`, ajouté aux source sets des flavors) |
 | Qt : organisation (registre, AppData) | `LavArtemis` | `LavArtemis Dev` |
 | Installeur Windows | dossier, raccourcis, UpgradeCodes d'origine | les siens ; **pas** d'`art://` ni de `.art` |
 | Release | tag `vX.Y.Z`, Android + Windows + Linux | tag `vX.Y.Z-dev.N`, **prerelease**, Android + Windows |
@@ -173,8 +173,9 @@ Chaque jeu installé de Playnite devient une appli de l'hôte, lancée **dans** 
 
 Spec `docs/superpowers/specs/2026-11-23-ui-redesign-design.md`, prototype validé de référence dans
 `docs/ui-redesign/prototype/`, copie locale hors git car elle contient des noms de machines (`lavartemis-prototype.html#braise-pc`, `#affiche`, `#ludique-pc`…,
-images absentes hors claude.ai). Phases 1 (accueil, thèmes, Mes PC) et 2 (Réglages v2 avec **mode expert**, `SettingsView2.qml`) livrées côté desktop (`desktop/app/gui/v2/`, voir
-`desktop/CLAUDE.md`) ; Android à venir.
+images absentes hors claude.ai). **Desktop terminé** (21.8.0-dev.7) : accueil, thèmes, Mes PC, Réglages v2
+avec **mode expert**, menu en jeu, raccourcis ; l'ancienne interface Qt est supprimée et tout est en
+français (`desktop/app/gui/v2/`, voir `desktop/CLAUDE.md`). Android : en cours.
 
 ## 🖼️ Icônes (LavArtemis + LavApollo)
 

@@ -5,7 +5,7 @@ apply plugin: 'com.android.application'
 // label and icon). Nothing depends on the branch name, so merging dev into main cannot
 // carry the channel over: promoting to stable changes the version, hence the channel.
 // See docs/superpowers/specs/2026-11-23-stable-dev-split-design.md.
-def lavVersionName = "21.8.0-dev.6"
+def lavVersionName = "21.8.0-dev.7"
 def lavDev = lavVersionName.contains("-dev.")
 
 android {
@@ -20,7 +20,7 @@ android {
         targetSdk 34
 
         versionName lavVersionName
-        versionCode = 94
+        versionCode = 95
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
