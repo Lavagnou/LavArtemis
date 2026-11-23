@@ -24,6 +24,8 @@ import java.util.UUID;
  * the legacy screen's: a new resolution or frame rate resets the bitrate to its default.
  */
 public final class SettingsStore implements SettingDef.Values {
+    private static final String TOUCH_MODE = "mouse_mode_list";
+
     private final Context context;
 
     public SettingsStore(Context context) {
@@ -55,6 +57,10 @@ public final class SettingsStore implements SettingDef.Values {
     public String getString(String key) {
         Object def = defaultOf(key);
         String v = prefs().getString(key, def instanceof String ? (String) def : "");
+        if (TOUCH_MODE.equals(key)) {
+            // A mode the Dev build no longer offers shows as the one the stream uses
+            return String.valueOf(PreferenceConfiguration.devTouchMode(v));
+        }
         return v == null ? "" : v;
     }
 

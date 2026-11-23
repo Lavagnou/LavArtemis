@@ -273,7 +273,14 @@ public class GameMenu implements Game.GameMenuCallbacks {
 
     private void showAdvancedMenu(GameInputDevice device) {
         List<MenuOption> options = new ArrayList<>();
-        if (game.allowChangeMouseMode) {
+        if (game.allowChangeMouseMode && BuildConfig.LAV_DEV) {
+            // LavArtemis Dev: two touch modes, one entry that switches to the other (the old
+            // list's "local mouse cursor" entry went with it, at the user's request)
+            String touchSwitch = game.touchModeSwitchLabel();
+            if (touchSwitch != null) {
+                options.add(new MenuOption(touchSwitch, true, game::switchTouchMode));
+            }
+        } else if (game.allowChangeMouseMode) {
             options.add(new MenuOption(getString(R.string.game_menu_select_mouse_mode), true, () -> game.selectMouseMode(dialogScreenContext)));
         }
         

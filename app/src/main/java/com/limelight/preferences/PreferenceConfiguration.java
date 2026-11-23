@@ -948,6 +948,10 @@ private static int getFramePacingValue(Context context) {
         // Read mouse mode and set touch settings accordingly
         String mouseMode = prefs.getString("mouse_mode_list", "0");
         int mouseModeInt = Integer.parseInt(mouseMode);
+        if (BuildConfig.LAV_DEV) {
+            // Only Multitouch and Trackpad are left in the Dev build (devTouchMode)
+            mouseModeInt = devTouchMode(mouseModeInt);
+        }
         switch (mouseModeInt) {
             case 0: // Multi-touch
                 config.enableMultiTouchScreen = true;
@@ -1122,5 +1126,38 @@ private static int getFramePacingValue(Context context) {
         config.resolutionScaleFactor = DEFAULT_RESOLUTION_SCALE_FACTOR;
         config.mouseEmulation = false;
         config.enableSops = true;
+    }
+
+    /** Touch mode « Multitouch » of {@code mouse_mode_list} (fingers touch the PC's screen) */
+    public static final int TOUCH_MODE_MULTITOUCH = 0;
+    /**
+     * Touch mode « Trackpad » of {@code mouse_mode_list}: the finger moves the cursor, long press
+     * to drag, two-finger tap for the right click, two fingers to scroll (RelativeTouchContext)
+     */
+    public static final int TOUCH_MODE_TRACKPAD = 3;
+
+    /**
+     * LavArtemis Dev keeps two of the six touch modes, the only two the user uses: Multitouch (0)
+     * and Trackpad (3, long press to drag). A value stored earlier (or by the stable app) is read
+     * as the closest kept mode: the other trackpad (2, double tap to drag) is Trackpad, absolute
+     * touch (1, 5) and "disabled" (4) are Multitouch. Read by PreferenceConfiguration, Game and
+     * Réglages v2, so all three agree.
+     */
+    public static int devTouchMode(int stored) {
+        return stored == 2 || stored == TOUCH_MODE_TRACKPAD ? TOUCH_MODE_TRACKPAD : TOUCH_MODE_MULTITOUCH;
+    }
+
+    /** {@link #devTouchMode(int)} of a stored string; anything unreadable is Multitouch */
+    public static int devTouchMode(String stored) {
+        try {
+            return devTouchMode(Integer.parseInt(stored));
+        } catch (NumberFormatException | NullPointerException e) {
+            return TOUCH_MODE_MULTITOUCH;
+        }
+    }
+
+    /** The mode the in-game menu's single entry switches to (Dev): Multitouch <-> Trackpad */
+    public static int otherTouchMode(int current) {
+        return devTouchMode(current) == TOUCH_MODE_TRACKPAD ? TOUCH_MODE_MULTITOUCH : TOUCH_MODE_TRACKPAD;
     }
 }

@@ -440,6 +440,78 @@ public class SettingsCatalogTest {
         assertEquals(SettingsCatalog.REMOVED.get("checkbox_enable_sops"), forced.enableSops);
     }
 
+    // ---- touch modes (Dev: Multitouch / Trackpad only) -------------------------------------------
+
+    @Test
+    public void touchModeRowHasExactlyMultitouchAndTrackpad() {
+        SettingDef d = SettingsCatalog.find("mouse_mode_list");
+        List<Option> options = d.options(ctx, SettingsEnv.forTests(), new SettingsStore(ctx), true);
+        assertEquals(Arrays.asList("0", "3"), values(options));
+        assertEquals("Multitouch", options.get(0).label);
+        assertEquals("Trackpad", options.get(1).label);
+        // Two options fit as segments
+        assertTrue(options.size() <= d.segmentMax);
+        // Both gestures of the trackpad are spelled out
+        String desc = ctx.getString(d.desc);
+        assertTrue(desc, desc.contains("appui long pour faire glisser"));
+        assertTrue(desc, desc.contains("appui à deux doigts pour le clic droit"));
+    }
+
+    @Test
+    public void removedTouchModesReadAsTheClosestKeptOne() {
+        // 2 (trackpad, double tap to drag) -> Trackpad; absolute touch, swapped, disabled -> Multitouch
+        int[] expected = {0, 0, 3, 3, 0, 0};
+        for (int stored = 0; stored < expected.length; stored++) {
+            assertEquals("stored " + stored, expected[stored], PreferenceConfiguration.devTouchMode(stored));
+        }
+        assertEquals(PreferenceConfiguration.TOUCH_MODE_MULTITOUCH, PreferenceConfiguration.devTouchMode("garbage"));
+        assertEquals(PreferenceConfiguration.TOUCH_MODE_MULTITOUCH, PreferenceConfiguration.devTouchMode((String) null));
+
+        // The settings screen shows the mapped value
+        SettingsStore store = new SettingsStore(ctx);
+        SettingDef row = SettingsCatalog.find("mouse_mode_list");
+        prefs().edit().putString("mouse_mode_list", "2").commit();
+        assertEquals("3", store.choiceValue(row));
+        prefs().edit().putString("mouse_mode_list", "4").commit();
+        assertEquals("0", store.choiceValue(row));
+        prefs().edit().putString("mouse_mode_list", "5").commit();
+        assertEquals("0", store.choiceValue(row));
+
+        // ... and the stream reads the same mode in Dev; the stable build keeps all six
+        PreferenceConfiguration c = readWith("mouse_mode_list", "4");
+        if (BuildConfig.LAV_DEV) {
+            assertTrue("disabled -> multitouch", c.enableMultiTouchScreen);
+            assertFalse(c.touchscreenTrackpad);
+        } else {
+            assertFalse(c.enableMultiTouchScreen);
+            assertFalse(c.touchscreenTrackpad);
+        }
+        c = readWith("mouse_mode_list", "2");
+        assertTrue(c.touchscreenTrackpad);
+        assertFalse(c.enableMultiTouchScreen);
+    }
+
+    @Test
+    public void inGameSwitchFlipsMultitouchAndTrackpad() {
+        assertEquals(3, PreferenceConfiguration.otherTouchMode(0));
+        assertEquals(0, PreferenceConfiguration.otherTouchMode(3));
+        // From a removed mode (input-only stream, a value of the stable app): the other of its mapping
+        assertEquals(0, PreferenceConfiguration.otherTouchMode(2));
+        assertEquals(3, PreferenceConfiguration.otherTouchMode(1));
+        assertEquals(3, PreferenceConfiguration.otherTouchMode(4));
+        assertEquals("Passer en trackpad", ctx.getString(com.limelight.R.string.v2_menu_touch_to_trackpad));
+        assertEquals("Passer en multitouch", ctx.getString(com.limelight.R.string.v2_menu_touch_to_multitouch));
+    }
+
+    @Test
+    public void noHelpLinkRowsLeft() {
+        assertNull(SettingsCatalog.find("option_help_custom_keys"));
+        assertNull(SettingsCatalog.find("option_view_shared_pref_logs"));
+        // The release page and Obtainium are update links, not help: they stay
+        assertNotNull(SettingsCatalog.find("option_software_release"));
+        assertNotNull(SettingsCatalog.find("option_follow_update"));
+    }
+
     @Test
     public void joyConFixReadsTheKeyTheScreensWrite() {
         // Regression: the option was written as checkbox_enable_joyconfix and read as

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.Resources;
 
 import com.limelight.R;
+import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.profiles.SettingsProfile;
 import com.limelight.v2.V2Theme;
@@ -89,13 +90,15 @@ public final class SettingsCatalog {
 
     /**
      * Preferences of the legacy screen deliberately without a row: settings nothing reads any more
-     * (none left) and the two options of the legacy app grid, which the v2 interface does not have
-     * (small icons, quick resume).
+     * (none left), the two options of the legacy app grid, which the v2 interface does not have
+     * (small icons, quick resume), and the help links (no help button in the Dev build).
      */
     public static final Set<String> NOT_SHOWN = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
             "checkbox_small_icon_mode", "checkbox_resume_without_confirm",
             // typed in through the « Personnalisée… » / « Autre… » options of the lists
-            "edit_diy_w_h", "custom_refresh_rate")));
+            "edit_diy_w_h", "custom_refresh_rate",
+            // help links (Artemis wiki pages, in English): the user wants no help button left
+            "option_help_custom_keys", "option_view_shared_pref_logs")));
 
     // ---- rows ------------------------------------------------------------------------------------
 
@@ -326,11 +329,12 @@ public final class SettingsCatalog {
         toggle(l, AUDIO, "checkbox_enable_audiofx", R.string.v2_set_audiofx, false).desc(R.string.v2_set_audiofx_d).expert();
 
         // ================================ Entrées ===============================
+        // Two modes only, as on the desktop: the others are read as the closest one
+        // (PreferenceConfiguration.devTouchMode, applied by SettingsStore.getString)
         choice(l, ENTREES, "mouse_mode_list", R.string.v2_set_touch_mode, "0").desc(R.string.v2_set_touch_mode_d)
                 .when(SettingsCatalog::touch)
-                .option("0", R.string.v2_set_touch_multi).option("1", R.string.v2_set_touch_absolute)
-                .option("2", R.string.v2_set_touch_trackpad).option("3", R.string.v2_set_touch_trackpad_game)
-                .option("5", R.string.v2_set_touch_absolute_swapped).option("4", R.string.v2_set_touch_off);
+                .option(String.valueOf(PreferenceConfiguration.TOUCH_MODE_MULTITOUCH), R.string.v2_set_touch_multi)
+                .option(String.valueOf(PreferenceConfiguration.TOUCH_MODE_TRACKPAD), R.string.v2_set_touch_trackpad);
         toggle(l, ENTREES, "checkbox_trackpad_pinch_zoom", R.string.v2_set_pinch_zoom, false).desc(R.string.v2_set_pinch_zoom_d)
                 .when(SettingsCatalog::touch);
         toggle(l, ENTREES, "checkbox_multi_touch_gestures", R.string.v2_set_gestures, false).desc(R.string.v2_set_gestures_d)
@@ -448,7 +452,6 @@ public final class SettingsCatalog {
         action(l, CONTROLES, "export_keyboard_file", R.string.v2_set_keys_export, R.string.v2_set_export).desc(R.string.v2_set_keys_export_d).expert()
                 .when(SettingsCatalog::touch);
         action(l, CONTROLES, "import_special_button_file", R.string.v2_set_special_import, R.string.v2_set_import).desc(R.string.v2_set_special_import_d).expert();
-        action(l, CONTROLES, "option_help_custom_keys", R.string.v2_set_special_help, R.string.v2_set_open).desc(R.string.v2_set_special_help_d).expert();
         slider(l, CONTROLES, "seekbar_keyboard_axi_opacity", R.string.v2_set_kb_opacity, 90).desc(R.string.v2_set_kb_opacity_d).expert()
                 .range(0, 100, 1, 5).format(PERCENT);
         toggle(l, CONTROLES, "checkbox_enable_sticky_modifier_key_virtual_keyboard", R.string.v2_set_kb_sticky, true).desc(R.string.v2_set_kb_sticky_d).expert();
@@ -501,7 +504,6 @@ public final class SettingsCatalog {
                 .dependsOn("checkbox_enable_perf_overlay");
         action(l, AVANCE, "share_performance_logs", R.string.v2_set_perf_share, R.string.v2_set_share).desc(R.string.v2_set_perf_share_d).expert()
                 .dependsOn(v -> v.getBool("checkbox_enable_perf_overlay") && v.getBool("checkbox_enable_perf_logging"));
-        action(l, AVANCE, "option_view_shared_pref_logs", R.string.v2_set_perf_dashboard, R.string.v2_set_open).desc(R.string.v2_set_perf_dashboard_d).expert();
         action(l, AVANCE, "pref_debug_info", R.string.v2_set_debug, R.string.v2_set_open).desc(R.string.v2_set_debug_d).expert();
 
         return l;

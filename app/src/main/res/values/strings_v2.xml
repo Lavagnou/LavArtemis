@@ -310,28 +310,31 @@
     <string name="v2_set_audiofx">Égaliseur du système</string>
     <string name="v2_set_audiofx_d">Laisse passer les effets audio d\'Android (égaliseur), au prix d\'un peu de latence.</string>
 
+    <!-- In-game menu (Dev): the single touch-mode switch, Game.switchTouchMode() -->
+    <string name="v2_menu_touch_to_trackpad">Passer en trackpad</string>
+    <string name="v2_menu_touch_to_multitouch">Passer en multitouch</string>
+    <string name="v2_toast_touch_trackpad">Mode trackpad : appui long pour faire glisser, appui à deux doigts pour le clic droit</string>
+    <string name="v2_toast_touch_multitouch">Mode multitouch</string>
+
     <!-- Entrées -->
     <string name="v2_set_touch_mode">Écran tactile</string>
-    <string name="v2_set_touch_mode_d">Comment le doigt pilote le PC distant. Le stylet marche toujours, même en Désactivé.</string>
-    <string name="v2_set_touch_multi">Tactile multipoint</string>
-    <string name="v2_set_touch_absolute">Toucher absolu</string>
-    <string name="v2_set_touch_trackpad">Pavé tactile naturel (double appui pour glisser)</string>
-    <string name="v2_set_touch_trackpad_game">Pavé tactile jeu (appui long pour glisser)</string>
-    <string name="v2_set_touch_absolute_swapped">Toucher absolu, clics inversés</string>
-    <string name="v2_set_touch_off">Désactivé</string>
-    <string name="v2_set_pinch_zoom">Zoom au pincement (pavé tactile)</string>
-    <string name="v2_set_pinch_zoom_d">En pavé tactile, pincer zoome et la vue suit le curseur. L\'accélération de la souris de Windows ne s\'applique plus.</string>
+    <!-- Same wording as LavArtemis-Qt SettingsView2.qml (« Écran tactile ») -->
+    <string name="v2_set_touch_mode_d">Multitouch : les doigts touchent directement l\'écran du PC. Trackpad : le doigt déplace le curseur, appui long pour faire glisser, appui à deux doigts pour le clic droit.</string>
+    <string name="v2_set_touch_multi">Multitouch</string>
+    <string name="v2_set_touch_trackpad">Trackpad</string>
+    <string name="v2_set_pinch_zoom">Zoom au pincement (trackpad)</string>
+    <string name="v2_set_pinch_zoom_d">En trackpad, pincer zoome et la vue suit le curseur. L\'accélération de la souris de Windows ne s\'applique plus.</string>
     <string name="v2_set_gestures">Gestes à plusieurs doigts</string>
-    <string name="v2_set_gestures_d">En tactile multipoint : 3 doigts ouvrent le clavier, 4 le clavier complet, 5 le menu en jeu.</string>
+    <string name="v2_set_gestures_d">En multitouch : 3 doigts ouvrent le clavier, 4 le clavier complet, 5 le menu en jeu.</string>
     <string name="v2_set_absolute_mouse">Souris pour le bureau à distance</string>
     <string name="v2_set_absolute_mouse_d">Curseur libre, sans capture : idéal pour le bureau, pas pour les jeux.</string>
     <string name="v2_set_remember_touch_mode">Retenir le mode tactile choisi en jeu</string>
     <string name="v2_set_remember_touch_mode_d">Sinon, un mode choisi pendant le stream ne vaut que pour ce stream.</string>
-    <string name="v2_set_touchpad_x">Sensibilité horizontale en pavé tactile</string>
-    <string name="v2_set_touchpad_y">Sensibilité verticale en pavé tactile</string>
-    <string name="v2_set_touchpad_d">L\'écran en pavé tactile et le bouton pavé tactile des touches à l\'écran.</string>
+    <string name="v2_set_touchpad_x">Sensibilité horizontale en trackpad</string>
+    <string name="v2_set_touchpad_y">Sensibilité verticale en trackpad</string>
+    <string name="v2_set_touchpad_d">L\'écran en trackpad et le bouton pavé tactile des touches à l\'écran.</string>
     <string name="v2_set_touch_sens">Régler la sensibilité tactile</string>
-    <string name="v2_set_touch_sens_d">En tactile multipoint, pour les jeux où le doigt va trop vite ou trop lentement.</string>
+    <string name="v2_set_touch_sens_d">En multitouch, pour les jeux où le doigt va trop vite ou trop lentement.</string>
     <string name="v2_set_touch_sens_global">Sur tout l\'écran</string>
     <string name="v2_set_touch_sens_global_d">Sinon, seulement sur la moitié droite (la caméra des jeux mobiles).</string>
     <string name="v2_set_touch_recenter">Recentrer au bord de l\'écran</string>
@@ -448,8 +451,6 @@
     <string name="v2_set_keys_export_d">La disposition choisie, en fichier JSON.</string>
     <string name="v2_set_special_import">Importer des commandes spéciales</string>
     <string name="v2_set_special_import_d">Pour le menu en jeu et les touches spéciales ; remplace celles d\'avant.</string>
-    <string name="v2_set_special_help">Aide des commandes spéciales</string>
-    <string name="v2_set_special_help_d">Comment écrire le fichier de commandes (en anglais).</string>
     <string name="v2_set_kb_opacity">Opacité du clavier complet</string>
     <string name="v2_set_kb_opacity_d">Le clavier virtuel complet du menu en jeu.</string>
     <string name="v2_set_kb_sticky">Touches de modification maintenues</string>
@@ -505,8 +506,6 @@
     <string name="v2_set_perf_log_d">Garde les mesures de chaque stream sur l\'appareil, pour comparer des réglages. Le couper efface l\'historique.</string>
     <string name="v2_set_perf_share">Partager les performances</string>
     <string name="v2_set_perf_share_d">Les mesures enregistrées, en fichier texte.</string>
-    <string name="v2_set_perf_dashboard">Performances des autres appareils</string>
-    <string name="v2_set_perf_dashboard_d">Un tableau tenu par la communauté (en anglais).</string>
     <string name="v2_set_debug">Infos de débogage</string>
     <string name="v2_set_debug_d">Tester les vibrations de la manette, les capteurs et le reste.</string>
     <string name="v2_set_joyconfix">Joy-Con de la Switch</string>

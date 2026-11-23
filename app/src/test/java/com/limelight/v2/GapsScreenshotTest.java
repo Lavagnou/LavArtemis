@@ -214,10 +214,10 @@ public class GapsScreenshotTest {
 
     // ---- in-game menu: the sub-menus ------------------------------------------------------------
 
-    /** GameMenu.showAdvancedMenu()'s entries, in its order (mouse mode allowed, a gamepad connected) */
+    /** GameMenu.showAdvancedMenu()'s entries in Dev, in its order (multitouch on, a gamepad connected) */
     private static List<String> advanced(Context c) {
         List<String> l = new ArrayList<>();
-        l.add(c.getString(R.string.game_menu_select_mouse_mode));
+        l.add(c.getString(R.string.v2_menu_touch_to_trackpad));
         l.add(c.getString(R.string.game_menu_toggle_hud));
         l.add(c.getString(R.string.game_menu_toggle_floating_button));
         l.add(c.getString(R.string.game_menu_toggle_keyboard_model));
@@ -265,17 +265,6 @@ public class GapsScreenshotTest {
         d = V2ListDialog.show(a, V2Theme.load(a), a.getString(R.string.game_menu_server_cmd), cmds, 2, null, null);
         save(overlay(s, d, 0.5f), "gaps-gamemenu-server-commands");
         d.dismiss();
-
-        // Game.selectMouseMode(): the real labels, through the same bridge as the stream
-        setup(960, 540, "ludique", true, V2Input.Kind.PAD);
-        HostsActivity l = hosts();
-        String[] modes = l.getResources().getStringArray(R.array.mouse_mode_names);
-        String[] labels = new String[modes.length + 1];
-        System.arraycopy(modes, 0, labels, 0, modes.length);
-        labels[modes.length] = l.getString(R.string.toggle_local_mouse_cursor);
-        d = ThemedDialogs.list(l, l.getString(R.string.game_menu_select_mouse_mode), labels, w -> { });
-        focusFirst(d);
-        save(overlay(stream(960 * DENSITY, 540 * DENSITY), d, 0.5f), "gaps-gamemenu-mouse-mode");
     }
 
     // ---- stream dialogs ---------------------------------------------------------------------------

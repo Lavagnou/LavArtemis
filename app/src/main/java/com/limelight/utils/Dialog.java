@@ -120,8 +120,9 @@ public class Dialog implements Runnable {
 
 
     /**
-     * LavArtemis Dev: the same dialog in the v2 theme. Same buttons (OK, Aide), same rules: not
-     * cancelable, both buttons run {@code runOnDismiss}, closeDialogs() still closes it.
+     * LavArtemis Dev: the same dialog in the v2 theme, same rules: not cancelable, OK runs
+     * {@code runOnDismiss}, closeDialogs() still closes it. No "Aide" button: the user asked for
+     * every help button to go (it opened Moonlight's troubleshooting wiki).
      */
     private void showThemed() {
         Runnable dismissed = () -> {
@@ -136,10 +137,6 @@ public class Dialog implements Runnable {
                     .title(title)
                     .text(message)
                     .button(activity.getString(R.string.v2_ok), dismissed)
-                    .button(activity.getString(R.string.help), () -> {
-                        dismissed.run();
-                        HelpLauncher.launchTroubleshooting(activity);
-                    })
                     .cancelable(false)
                     .show().dialog;
         }

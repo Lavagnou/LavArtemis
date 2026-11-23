@@ -270,7 +270,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     gardée, statique) ; Réglages relit la liste quand l'encoche devient connue (`onCutoutKnown`).
 - **Plus aucun écran « Moonlight » en Dev** (`v2/ui/ThemedDialogs`, `V2Alert`, `V2Page`) :
   - `ThemedDialogs.enabled()` (= `LAV_DEV`) est demandé **par l'appelant**, qui garde sa branche `AlertDialog`
-    intacte pour la stable. Passent par là : `utils/Dialog.displayDialog` (OK + Aide, non annulable,
+    intacte pour la stable. Passent par là : `utils/Dialog.displayDialog` (OK seul, non annulable,
     `closeDialogs()` le ferme toujours), `SpinnerDialog` (spinner, annulable seulement si `finish`, **jamais au
     toucher extérieur** : annuler termine l'activité, donc le stream qui démarre), `UiHelper.displayConfirmationDialog`
     (texte HTML, liens cliquables ; Retour ne lance ni oui ni non, comme l'AlertDialog), `Game.quit()` /
@@ -293,6 +293,23 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     « Échec au démarrage : négociation RTSP (erreur -408) ») passent par `strings.xml` + `values-fr`. Le défaut
     anglais = l'ancien texte, la stable anglaise ne change pas. Restent anglais : les notes des runs de benchmark
     (données du rapport JSON partagé avec le desktop) et les toasts système (non thémés, en français).
+- **Deux modes tactiles seulement en Dev : Multitouch (0) et Trackpad (3)**, les deux que l'utilisateur
+  utilise, mêmes libellés et même description que la ligne « Écran tactile » du desktop. Trackpad = le mode
+  « appui long pour faire glisser » (`RelativeTouchContext` : appui long 650 ms = clic gauche maintenu,
+  appui à deux doigts = clic droit, deux doigts qui bougent = défilement ; le zoom au pincement y marche).
+  ⚠️ **Une valeur stockée 1, 2, 4 ou 5 n'est jamais réécrite, elle est lue** comme le mode gardé le plus
+  proche par `PreferenceConfiguration.devTouchMode()` (2 → 3 ; 1, 4, 5 → 0), appelé aux **trois** endroits
+  qui lisent `mouse_mode_list` : `PreferenceConfiguration.readPreferences` (`LAV_DEV`), `Game.initMouseMode`
+  et `SettingsStore.getString` (Réglages montre le mode réellement utilisé). Un nouveau lecteur doit passer
+  par là. La stable lit toujours les six. Menu en jeu (Dev) : une seule entrée « Passer en trackpad » /
+  « Passer en multitouch » (`Game.touchModeSwitchLabel()` / `switchTouchMode()`, toast, écrite par
+  `ProfileAwarePreferences` si « Retenir le mode tactile choisi en jeu ») ; l'ancienne liste et son entrée
+  « curseur local » ne sont plus proposées. Écran externe : Trackpad imposé, pas d'entrée ; appli
+  « input only » : Trackpad (3) au lieu du 2.
+- **Aucun bouton « Aide » en Dev** : `utils/Dialog` n'a plus que OK (l'Aide ouvrait le wiki de dépannage de
+  Moonlight), et Réglages n'a plus les liens wiki d'Artemis (aide des commandes spéciales, tableau des
+  performances : `NOT_SHOWN`). Restent des liens qui ne sont pas de l'aide : page des releases, Obtainium, la
+  page de release ouverte par la mise à jour quand aucun APK ne convient. Même règle côté desktop.
 - **Hôte non pris en charge** (`v2/HostSupport`, = `ServerSupportedRole` du desktop) : `appversion` du `serverinfo`
   (`ComputerDetails.serverAppVersion`) doit être un quadruplet de nombres (Sunshine finit par `-1`) de génération
   ≥ 3 (la plus ancienne de moonlight-common-c) ; inconnu ou PC hors ligne = accepté. Vérifié avant d'ouvrir un PC,
@@ -425,7 +442,7 @@ Réglage `checkbox_voice_ptt_button` (*UI Settings*, défaut off) + entrées « 
 
 ## 🔍 Zoom au pincement en mode trackpad (Android)
 
-Comme Chrome Remote Desktop : en mode trackpad (souris 2 naturel / 3 gaming), **pincer zoome**
+Comme Chrome Remote Desktop : en mode trackpad (souris 2 naturel / 3 gaming ; la Dev ne garde que le 3), **pincer zoome**
 (1×–10×) et **la vue suit le curseur** — elle ne bouge que quand le curseur quitte la moitié centrale
 de l'écran, juste assez pour l'y ramener. Réglage `checkbox_trackpad_pinch_zoom` (*Input Settings*,
 défaut off). `binding/input/touch/TrackpadZoomController.java` orchestre ; `TrackedCursor`,

@@ -361,12 +361,6 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
             case "option_follow_update":
                 HelpLauncher.launchUrl(this, getString(R.string.obtainium_app_url));
                 break;
-            case "option_help_custom_keys":
-                HelpLauncher.launchUrl(this, "https://github.com/ClassicOldSong/moonlight-android/wiki/Custom-Special-Keys");
-                break;
-            case "option_view_shared_pref_logs":
-                HelpLauncher.launchUrl(this, "https://github.com/ClassicOldSong/moonlight-android/wiki/Performance-Statistics-Collection");
-                break;
             default:
                 break;
         }

@@ -325,6 +325,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     public boolean isInputOnly = true;
     public boolean allowChangeMouseMode = true;
+    /** The mouse_mode_list mode applied last (applyMouseMode), what the Dev menu switches from */
+    private int currentTouchMode = PreferenceConfiguration.TOUCH_MODE_MULTITOUCH;
     private boolean onExternelDisplay = false;
     private ImageButton floatingMenuButton;
     private VoicePttButton voicePttButton;
@@ -904,7 +906,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // Force trackpad mode since we won't see anything on the screen
             isInputOnly = true;
             allowChangeMouseMode = false;
-            applyMouseMode(2);
+            // Dev keeps the long-press trackpad only (PreferenceConfiguration.devTouchMode)
+            applyMouseMode(BuildConfig.LAV_DEV ? PreferenceConfiguration.TOUCH_MODE_TRACKPAD : 2);
         } else {
             if (prefConfig.enableFullExDisplay && onExternelDisplay) {
                 requestFocusToExternalDisplayControl(this);
@@ -4459,6 +4462,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .getOverlayingSharedPreferences(this)
                 .getString("mouse_mode_list", "0");
 
+        if (BuildConfig.LAV_DEV) {
+            // LavArtemis Dev: Multitouch or Trackpad only (PreferenceConfiguration.devTouchMode).
+            // An external display only makes sense with the trackpad, as in the stable build,
+            // and the stored mode is left alone.
+            applyMouseMode(isOnExternalDisplay() ? PreferenceConfiguration.TOUCH_MODE_TRACKPAD
+                    : PreferenceConfiguration.devTouchMode(savedMouseModeIndexStr));
+            return;
+        }
+
         int savedMouseModeIndex;
         try {
             savedMouseModeIndex = Integer.parseInt(savedMouseModeIndexStr);
@@ -4555,6 +4567,34 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .show();
     }
 
+    /**
+     * LavArtemis Dev: the in-game menu's single touch-mode entry, « Passer en trackpad » or
+     * « Passer en multitouch », or null when there is nothing to switch to (an external display
+     * keeps the trackpad).
+     */
+    public String touchModeSwitchLabel() {
+        if (isOnExternalDisplay()) {
+            return null;
+        }
+        return getString(PreferenceConfiguration.otherTouchMode(currentTouchMode) == PreferenceConfiguration.TOUCH_MODE_TRACKPAD
+                ? R.string.v2_menu_touch_to_trackpad : R.string.v2_menu_touch_to_multitouch);
+    }
+
+    /**
+     * LavArtemis Dev: switches Multitouch <-> Trackpad at once. Kept for the next streams like a
+     * mode picked from the old list (« Retenir le mode tactile choisi en jeu »), written through
+     * ProfileAwarePreferences so it lands in the active profile when that profile holds the key.
+     */
+    public void switchTouchMode() {
+        int next = PreferenceConfiguration.otherTouchMode(currentTouchMode);
+        applyMouseMode(next);
+        if (prefConfig.rememberMouseMode) {
+            ProfileAwarePreferences.putString(this, "mouse_mode_list", String.valueOf(next));
+        }
+        Toast.makeText(this, next == PreferenceConfiguration.TOUCH_MODE_TRACKPAD
+                ? R.string.v2_toast_touch_trackpad : R.string.v2_toast_touch_multitouch, Toast.LENGTH_SHORT).show();
+    }
+
     private void onMouseModePicked(MouseModeOption selected) {
         if (selected.index == -1) {
             toggleMouseLocalCursor();
@@ -4584,6 +4624,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void applyMouseMode(int mode) {
+        currentTouchMode = mode;
         switch (mode) {
             case 0: // Multi-touch
                 prefConfig.enableMultiTouchScreen = true;
