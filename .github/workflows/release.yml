@@ -29,10 +29,9 @@ name: Build & Release
 #                    RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
 #   Windows secrets: WINDOWS_CERT_BASE64, WINDOWS_CERT_PASSWORD
 
+# Manual only (2026-11-23): releases are built on the maintainer's PC and uploaded with
+# `gh release`, to spare the Actions quota. Pushing a v* tag no longer starts this workflow.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:

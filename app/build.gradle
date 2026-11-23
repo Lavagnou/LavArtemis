@@ -125,6 +125,22 @@ android {
                 keyPassword System.getenv("CI_KEY_PASSWORD")
             }
         }
+        // Releases built on the maintainer's PC (to spare the Actions quota): the release key in
+        // key/release.keystore, its password in key/keystore.properties. Both stay out of git (key/).
+        local {
+            def props = rootProject.file("key/keystore.properties")
+            def ks = rootProject.file("key/release.keystore")
+            if (props.exists() && ks.exists()) {
+                def p = new Properties()
+                props.withInputStream { p.load(it) }
+                if (p.getProperty("storePassword", "").trim()) {
+                    storeFile ks
+                    storePassword p.getProperty("storePassword").trim()
+                    keyAlias p.getProperty("keyAlias", "lavartemis").trim()
+                    keyPassword p.getProperty("keyPassword", p.getProperty("storePassword")).trim()
+                }
+            }
+        }
     }
 
     buildTypes {
@@ -186,6 +202,8 @@ android {
             // installs and vice versa).
             if (System.getenv("CI_KEYSTORE_PATH") != null) {
                 signingConfig signingConfigs.ci
+            } else if (signingConfigs.local.storeFile != null) {
+                signingConfig signingConfigs.local
             } else if (System.getenv("GITHUB_ACTIONS") == "true") {
                 signingConfig signingConfigs.debug
             }
