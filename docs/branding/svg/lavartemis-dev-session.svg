@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024"><defs>
+<linearGradient id="night" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#25325A"/><stop offset="1" stop-color="#0E1222"/></linearGradient>
+<linearGradient id="sun" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#FFD866"/><stop offset="1" stop-color="#F2AE1E"/></linearGradient>
+</defs><rect width="100" height="100" rx="22" fill="#1D4E89"/><path d="M10 3.56 V96.44 M3.56 10 H96.44 M20 0.09 V99.91 M0.09 20 H99.91 M30 0 V100 M0 30 H100 M40 0 V100 M0 40 H100 M50 0 V100 M0 50 H100 M60 0 V100 M0 60 H100 M70 0 V100 M0 70 H100 M80 0.09 V99.91 M0.09 80 H99.91 M90 3.56 V96.44 M3.56 90 H96.44" stroke="#FFFFFF" stroke-width="0.6" stroke-opacity="0.18" fill="none"/><rect x="16" y="22" width="68" height="48" rx="8" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round"/>
+<path d="M50 70 V81 M40 82 H60" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/><g transform="translate(50 46) scale(0.55) translate(-50 -50)">
+<path d="M49.62 18 A32 32 0 1 0 79.4 62.64 A27 27 0 1 1 49.62 18 Z" fill="#1D4E89"/>
+<path d="M57 33 L57 51 L71 42 Z" fill="#2F7FD8" stroke="#2F7FD8" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="22" cy="24" r="2.4" fill="#1D4E89"/>
+<circle cx="85" cy="30" r="2" fill="#1D4E89"/>
+</g><rect x="54" y="74" width="36" height="17" rx="8.5" fill="#4ADE80" stroke="#1D4E89" stroke-width="3"/>
+<path d="M62.6 79 V86 H64.6 C66.8 86 67.6 84.5 67.6 82.5 C67.6 80.5 66.8 79 64.6 79 Z M74.4 79 H69.8 V86 H74.4 M69.8 82.5 H73.6 M76.2 79 L79 86 L81.8 79" fill="none" stroke="#0E1222" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024"><defs>
+<linearGradient id="night" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#25325A"/><stop offset="1" stop-color="#0E1222"/></linearGradient>
+<linearGradient id="sun" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#FFD866"/><stop offset="1" stop-color="#F2AE1E"/></linearGradient>
+</defs><rect width="100" height="100" rx="22" fill="url(#sun)"/><g fill="none" stroke="#141A2E" stroke-linecap="round" stroke-linejoin="round">
+<rect x="16" y="22" width="68" height="48" rx="8" stroke-width="5"/>
+<path d="M50 70 V81 M40 82 H60" stroke-width="5"/>
+</g><g transform="translate(50 46) scale(0.5) translate(-50 -50)">
+<circle cx="50" cy="50" r="19" fill="#141A2E"/>
+<path d="M77 50 H87 M69.1 69.1 L76.2 76.2 M50 77 V87 M30.9 69.1 L23.8 76.2 M23 50 H13 M30.9 30.9 L23.8 23.8 M50 23 V13 M69.1 30.9 L76.2 23.8" fill="none" stroke="#141A2E" stroke-width="6.5" stroke-linecap="round"/>
+</g><g transform="translate(50 46) scale(0.5) translate(-50 -50)"><path d="M45 41 L45 59 L60 50 Z" fill="#F8BC40" stroke="#F8BC40" stroke-width="2.5" stroke-linejoin="round"/></g><circle cx="78" cy="78" r="17" fill="#141A2E" stroke="#FFFFFF" stroke-width="3"/>
+<path d="M73 77 V73.5 A5 5 0 0 1 83 73.5 V77" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"/>
+<rect x="70.5" y="76.5" width="15" height="11" rx="2.5" fill="#FFFFFF"/></svg>

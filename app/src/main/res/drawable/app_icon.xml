@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from LavArtemis/docs/branding (generate-android.mjs). Notification icon: white silhouette. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path android:pathData="M24,22 H76 A8,8 0 0,1 84,30 V62 A8,8 0 0,1 76,70 H24 A8,8 0 0,1 16,62 V30 A8,8 0 0,1 24,22 Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineJoin="round" />
+    <path android:pathData="M50,70 V81 M40,82 H60" android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round" />
+    <group android:scaleX="0.55" android:scaleY="0.55" android:translateX="22.5" android:translateY="18.5">
+        <path android:pathData="M49.62,18 A32,32 0 1,0 79.4,62.64 A27,27 0 1,1 49.62,18 Z" android:fillColor="#FFFFFFFF" />
+        <path android:pathData="M57,33 L57,51 L71,42 Z" android:fillColor="#FFFFFFFF" android:strokeColor="#FFFFFFFF" android:strokeWidth="3" android:strokeLineJoin="round" />
+    </group>
+</vector>

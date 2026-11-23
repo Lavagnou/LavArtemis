@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from LavArtemis/docs/branding (generate-android.mjs). Do not edit by hand. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path android:pathData="M0,0 H100 V100 H0 Z" android:fillColor="#1D4E89" />
+    <path android:pathData="M2.38,0 V100 M0,2.38 H100 M10.32,0 V100 M0,10.32 H100 M18.25,0 V100 M0,18.25 H100 M26.19,0 V100 M0,26.19 H100 M34.13,0 V100 M0,34.13 H100 M42.06,0 V100 M0,42.06 H100 M50,0 V100 M0,50 H100 M57.94,0 V100 M0,57.94 H100 M65.87,0 V100 M0,65.87 H100 M73.81,0 V100 M0,73.81 H100 M81.75,0 V100 M0,81.75 H100 M89.69,0 V100 M0,89.69 H100 M97.62,0 V100 M0,97.62 H100" android:strokeColor="#FFFFFF" android:strokeAlpha="0.18" android:strokeWidth="0.48" />
+</vector>

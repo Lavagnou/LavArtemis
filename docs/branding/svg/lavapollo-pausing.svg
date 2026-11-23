@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024"><defs>
+<linearGradient id="night" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#25325A"/><stop offset="1" stop-color="#0E1222"/></linearGradient>
+<linearGradient id="sun" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#FFD866"/><stop offset="1" stop-color="#F2AE1E"/></linearGradient>
+</defs><rect width="100" height="100" rx="22" fill="url(#sun)"/><rect x="16" y="22" width="68" height="48" rx="8" fill="#141A2E" stroke="#141A2E" stroke-width="5" stroke-linejoin="round"/>
+<path d="M50 70 V81 M40 82 H60" fill="none" stroke="#141A2E" stroke-width="5" stroke-linecap="round"/><g transform="translate(50 46) scale(0.5) translate(-50 -50)">
+<circle cx="50" cy="50" r="19" fill="#F8BC40"/>
+<path d="M77 50 H87 M69.1 69.1 L76.2 76.2 M50 77 V87 M30.9 69.1 L23.8 76.2 M23 50 H13 M30.9 30.9 L23.8 23.8 M50 23 V13 M69.1 30.9 L76.2 23.8" fill="none" stroke="#F8BC40" stroke-width="6.5" stroke-linecap="round"/>
+</g><g transform="translate(50 46) scale(0.5) translate(-50 -50)" fill="#141A2E"><rect x="42.5" y="41" width="5.5" height="18" rx="1.5"/><rect x="52" y="41" width="5.5" height="18" rx="1.5"/></g></svg>

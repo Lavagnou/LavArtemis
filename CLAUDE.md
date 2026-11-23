@@ -176,6 +176,24 @@ Spec `docs/superpowers/specs/2026-11-23-ui-redesign-design.md`, prototype valid�
 images absentes hors claude.ai). Phases 1 (accueil, thèmes, Mes PC) et 2 (Réglages v2 avec **mode expert**, `SettingsView2.qml`) livrées côté desktop (`desktop/app/gui/v2/`, voir
 `desktop/CLAUDE.md`) ; Android à venir.
 
+## 🖼️ Icônes (LavArtemis + LavApollo)
+
+Sources et générateur : **`docs/branding/`** (README : quel fichier va où). Le même écran pour les deux
+applis : la **lune** pour le client (clin d'œil à Moonlight), le **soleil** pour l'hôte (Sunshine).
+**Logo = écran en contour (5c)**, **« session en cours » = écran allumé (5d)**. Dev : fond « plan
+d'atelier » `#1D4E89` quadrillé, dessin blanc, pastille verte `DEV`.
+
+- **Android** : icône adaptative en vecteurs (`drawable/ic_launcher_bg|fg|mono.xml`), PNG `mipmap-*/ic_launcher.png`
+  pour API < 26, icône de notification `drawable/app_icon.xml` (silhouette blanche), bannière TV
+  `drawable-xhdpi/atv_banner.png`, logo de chaîne TV `drawable/ic_channel.xml` (les deux calques).
+  **La Dev remplace `ic_launcher_bg`/`ic_launcher_fg`, les PNG legacy et la bannière dans `app/src/dev/res/`**,
+  ajouté aux source sets des flavors seulement pour une version `-dev.` (voir « Stable / Dev »).
+- ⚠️ `ic_launcher_bg.xml` a un dégradé (`aapt:attr`, API 24+) : ne le référencer que depuis l'icône adaptative
+  (`mipmap-anydpi-v26`) ou du code API 26+ (`TvChannelHelper`), jamais depuis un écran affiché sous Android 7.
+- ⚠️ **On modifie le générateur, jamais un rendu** : les vecteurs Android, les PNG, les `.ico` et les SVG
+  des trois dépôts sortent des mêmes formes ; une retouche à la main les ferait diverger.
+- « Lav » vient d'un nom de famille : **pas d'imagerie de lave**.
+
 ## ⚡ Hot path streaming — valeur ajoutée LavArtemis
 
 C'est ici que réside l'essentiel du travail spécifique au fork (performances / fluidité du stream) :
@@ -742,7 +760,8 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 - Identifiant clipboard **`"ArtemisStreaming"`** dans `Game.java`.
 - ✅ ~~Email/branding du partage des logs de perf~~ : plus de destinataire imposé (c'était la boîte de collecte de l'amont), sujet « LavArtemis - Performance Log ».
 - Typo **« Nior »** (devrait être « Noir ») dans `summary_software_update` (`strings.xml`) + mention résiduelle de ClassicOldSong.
-- **Icônes launcher et couleurs thème inchangées** (toujours celles d'Artemis : `#1A1A1A` / `#000000`).
+- ✅ ~~Icônes launcher~~ : icônes LavArtemis propres depuis 21.8.0-dev.5 (voir « Icônes »). Les couleurs du
+  thème Android classique restent celles d'Artemis (`#1A1A1A` / `#000000`) ; la refonte de l'interface les remplacera.
 - `fastlane/metadata/android/en-US/title.txt` = « Moonlight Game Streaming ».
 
 ## 🔑 Fichiers clés
