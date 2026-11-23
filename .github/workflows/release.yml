@@ -13,6 +13,10 @@ name: Build & Release
 # Triggers:
 #   - Pushing a tag like v1.2.3 -> full release under that tag
 #   - Manual run (workflow_dispatch) -> prerelease tagged v<versionName>-ci.<run>
+#   - Pushing a tag like v1.2.3-dev.4 (from the dev branch) -> LavArtemis Dev
+#     release: a prerelease (never "latest", so the stable apps never see it),
+#     Android + Windows only. The channel is read from the version string; see
+#     docs/superpowers/specs/2026-11-23-stable-dev-split-design.md.
 #
 # Signing:
 #   Android is signed with the release keystore when RELEASE_KEYSTORE_BASE64 and
@@ -41,6 +45,7 @@ jobs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
       prerelease: ${{ steps.tag.outputs.prerelease }}
+      dev: ${{ steps.tag.outputs.dev }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -48,7 +53,7 @@ jobs:
       - name: Determine release tag
         id: tag
         run: |
-          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' app/build.gradle | head -1)
+          VERSION=$(sed -n 's/.*lavVersionName = "\([^"]*\)".*/\1/p' app/build.gradle | head -1)
           if [ -z "$VERSION" ]; then
             echo "Could not read versionName from app/build.gradle" >&2
             exit 1
@@ -66,18 +71,31 @@ jobs:
             fi
 
             echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            # A Dev release must never become /releases/latest: that is what the
+            # stable apps' updaters read.
+            if [[ "$VERSION" == *-dev.* ]]; then
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "tag=v${VERSION}-ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-dev.* ]]; then
+            echo "dev=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dev=false" >> "$GITHUB_OUTPUT"
+          fi
 
       # The desktop pointer is advanced by hand (Actions -> Update desktop
       # pointer), so it can silently fall behind between releases. Report the
       # gap here rather than closing it: what gets released must stay exactly
       # what the tag records, and moving the pointer mid-run would break that.
+      # Compares against LavArtemis-Qt main, which a Dev build does not track.
       - name: Report desktop pointer freshness
+        if: steps.tag.outputs.dev != 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -395,6 +413,9 @@ jobs:
   # submission and a manifest that doesn't exist yet, so it is not built here.
   build-linux:
     needs: version
+    # Dev releases are Android + Windows: this job is by far the longest, and the
+    # Dev app is only used there. The code still has to compile on Linux.
+    if: needs.version.outputs.dev != 'true'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -576,6 +597,15 @@ jobs:
 
   publish:
     needs: [version, build-android, build-windows, build-linux]
+    # A skipped build-linux (Dev release) must not skip publishing, but any
+    # failed or cancelled build still blocks it.
+    if: >-
+      always() &&
+      needs.version.result == 'success' &&
+      needs.build-android.result == 'success' &&
+      needs.build-windows.result == 'success' &&
+      (needs.build-linux.result == 'success' ||
+       (needs.build-linux.result == 'skipped' && needs.version.outputs.dev == 'true'))
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts

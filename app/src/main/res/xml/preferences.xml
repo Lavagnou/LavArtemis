@@ -1115,13 +1115,6 @@
             android:title="@string/title_auto_update"
             app:iconSpaceReserved="false" />
 
-        <CheckBoxPreference
-            android:defaultValue="false"
-            android:key="checkbox_update_prerelease"
-            android:summary="@string/summary_update_prerelease"
-            android:title="@string/title_update_prerelease"
-            app:iconSpaceReserved="false" />
-
         <com.limelight.preferences.WebLauncherPreference
             url="https://github.com/Lavagnou/LavArtemis/releases"
             android:key="option_software_release"

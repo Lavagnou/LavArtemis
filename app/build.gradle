@@ -1,5 +1,13 @@
 apply plugin: 'com.android.application'
 
+// The release channel is read from the version: a versionName containing "-dev." builds
+// "LavArtemis Dev", a separate app installed next to the stable one (own applicationId,
+// label and icon). Nothing depends on the branch name, so merging dev into main cannot
+// carry the channel over: promoting to stable changes the version, hence the channel.
+// See docs/superpowers/specs/2026-11-23-stable-dev-split-design.md.
+def lavVersionName = "21.8.0-dev.1"
+def lavDev = lavVersionName.contains("-dev.")
+
 android {
     ndkVersion "27.0.12077973"
 
@@ -11,11 +19,13 @@ android {
         minSdk 21
         targetSdk 34
 
-        versionName "21.7.1"
-        versionCode = 88
+        versionName lavVersionName
+        versionCode = 89
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
+
+        buildConfigField "boolean", "LAV_DEV", lavDev ? "true" : "false"
     }
 
     flavorDimensions.add("root")
@@ -59,6 +69,16 @@ android {
             applicationId "com.limelight"
             dimension "root"
             buildConfigField "boolean", "ROOT_BUILD", "false"
+        }
+    }
+
+    sourceSets {
+        // Dev launcher icon (orange background) and anything else that must tell the two
+        // apps apart at a glance. Added to the flavor source sets, not main: only a higher
+        // source set can override a main resource (two copies in main are a merge error).
+        if (lavDev) {
+            root.res.srcDirs += 'src/dev/res'
+            nonRoot_game.res.srcDirs += 'src/dev/res'
         }
     }
 
@@ -109,10 +129,10 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix ".lavdebug"
-            resValue "string", "app_label", "LavArtemis (Debug)"
-            resValue "string", "app_label_root", "LavArtemis (Debug Root)"
-            resValue "string", "app_label_game", "LavArtemis (Debug Game)"
+            applicationIdSuffix lavDev ? ".lavdebug.dev" : ".lavdebug"
+            resValue "string", "app_label", lavDev ? "LavArtemis Dev (Debug)" : "LavArtemis (Debug)"
+            resValue "string", "app_label_root", lavDev ? "LavArtemis Dev (Debug Root)" : "LavArtemis (Debug Root)"
+            resValue "string", "app_label_game", lavDev ? "LavArtemis Dev (Debug Game)" : "LavArtemis (Debug Game)"
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -149,9 +169,13 @@ android {
             //
             // TL;DR: Leave the following line alone!
             applicationIdSuffix ".lav"
-            resValue "string", "app_label", "LavArtemis"
-            resValue "string", "app_label_root", "LavArtemis (Root)"
-            resValue "string", "app_label_game", "LavArtemis (Game)"
+            if (lavDev) {
+                // LavArtemis Dev: com.limelight.lav.dev, installed beside the stable app.
+                applicationIdSuffix ".lav.dev"
+            }
+            resValue "string", "app_label", lavDev ? "LavArtemis Dev" : "LavArtemis"
+            resValue "string", "app_label_root", lavDev ? "LavArtemis Dev (Root)" : "LavArtemis (Root)"
+            resValue "string", "app_label_game", lavDev ? "LavArtemis Dev (Game)" : "LavArtemis (Game)"
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

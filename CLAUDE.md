@@ -28,7 +28,7 @@ LavArtemis hérite des fonctionnalités Artemis : manettes virtuelles personnali
 | compileSdk / minSdk / targetSdk | 36 / 21 / 34 |
 | Java (source/cible) | 11 (builder avec JDK 17+) |
 | NDK | `27.0.12077973` |
-| versionName / versionCode | `21.7.1` / `88` |
+| versionName / versionCode | `lavVersionName` en tête d'`app/build.gradle` (`-dev.` = appli Dev, voir plus bas) |
 
 Mono-module : `:app` (pas de version catalog, pas de `buildSrc`).
 
@@ -110,6 +110,48 @@ Build types :
 > ⚠️ **Ne jamais retirer le suffixe `.lav`.** Long commentaire dans `app/build.gradle` (release) : un APK release publié avec l'applicationId Moonlight officiel pollue la Play Console du projet amont — Google attribue les crashs par appId, indépendamment de la signature.
 
 `bundle.language.enableSplit = false` (le sélecteur de langue in-app a besoin de toutes les locales).
+
+## 🧪 Stable / Dev — deux applis côte à côte
+
+**LavArtemis Dev** s'installe à côté de la stable (Android et Windows) et reçoit ses propres releases :
+c'est là que partent les nouveautés (extension Playnite, refonte de l'interface) avant la stable.
+Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
+
+- **Branches** : `main` = stable, `dev` = Dev, dans LavArtemis **et** LavArtemis-Qt. Le `desktop/` de
+  la branche `dev` pointe sur la branche `dev` de LavArtemis-Qt.
+- **Le canal se lit dans la version, jamais dans la branche** : une version qui contient `-dev.`
+  (`21.8.0-dev.3`) construit la Dev. `def lavVersionName` en tête d'`app/build.gradle` est la source
+  (la CI lit cette ligne). Passer en stable = changer la version, donc le canal : une fusion
+  `dev → main` ne peut pas l'emporter en douce.
+
+| | Stable | Dev |
+|---|---|---|
+| applicationId release / debug | `com.limelight.lav` / `.lavdebug` | `com.limelight.lav.dev` / `.lavdebug.dev` |
+| Nom, icône | LavArtemis, fond noir | LavArtemis Dev, fond orange (`app/src/dev/res`, ajouté aux source sets des flavors) |
+| Qt : organisation (registre, AppData) | `LavArtemis` | `LavArtemis Dev` |
+| Installeur Windows | dossier, raccourcis, UpgradeCodes d'origine | les siens ; **pas** d'`art://` ni de `.art` |
+| Release | tag `vX.Y.Z`, Android + Windows + Linux | tag `vX.Y.Z-dev.N`, **prerelease**, Android + Windows |
+| Updater in-app | `/releases/latest` | `/releases`, première release `-dev.` |
+
+> ⚠️ **Valeurs stables intouchables.** Le suffixe `.lav`, l'organisation `LavArtemis`, les UpgradeCodes
+> MSI/bundle et les clés `HKCU\Software\LavArtemis` doivent rester identiques au bit près : les
+> changer couperait la mise à jour des installations existantes.
+
+> ⚠️ **La Dev a sa propre organisation Qt, pas seulement un autre nom d'appli** : désinstaller la
+> stable supprime `HKCU\Software\LavArtemis` et `%LOCALAPPDATA%\LavArtemis` en entier.
+
+> ⚠️ **Version numérique côté Windows.** qmake et le MSI refusent `21.8.0-dev.3` : `app.pro` en fait
+> `21.8.0.3` (`VERSION`), `VERSION_STR` garde la chaîne lisible. Le MSI ne compare que trois nombres :
+> la Dev autorise la mise à niveau à version égale (`AllowSameVersionUpgrades`).
+
+- **Premier lancement de la Dev PC** : `ChannelMigration::importStableSettingsOnce()` copie une fois les
+  réglages de la stable (registre + fichiers de `AppConfigLocation`) ; la stable n'est que lue. Android
+  ne le permet pas : la Dev Android s'appaire à nouveau.
+- Le réglage « inclure les pre-releases / builds CI » a disparu des deux clients : l'appli Dev le
+  remplace, et un APK d'un autre applicationId serait de toute façon refusé à l'installation.
+- **Release Dev** : `lavVersionName = "X.Y.Z-dev.N"` + `versionCode` +1 sur `dev`, pointeur `desktop/`
+  sur la branche `dev` de LavArtemis-Qt, tag `vX.Y.Z-dev.N`. `publish` tolère un `build-linux` sauté
+  **seulement** pour une Dev ; tout échec bloque toujours.
 
 ## ⚡ Hot path streaming — valeur ajoutée LavArtemis
 
@@ -616,7 +658,7 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
 ## 🤖 CI/CD & release
 
 - **`.github/workflows/release.yml`** : trigger sur **tag `v*`** (release) ou `workflow_dispatch` (prerelease `v<version>-ci.<run>`). **Une seule release contient Android + Windows + Linux.**
-  - Job `version` : lit `versionName` dans `app/build.gradle`. Sur tag push, **échoue si le tag ≠ versionName** → `versionName` reste la source de vérité unique ; `desktop/app/version.txt` est écrit depuis le tag au build (jamais committé).
+  - Job `version` : lit `lavVersionName` dans `app/build.gradle`. Sur tag push, **échoue si le tag ≠ versionName** → `versionName` reste la source de vérité unique ; `desktop/app/version.txt` est écrit depuis le tag au build (sa valeur committée est périmée et ignorée). Une version `-dev.` publie une **prerelease** Dev sans le job Linux (voir « Stable / Dev »).
   - Job `build-android` : Ubuntu, JDK 17, NDK `27.0.12077973`, `assembleNonRoot_gameRelease`. N'initialise **que** le sous-module natif (pas `desktop/`).
   - Job `build-windows` : `windows-2025`, Qt 6.11, build x64 **et** arm64 dans le même job (l'installeur combiné a besoin des deux MSI), depuis le commit `desktop/` épinglé ici.
   - Job `build-linux` : `ubuntu-22.04`, AppImage x86_64. **Le plus long de loin** — aucun paquet prébuildé n'existe pour ce dont le client a besoin, donc SDL3, sdl2-compat, SDL_ttf, libva, libplacebo, dav1d et FFmpeg sont compilés depuis les sources avant même de configurer l'app. Les deps sont clonées sous `desktop/deps/` pour que les chemins relatifs des patchs du sous-module continuent de résoudre. Empaquetage par `desktop/scripts/build-appimage.sh` + linuxdeploy.

@@ -28,9 +28,10 @@ import okhttp3.ResponseBody;
 /**
  * Checks GitHub releases of Lavagnou/LavArtemis for a newer version.
  *
- * Stable channel queries /releases/latest (always a stable release, CI builds are
- * published as prereleases). The prerelease channel queries /releases and takes the
- * first entry, which is the most recent release or prerelease.
+ * The channel is the app's own: the stable app queries /releases/latest, which GitHub never
+ * points at a prerelease, and LavArtemis Dev ({@link BuildConfig#LAV_DEV}) queries /releases and
+ * takes the newest release whose tag carries "-dev.". Dev releases are published as prereleases
+ * with a different applicationId, so neither app is ever offered the other's APK.
  */
 public class UpdateChecker {
     private static final String RELEASES_LATEST_URL =
@@ -39,7 +40,6 @@ public class UpdateChecker {
             "https://api.github.com/repos/Lavagnou/LavArtemis/releases";
 
     public static final String PREF_AUTO_UPDATE = "checkbox_auto_update";
-    public static final String PREF_UPDATE_PRERELEASE = "checkbox_update_prerelease";
 
     // Bookkeeping for the automatic check (not user-visible settings)
     private static final String PREF_LAST_AUTO_CHECK_MS = "update_last_auto_check_ms";
@@ -130,16 +130,39 @@ public class UpdateChecker {
     }
 
     public static void check(Context context, Callback callback) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean includePrerelease = prefs.getBoolean(PREF_UPDATE_PRERELEASE, false);
-        check(includePrerelease, callback);
+        check(BuildConfig.LAV_DEV, callback);
     }
 
-    public static void check(boolean includePrerelease, Callback callback) {
+    /** Whether a version string belongs to the Dev channel ("21.8.0-dev.3"). */
+    public static boolean isDevVersion(String version) {
+        return version != null && version.contains("-dev.");
+    }
+
+    /**
+     * Picks the newest Dev release from a /releases listing (newest first): the first entry
+     * whose tag carries "-dev.", skipping drafts. Stable and "-ci." builds are never offered to
+     * the Dev app. Returns -1 if there is none.
+     */
+    public static int pickDevRelease(JsonArray releases) {
+        for (int i = 0; i < releases.size(); i++) {
+            JsonObject release = releases.get(i).getAsJsonObject();
+            JsonElement draft = release.get("draft");
+            if (draft != null && !draft.isJsonNull() && draft.getAsBoolean()) {
+                continue;
+            }
+            JsonElement tag = release.get("tag_name");
+            if (tag != null && !tag.isJsonNull() && isDevVersion(tag.getAsString())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static void check(boolean devChannel, Callback callback) {
         Handler mainHandler = new Handler(Looper.getMainLooper());
         Thread thread = new Thread(() -> {
             try {
-                UpdateInfo info = performCheck(includePrerelease);
+                UpdateInfo info = performCheck(devChannel);
                 if (info != null) {
                     mainHandler.post(() -> callback.onUpdateAvailable(info));
                 } else {
@@ -154,13 +177,13 @@ public class UpdateChecker {
         thread.start();
     }
 
-    private static UpdateInfo performCheck(boolean includePrerelease) throws IOException {
+    private static UpdateInfo performCheck(boolean devChannel) throws IOException {
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .build();
 
-        String url = includePrerelease ? RELEASES_URL : RELEASES_LATEST_URL;
+        String url = devChannel ? RELEASES_URL : RELEASES_LATEST_URL;
         Request request = new Request.Builder()
                 .url(url)
                 .header("Accept", "application/vnd.github+json")
@@ -180,13 +203,14 @@ public class UpdateChecker {
         }
 
         JsonObject release;
-        if (includePrerelease) {
+        if (devChannel) {
+            // The API returns releases ordered by creation date, most recent first
             JsonArray releases = JsonParser.parseString(body).getAsJsonArray();
-            if (releases.size() == 0) {
+            int picked = pickDevRelease(releases);
+            if (picked < 0) {
                 return null;
             }
-            // The API returns releases ordered by creation date, most recent first
-            release = releases.get(0).getAsJsonObject();
+            release = releases.get(picked).getAsJsonObject();
         } else {
             release = JsonParser.parseString(body).getAsJsonObject();
         }
