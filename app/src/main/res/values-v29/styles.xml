@@ -8,4 +8,15 @@
 
     <style name="SettingsTheme" parent="AppTheme">
     </style>
+
+    <!-- Interface v2: same as values/, and never darkened by the system (it has its own light/dark) -->
+    <style name="Theme.LavV2" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/v2_launch_background</item>
+        <item name="android:colorBackground">@color/v2_launch_background</item>
+        <item name="android:statusBarColor">@color/v2_launch_background</item>
+        <item name="android:navigationBarColor">@color/v2_launch_background</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
 </resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Braise dark background: the window colour of the v2 screens before they paint themselves -->
+    <color name="v2_launch_background">#0E0D0C</color>
+</resources>

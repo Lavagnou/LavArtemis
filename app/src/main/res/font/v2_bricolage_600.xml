@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated: one weight of a variable OFL font (licence in assets/licenses/fonts). -->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedAttribute">
+    <font
+        android:font="@font/v2_bricolage"
+        android:fontStyle="normal"
+        android:fontWeight="600"
+        android:fontVariationSettings="'wght' 600, 'opsz' 18"
+        app:font="@font/v2_bricolage"
+        app:fontStyle="normal"
+        app:fontWeight="600"
+        app:fontVariationSettings="'wght' 600, 'opsz' 18" />
+</font-family>

@@ -63,7 +63,7 @@ public class StartupTest {
     @Test
     public void testPcViewActivityCreation() {
         // Test PcView activity startup
-        PcView activity = Robolectric.buildActivity(PcView.class).create().get();
+        PcView activity = Robolectric.buildActivity(PcView.class, legacyPcViewIntent()).create().get();
         assertNotNull("PcView activity should be created", activity);
         assertFalse("Activity should not be finishing", activity.isFinishing());
     }
@@ -115,7 +115,7 @@ public class StartupTest {
         // This test verifies the app doesn't crash when checking permissions
 
         try {
-            PcView activity = Robolectric.buildActivity(PcView.class).create().get();
+            PcView activity = Robolectric.buildActivity(PcView.class, legacyPcViewIntent()).create().get();
             assertNotNull("Activity should handle permission checks", activity);
 
             // Test permission checking doesn't crash
@@ -172,7 +172,7 @@ public class StartupTest {
 
         // This test verifies the app doesn't crash under memory pressure
         try {
-            PcView activity = Robolectric.buildActivity(PcView.class).create().get();
+            PcView activity = Robolectric.buildActivity(PcView.class, legacyPcViewIntent()).create().get();
             assertNotNull("Activity should handle low memory conditions", activity);
 
             // Simulate memory pressure
@@ -188,7 +188,7 @@ public class StartupTest {
     @Test
     public void testConfigurationChanges() {
         // Test startup with configuration changes
-        PcView activity = Robolectric.buildActivity(PcView.class).create().start().resume().get();
+        PcView activity = Robolectric.buildActivity(PcView.class, legacyPcViewIntent()).create().start().resume().get();
 
         try {
             // Simulate configuration change
@@ -206,7 +206,7 @@ public class StartupTest {
     public void testServiceBindingFailure() {
         // Test startup when service binding fails
         try {
-            PcView activity = Robolectric.buildActivity(PcView.class).create().get();
+            PcView activity = Robolectric.buildActivity(PcView.class, legacyPcViewIntent()).create().get();
 
             // Force service disconnection
             activity.onDestroy();
@@ -228,5 +228,10 @@ public class StartupTest {
             }
         }
         f.delete();
+    }
+
+    /** LavArtemis Dev opens the v2 home instead of PcView; these tests are about the legacy list */
+    private static Intent legacyPcViewIntent() {
+        return new Intent().putExtra(PcView.EXTRA_LEGACY_UI, true);
     }
 }

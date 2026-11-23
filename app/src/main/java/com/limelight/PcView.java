@@ -74,6 +74,9 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 public class PcView extends AppCompatActivity implements AdapterFragmentCallbacks {
+    /** LavArtemis Dev: open this legacy list anyway (from the v2 « Mes PC » placeholder) */
+    public static final String EXTRA_LEGACY_UI = "v2LegacyUi";
+
     private RelativeLayout noPcFoundLayout;
     private PcGridAdapter pcGridAdapter;
     private ShortcutHelper shortcutHelper;
@@ -213,6 +216,19 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // LavArtemis Dev opens the v2 interface. Kept here: a pairing link (art:// pair, which
+        // carries hostname + pin + passphrase) and an explicit request for the legacy list, until
+        // the v2 « Mes PC » page pairs by itself.
+        Intent startIntent = getIntent();
+        if (BuildConfig.LAV_DEV
+                && !startIntent.getBooleanExtra(EXTRA_LEGACY_UI, false)
+                && startIntent.getStringExtra("pin") == null) {
+            Intent home = new Intent(this, com.limelight.v2.HomeActivity.class);
+            startActivity(home);
+            finish();
+            return;
+        }
 
         // Assume we're in the foreground when created to avoid a race
         // between binding to CMS and onResume()

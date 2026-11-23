@@ -130,6 +130,31 @@
                 <data android:pathPattern=".*\.art" />
             </intent-filter>
         </activity>
+        <!-- Interface v2 (LavArtemis Dev only: PcView redirects to the home when BuildConfig.LAV_DEV) -->
+        <activity
+            android:name=".v2.HomeActivity"
+            android:theme="@style/Theme.LavV2"
+            android:resizeableActivity="true"
+            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
+            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
+            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
+        </activity>
+        <activity
+            android:name=".v2.LibraryActivity"
+            android:theme="@style/Theme.LavV2"
+            android:resizeableActivity="true"
+            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
+            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
+            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
+        </activity>
+        <activity
+            android:name=".v2.HostsActivity"
+            android:theme="@style/Theme.LavV2"
+            android:resizeableActivity="true"
+            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
+            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
+            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
+        </activity>
         <activity
             android:name=".AppView"
             android:resizeableActivity="true"

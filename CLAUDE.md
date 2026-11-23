@@ -175,7 +175,56 @@ Spec `docs/superpowers/specs/2026-11-23-ui-redesign-design.md`, prototype valid�
 `docs/ui-redesign/prototype/`, copie locale hors git car elle contient des noms de machines (`lavartemis-prototype.html#braise-pc`, `#affiche`, `#ludique-pc`…,
 images absentes hors claude.ai). **Desktop terminé** (21.8.0-dev.7) : accueil, thèmes, Mes PC, Réglages v2
 avec **mode expert**, menu en jeu, raccourcis ; l'ancienne interface Qt est supprimée et tout est en
-français (`desktop/app/gui/v2/`, voir `desktop/CLAUDE.md`). Android : en cours.
+français (`desktop/app/gui/v2/`, voir `desktop/CLAUDE.md`). Android : phase 1 livrée (accueil +
+bibliothèque, ci-dessous).
+
+### 📱 Interface v2 Android (Dev, phase 1)
+
+Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-codemap.md`). Paquet
+`com.limelight.v2`, vues **construites en code** (pas de XML de layout, pas de Compose/Kotlin).
+`PcView.onCreate()` redirige vers `v2.HomeActivity` quand `BuildConfig.LAV_DEV`, **avant**
+`setContentView` ; la stable garde l'ancienne interface, intacte.
+
+- `V2Theme` : jetons **copiés de `desktop/app/gui/v2/Theme.qml`** (couleurs, rayons, bordures, poids,
+  `dim()`) — les changer des deux côtés. Prefs par défaut `v2_theme` / `v2_theme_mode` (0 Système, qui
+  suit le mode nuit à chaud via `onConfigurationChanged`, 1 Clair, 2 Sombre). Polices OFL variables dans
+  `res/font/v2_*.ttf` ; **un XML `res/font/v2_<famille>_<poids>.xml` par graisse** fixe l'axe `wght`
+  (`fontVariationSettings`, API 26+ ; en dessous : instance par défaut + faux gras). Licences dans
+  `assets/licenses/fonts/`. Icônes `drawable/v2_ic_*` générées depuis les chemins de `LavIcon.qml`.
+- `HomeModel` (Java pur, testé) porte les règles du desktop : `kindOf` (= `AppModel::kindOf`), cartes
+  Bureau puis Playnite Fullscreen, Récents = jeux Playnite **dans l'ordre de l'hôte** (le plus récent
+  d'abord), 10 au plus, jamais les masqués ; `decide()` : START / RESUME / INSIDE_PLAYNITE / ASK_QUIT.
+  Les autres applis de l'hôte ne sont pas montrées. Les cartes ignorent « Masquer » (le menu ne le propose
+  que pour les jeux) : la bibliothèque est le seul endroit où l'on réaffiche les jeux masqués.
+- `HomeScreen` / `LibraryScreen` se construisent depuis des **données simples** (`HomeScreen.State`,
+  `CoverSource`) : aucune dépendance au service. Les activités (`V2HostActivity` : binding
+  `ComputerManagerService`, poller d'applis du PC affiché, lancer/quitter/relancer, jeux masqués
+  `HiddenApps` partagés avec `AppView`) les nourrissent ; `HomeScreenshotTest` aussi.
+- **Captures** : `HomeScreenshotTest` (`@GraphicsMode(NATIVE)`) écrit des PNG dans `app/build/v2-shots/`
+  (ou `$V2_SHOTS_DIR`) aux densités validées (915×412 et 960×540 dp, + portrait). Les relire avant toute
+  livraison qui touche la v2.
+
+> ⚠️ **Le PcView sauté faisait deux choses au démarrage** que `HomeActivity` refait : la sonde du
+> renderer GL (`GlPreferences`, lue par le réglage fin des décodeurs) et le check de mise à jour. Et
+> PcView reste ouvert pour un lien d'appairage (`pin` en extra) et sur `PcView.EXTRA_LEGACY_UI` (bouton
+> du « Mes PC » provisoire) : c'est encore lui qui ajoute, appaire et oublie les PC jusqu'à la phase 2.
+
+> ⚠️ **Halo et anneau de focus sont dessinés hors des vues** (`V2Frame`) : tout parent doit avoir
+> `Ui.noClip()` (clipChildren/clipToPadding faux), sinon ils sont coupés. L'assombrissement passe par
+> un `saveLayer` avec `ColorMatrix` (gris puis luminosité **multipliée**, puis opacité), le halo par une
+> image floutée rendue en logiciel (BlurMaskFilter n'est pas fiable en accéléré).
+
+> ⚠️ **Textes : `setMaxLines(1)`, jamais `setSingleLine(true)`** (Ui.text/display). singleLine active le
+> défilement horizontal : un texte centré (« A », « LB ») est posé au milieu d'une ligne immense, donc
+> invisible ; et `setSingleLine(false)` efface le `setAllCaps` d'Affiche.
+
+> 📋 Entrée (`V2Input`) : tactile / manette / clavier selon le dernier événement ; anneau de focus et
+> indications A/Y/LB-RB seulement à la manette ou au clavier, « … » seulement au tactile. A = clic
+> (Android n'en fait rien seul), B/Échap = retour, Y/Menu = options, LB/RB ou Q/E = PC suivant. Au
+> premier appui directionnel après le tactile, le focus va sur Reprendre (sinon la première carte), pas sur
+> l'en-tête. Densité (`Density`) : compacte sous 480 dp de petit côté ; cartes empilées sous 600 dp de
+> large ; en portrait les Récents passent en grille. Phase 2 : Mes PC, Réglages v2 (et choix du thème,
+> aujourd'hui par appui long / Y sur le bouton clair-sombre), menu en jeu.
 
 ## 🖼️ Icônes (LavArtemis + LavApollo)
 
