@@ -178,7 +178,7 @@ avec **mode expert**, menu en jeu, raccourcis ; l'ancienne interface Qt est supp
 français (`desktop/app/gui/v2/`, voir `desktop/CLAUDE.md`). Android : phase 1 livrée (accueil +
 bibliothèque, ci-dessous).
 
-### 📱 Interface v2 Android (Dev, phases 1 et 2a)
+### 📱 Interface v2 Android (Dev, phases 1, 2a et 2b)
 
 Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-codemap.md`). Paquet
 `com.limelight.v2`, vues **construites en code** (pas de XML de layout, pas de Compose/Kotlin).
@@ -226,6 +226,45 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   mais bas) ; le message « Aucune commande de serveur » aussi. La stable garde l'`AlertDialog`. Libellés
   depuis `strings.xml` + `values-fr` (traduction de `game_menu_toggle_floating_button` ajoutée,
   « Envoyer le presse-papiers » au lieu de « Télécharger »).
+- **Réglages v2** (phase 2b, = `desktop/app/gui/v2/SettingsView2.qml`) : `v2.SettingsActivity` + `SettingsScreen`
+  (liste des pages à gauche, « Mode expert » en tête, lignes à droite ; < 640 dp de large : la liste, puis une
+  page seule, Retour revient à la liste). L'accueil y mène en Dev ; `StreamSettings` reste celui de la stable.
+  **La table des lignes est `v2/settings/SettingsCatalog.java`** : clé de `preferences.xml`, type (interrupteur,
+  choix, curseur, action), page, expert, `when()` (l'appareil la propose : mêmes règles que
+  `StreamSettings.initializePreferences`, relues par `SettingsEnv.detect`), `dependsOn()` (grisée, comme
+  `android:dependency`). Une page sans ligne visible disparaît. Pages : Profil, Affichage, Vidéo, Audio,
+  Entrées, Manettes, Contrôles à l'écran, Apparence, Avancé.
+  - **Classement** : le tri de l'utilisateur (Normal / Expert / Supprimer) pour tout ce qu'il couvre ; pour
+    les réglages Android seuls, ce qu'on change couramment est Normal (mode tactile, zoom au pincement, suivre
+    la rotation, manette à l'écran, bouton vocal, vibrations…), le réglage fin et le diagnostic Expert. PyroWave
+    n'est proposé dans le codec qu'en mode expert. `SettingsCatalogTest` vérifie que chaque clé existe dans
+    `preferences.xml`, que **chaque préférence a une ligne ou une raison** (`REMOVED`, `NOT_SHOWN`), et que
+    chaque défaut est celui de `preferences.xml` **et** de `PreferenceConfiguration` (et que la clé y est lue).
+  - **Supprimés** (`SettingsCatalog.REMOVED`) : HDR, mise à l'échelle de la résolution, souris à la manette
+    (Start maintenu). `PreferenceConfiguration.forceRemovedSettings()` les fige **en Dev seulement**
+    (`BuildConfig.LAV_DEV`, comme `StreamingPreferences::reload` côté desktop). `NOT_SHOWN` : clés que rien
+    ne lit (`checkbox_forceTightThresholds`, `checkbox_enable_joyconfix` — le code lit `checkbox_joycon_fix`),
+    options de l'ancienne grille d'applis (petites icônes, reprise rapide), saisies passées par les listes.
+  - **Écritures** : `SettingsStore` lit par `getOverlayingSharedPreferences` et écrit par
+    `ProfileAwarePreferences.putBoolean/putString/putInt/putFloat/remove` (dans le profil actif s'il porte la
+    clé, sinon les prefs de base). **Lignes `global()`** (base, jamais dans un profil) : thème et clair/sombre,
+    et deux clés que leur lecteur prend dans les prefs de base (`checkbox_auto_update` par `UpdateChecker`,
+    `keyboard_axi_list` par le chargeur des touches) — sinon l'écriture partirait dans le profil et ne serait
+    jamais lue. Un nouveau profil est un **instantané complet** (toutes les lignes, défauts compris), langue et
+    apparence exclues.
+  - **Effets de bord repris** de `StreamSettings` : nouvelle résolution / fréquence → débit remis au défaut ;
+    entrée native → avertissement ; « Personnalisée… » / « Autre… » (`edit_diy_w_h`, `custom_refresh_rate`,
+    fréquence formatée en `Locale.US`, pas dans la langue de l'appareil) ; résolution ou fréquence que l'écran
+    ne prend plus → réécrite à l'ouverture ; PyroWave absent → codec Auto ; micro → permission, refus = décoché ;
+    couper l'enregistrement des perfs efface l'historique ; « Débloquer les FPS » relit la liste ; langue →
+    redémarrage en quittant. Imports / exports / partage des logs / recherche de mise à jour :
+    `preferences/SettingsFileActions`, partagé avec `StreamSettings`.
+  - Clavier / manette : la ligne a le focus ; A / Entrée bascule ou ouvre la liste, Gauche / Droite font
+    défiler un choix ou un curseur, Gauche en bout de course revient à la liste des pages ; B : lignes → pages →
+    accueil. Le curseur du débit est **courbé** (`curve(3)` : 20 Mbit/s au premier tiers, 800 au bout) et ses
+    pas grandissent avec la valeur. Toute écriture est immédiate, pas de bouton « Enregistrer ».
+  - Captures : `SettingsScreenshotTest` (préfixe `settings-`, dont `settings-full-<page>` : chaque page entière
+    en mode expert) vérifie aussi qu'aucun texte anglais n'est à l'écran.
 
 > ⚠️ **Le PcView sauté faisait deux choses au démarrage** que `HomeActivity` refait : la sonde du
 > renderer GL (`GlPreferences`, lue par le réglage fin des décodeurs) et le check de mise à jour. PcView

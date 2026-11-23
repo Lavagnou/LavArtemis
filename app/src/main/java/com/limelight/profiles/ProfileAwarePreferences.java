@@ -18,17 +18,68 @@ public final class ProfileAwarePreferences {
     private ProfileAwarePreferences() {}
 
     public static void putBoolean(Context context, String key, boolean value) {
-        ProfilesManager profiles = ProfilesManager.getInstance();
-        SettingsProfile active = profiles.getActive();
-        if (active != null && active.getOptions() != null && active.getOptions().containsKey(key)) {
+        if (!putInProfile(key, value)) {
+            PreferenceManager.getDefaultSharedPreferences(context).edit().putBoolean(key, value).apply();
+        }
+    }
+
+    public static void putString(Context context, String key, String value) {
+        if (!putInProfile(key, value)) {
+            PreferenceManager.getDefaultSharedPreferences(context).edit().putString(key, value).apply();
+        }
+    }
+
+    public static void putInt(Context context, String key, int value) {
+        if (!putInProfile(key, value)) {
+            PreferenceManager.getDefaultSharedPreferences(context).edit().putInt(key, value).apply();
+        }
+    }
+
+    public static void putFloat(Context context, String key, float value) {
+        if (!putInProfile(key, value)) {
+            PreferenceManager.getDefaultSharedPreferences(context).edit().putFloat(key, value).apply();
+        }
+    }
+
+    /**
+     * Removes the key from the active profile when it holds it (the base value shows through
+     * again), otherwise from the base preferences.
+     */
+    public static void remove(Context context, String key) {
+        SettingsProfile active = activeHolding(key);
+        if (active != null) {
             Map<String, Object> options = new LinkedHashMap<>(active.getOptions());
-            options.put(key, value);
-            active.setOptions(options);
-            active.setModifiedUtc(System.currentTimeMillis());
-            // update() writes the profiles file itself (saveIfPossible)
-            profiles.update(active);
+            options.remove(key);
+            save(active, options);
             return;
         }
-        PreferenceManager.getDefaultSharedPreferences(context).edit().putBoolean(key, value).apply();
+        PreferenceManager.getDefaultSharedPreferences(context).edit().remove(key).apply();
+    }
+
+    /** The active profile when it carries this key, null otherwise */
+    private static SettingsProfile activeHolding(String key) {
+        SettingsProfile active = ProfilesManager.getInstance().getActive();
+        if (active != null && active.getOptions() != null && active.getOptions().containsKey(key)) {
+            return active;
+        }
+        return null;
+    }
+
+    private static boolean putInProfile(String key, Object value) {
+        SettingsProfile active = activeHolding(key);
+        if (active == null) {
+            return false;
+        }
+        Map<String, Object> options = new LinkedHashMap<>(active.getOptions());
+        options.put(key, value);
+        save(active, options);
+        return true;
+    }
+
+    private static void save(SettingsProfile profile, Map<String, Object> options) {
+        profile.setOptions(options);
+        profile.setModifiedUtc(System.currentTimeMillis());
+        // update() writes the profiles file itself (saveIfPossible)
+        ProfilesManager.getInstance().update(profile);
     }
 }

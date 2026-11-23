@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.view.Display;
 
+import com.limelight.BuildConfig;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.profiles.ProfilesManager;
 
@@ -1092,6 +1093,29 @@ private static int getFramePacingValue(Context context) {
         config.convergence_ratio = prefs.getInt(CONVERGENCE_RATIO, 50) / 100f;
         config.balance_shift = prefs.getInt(BALANCE_SHIFT, 50) / 100f;
 
+        if (BuildConfig.LAV_DEV) {
+            forceRemovedSettings(config);
+        }
+
         return config;
+    }
+
+    /**
+     * Settings the user's triage of 2026-11-23 removed (Réglages v2, LavArtemis Dev): the v2
+     * settings screen no longer shows them, so a value saved earlier (or by the legacy screen of
+     * the stable app) must not stick. Same list as LavArtemis-Qt StreamingPreferences::reload(),
+     * limited to the settings Android has:
+     * <ul>
+     * <li>HDR ({@code checkbox_enable_hdr}): off;</li>
+     * <li>resolution scaling ({@code seekbar_resolution_scale_factor}): 100 %;</li>
+     * <li>gamepad mouse by holding Start ({@code checkbox_mouse_emulation}): off, the feature the
+     * user wants gone (the desktop dropped it the same way). The in-game menu's mouse toggle
+     * stays.</li>
+     * </ul>
+     */
+    public static void forceRemovedSettings(PreferenceConfiguration config) {
+        config.enableHdr = false;
+        config.resolutionScaleFactor = DEFAULT_RESOLUTION_SCALE_FACTOR;
+        config.mouseEmulation = false;
     }
 }

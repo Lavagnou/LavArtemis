@@ -49,8 +49,8 @@ Chemins relatifs à `app/src/main/java/com/limelight/` sauf mention. Relevé du 
 - `preferences/StreamSettings` (PreferenceFragmentCompat, `R.xml.preferences`, 149 clés), clés dans `preferences/PreferenceConfiguration`
   (lecture `readPreferences(Context)`).
 - Profils : `ProfilesManager.getInstance().getOverlayingSharedPreferences(ctx)` lit le profil actif puis les prefs de base ;
-  écriture compatible profils : `profiles/ProfileAwarePreferences.putBoolean(Context, key, bool)` (seul type existant : en ajouter
-  pour String/int sur le même modèle — si le profil actif porte la clé, `SettingsProfile.setOptions` + `ProfilesManager.update`).
+  écriture compatible profils : `profiles/ProfileAwarePreferences.putBoolean/putString/putInt/putFloat/remove` (ajoutés en phase 2b
+  sur le modèle de putBoolean — si le profil actif porte la clé, `SettingsProfile.setOptions` + `ProfilesManager.update`).
 
 ## Menu en jeu
 - `GameMenu implements Game.GameMenuCallbacks` ; `showMenuDialog(String, MenuOption[])` (:108) = `AlertDialog` + `ArrayAdapter`.

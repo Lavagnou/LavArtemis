@@ -769,10 +769,7 @@ public class StreamSettings extends AppCompatActivity {
                 _pref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
                     @Override
                     public boolean onPreferenceClick(Preference preference) {
-                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                        intent.addCategory(Intent.CATEGORY_OPENABLE);
-                        intent.setType("application/json");
-                        startActivityForResult(intent, READ_REQUEST_CODE);
+                        startActivityForResult(SettingsFileActions.openJsonIntent(), READ_REQUEST_CODE);
                         return false;
                     }
                 });
@@ -783,10 +780,7 @@ public class StreamSettings extends AppCompatActivity {
                 _pref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
                     @Override
                     public boolean onPreferenceClick(Preference preference) {
-                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                        intent.addCategory(Intent.CATEGORY_OPENABLE);
-                        intent.setType("application/json");
-                        startActivityForResult(intent, READ_REQUEST_SPECIAL_CODE);
+                        startActivityForResult(SettingsFileActions.openJsonIntent(), READ_REQUEST_SPECIAL_CODE);
                         return false;
                     }
                 });
@@ -797,47 +791,7 @@ public class StreamSettings extends AppCompatActivity {
                 _pref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
                     @Override
                     public boolean onPreferenceClick(Preference preference) {
-                        Context context = preference.getContext();
-                        PerformanceDataTracker tracker = new PerformanceDataTracker();
-                        String logs = tracker.getLog(context);
-
-                        if (logs == null || logs.trim().isEmpty()) {
-                            Toast.makeText(context, context.getString(R.string.toast_no_logs), Toast.LENGTH_SHORT).show();
-                            return false;
-                        }
-
-                        String prefixMessage = context.getString(R.string.email_prefix_message);
-                        String emailSubject = context.getString(R.string.email_subject);
-                        String chooserTitle = context.getString(R.string.email_chooser_title);
-                        String noEmailClientsMsg = context.getString(R.string.toast_no_email_clients);
-
-                        try {
-                            File cacheDir = context.getCacheDir();
-                            File logFile = new File(cacheDir, "lavartemis_performance_log.txt");
-                            try (FileOutputStream fos = new FileOutputStream(logFile)) {
-                                fos.write(logs.getBytes(StandardCharsets.UTF_8));
-                            }
-
-                            Uri logFileUri = FileProvider.getUriForFile(context,
-                                    context.getPackageName() + ".fileprovider",
-                                    logFile);
-
-                            Intent emailIntent = new Intent(Intent.ACTION_SEND);
-                            emailIntent.setType("text/plain");
-                            // No preset recipient: the user decides who gets their log. It used to be
-                            // addressed to the upstream maintainer's collection mailbox.
-                            emailIntent.putExtra(Intent.EXTRA_SUBJECT, emailSubject);
-                            emailIntent.putExtra(Intent.EXTRA_TEXT, prefixMessage);
-                            emailIntent.putExtra(Intent.EXTRA_STREAM, logFileUri);
-
-                            emailIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                            context.startActivity(Intent.createChooser(emailIntent, chooserTitle));
-                        } catch (IOException e) {
-                            Log.d("PerformanceDataTracker", "Error creating log file");
-                        } catch (android.content.ActivityNotFoundException ex) {
-                            Toast.makeText(context, noEmailClientsMsg, Toast.LENGTH_SHORT).show();
-                        }
+                        SettingsFileActions.sharePerformanceLogs(preference.getContext());
                         return false;
                     }
                 });
@@ -848,23 +802,7 @@ public class StreamSettings extends AppCompatActivity {
                 _pref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
                     @Override
                     public boolean onPreferenceClick(Preference preference) {
-                        File file = new File(requireActivity().getExternalCacheDir(),"export_settings");
-                        if(!file.exists()){
-                            file.mkdir();
-                        }
-                        File file1= getJsonContent(requireActivity(),file);
-                        if(file1==null){
-                            Toast.makeText(requireActivity(),getString(R.string.pref_error_occurred),Toast.LENGTH_SHORT).show();
-                            return false;
-                        }
-                        Uri uri;
-                        Intent intent = new Intent(Intent.ACTION_SEND);
-                        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                        String authority= BuildConfig.APPLICATION_ID+".fileprovider";
-                        uri = FileProvider.getUriForFile(requireActivity(),authority,file1);
-                        intent.putExtra(Intent.EXTRA_STREAM, uri);
-                        intent.setType("application/json");
-                        startActivity(Intent.createChooser(intent,getString(R.string.pref_save_keyboard_profile)));
+                        SettingsFileActions.exportKeyboardLayout(requireActivity(), getPrefs());
                         return false;
                     }
                 });
@@ -994,29 +932,7 @@ public class StreamSettings extends AppCompatActivity {
         }
 
         private void checkForUpdates() {
-            final Activity activity = requireActivity();
-            Toast.makeText(activity, R.string.update_checking, Toast.LENGTH_SHORT).show();
-            UpdateChecker.check(activity, new UpdateChecker.Callback() {
-                @Override
-                public void onUpdateAvailable(UpdateChecker.UpdateInfo info) {
-                    UpdateDialogHelper.showUpdateDialog(activity, info);
-                }
-
-                @Override
-                public void onUpToDate() {
-                    if (!activity.isFinishing() && !activity.isDestroyed()) {
-                        Toast.makeText(activity, activity.getString(R.string.update_none,
-                                BuildConfig.VERSION_NAME), Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    if (!activity.isFinishing() && !activity.isDestroyed()) {
-                        Toast.makeText(activity, R.string.update_check_failed, Toast.LENGTH_LONG).show();
-                    }
-                }
-            });
+            SettingsFileActions.checkForUpdates(requireActivity());
         }
 
         private void removeEntryFromListAndSetValue(String resolutionPrefString, String entryToRemove, String nextDefault) {
@@ -1109,48 +1025,12 @@ public class StreamSettings extends AppCompatActivity {
         public void onActivityResult(int requestCode, int resultCode, Intent data) {
             super.onActivityResult(requestCode, resultCode, data);
             if (requestCode == READ_REQUEST_CODE && resultCode == Activity.RESULT_OK && data.getData() != null) {
-                try {
-                    Uri uri = data.getData();
-                    String json = FileUriUtils.openUriForRead(getActivity(), uri);
-                    if (TextUtils.isEmpty(json)) {
-                        Toast.makeText(getActivity(), getString(R.string.pref_empty_file), Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    String name = getPrefs().getString(KeyBoardControllerConfigurationLoader.OSC_PREFERENCE, KeyBoardControllerConfigurationLoader.OSC_PREFERENCE_VALUE);
-                    SharedPreferences.Editor prefEditor = requireActivity().getSharedPreferences(name, Activity.MODE_PRIVATE).edit();
-                    JSONObject object = new JSONObject(json);
-                    Iterator it = object.keys();
-                    prefEditor.clear();
-                    while (it.hasNext()) {
-                        String key = (String) it.next();// 获得key
-                        String value = object.getString(key);// 获得value
-                        prefEditor.putString(key, value);
-                    }
-                    prefEditor.apply();
-                    Toast.makeText(getActivity(), getString(R.string.pref_import_success), Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Toast.makeText(getActivity(), getString(R.string.pref_error_occurred) + e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
+                SettingsFileActions.importKeyboardLayout(requireActivity(), data.getData(), getPrefs());
                 return;
             }
 
             if (requestCode == READ_REQUEST_SPECIAL_CODE && resultCode == Activity.RESULT_OK && data.getData() != null) {
-                try {
-                    Uri uri = data.getData();
-                    String json = FileUriUtils.openUriForRead(getActivity(), uri);
-                    if (TextUtils.isEmpty(json)) {
-                        Toast.makeText(getActivity(), getString(R.string.pref_empty_file), Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    SharedPreferences.Editor prefEditor = getActivity().getSharedPreferences(GameMenu.PREF_NAME, Activity.MODE_PRIVATE).edit();
-                    prefEditor.putString(GameMenu.KEY_NAME, json);
-                    prefEditor.apply();
-                    Toast.makeText(getActivity(), getString(R.string.pref_import_success), Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Toast.makeText(getActivity(), getString(R.string.pref_error_occurred) + e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
+                SettingsFileActions.importSpecialButtons(requireActivity(), data.getData());
             }
         }
 
@@ -1165,18 +1045,6 @@ public class StreamSettings extends AppCompatActivity {
                 dialogFragment.setTargetFragment(this, 0);
                 dialogFragment.show(getFragmentManager(), null);
             } else super.onDisplayPreferenceDialog(preference);
-        }
-
-        private File getJsonContent(Context context,File file){
-            String name = getPrefs().getString(KeyBoardControllerConfigurationLoader.OSC_PREFERENCE, KeyBoardControllerConfigurationLoader.OSC_PREFERENCE_VALUE);
-            SharedPreferences pref = context.getSharedPreferences(name, Activity.MODE_PRIVATE);
-            Map<String,?> map = pref.getAll();
-            File file1= new File(file,name+".json");
-            String jsonStr=new Gson().toJson(map);
-            if(!FileUriUtils.writerFileString(file1,jsonStr)){
-                return null;
-            }
-            return file1;
         }
 
         //获取所有设置项配置文件

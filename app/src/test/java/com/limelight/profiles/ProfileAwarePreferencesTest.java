@@ -98,6 +98,45 @@ public class ProfileAwarePreferencesTest {
         assertEquals(Boolean.TRUE, fresh.getActive().getOptions().get(KEY));
     }
 
+    @Test
+    public void stringIntFloatFollowTheSameRule() {
+        Map<String, Object> options = new LinkedHashMap<>();
+        options.put("list_resolution", "1280x720");
+        options.put("seekbar_bitrate_kbps", 20000.0); // as Gson reads it back
+        activate(options);
+
+        ProfileAwarePreferences.putString(context, "list_resolution", "1920x1080");
+        ProfileAwarePreferences.putInt(context, "seekbar_bitrate_kbps", 40000);
+        ProfileAwarePreferences.putString(context, "list_fps", "120");
+        ProfileAwarePreferences.putFloat(context, "number_zoom_scale", 2.5f);
+
+        Map<String, Object> held = manager.getActive().getOptions();
+        assertEquals("1920x1080", held.get("list_resolution"));
+        assertEquals(40000, held.get("seekbar_bitrate_kbps"));
+        assertFalse(held.containsKey("list_fps"));
+        assertFalse(held.containsKey("number_zoom_scale"));
+        assertEquals("120", PreferenceManager.getDefaultSharedPreferences(context).getString("list_fps", null));
+        assertEquals(2.5f, PreferenceManager.getDefaultSharedPreferences(context).getFloat("number_zoom_scale", 0f), 0f);
+        assertEquals(40000, manager.getOverlayingSharedPreferences(context).getInt("seekbar_bitrate_kbps", 0));
+        assertFalse(PreferenceManager.getDefaultSharedPreferences(context).contains("list_resolution"));
+    }
+
+    @Test
+    public void removeTakesTheKeyOutOfWhereItIs() {
+        PreferenceManager.getDefaultSharedPreferences(context).edit().putString("list_fps", "90").putString("list_resolution", "2560x1440").commit();
+        Map<String, Object> options = new LinkedHashMap<>();
+        options.put("list_resolution", "1280x720");
+        activate(options);
+
+        ProfileAwarePreferences.remove(context, "list_resolution");
+        assertFalse(manager.getActive().getOptions().containsKey("list_resolution"));
+        // The base value shows through again, untouched
+        assertEquals("2560x1440", manager.getOverlayingSharedPreferences(context).getString("list_resolution", null));
+
+        ProfileAwarePreferences.remove(context, "list_fps");
+        assertFalse(PreferenceManager.getDefaultSharedPreferences(context).contains("list_fps"));
+    }
+
     private void activate(Map<String, Object> options) {
         long now = System.currentTimeMillis();
         SettingsProfile p = new SettingsProfile(UUID.randomUUID(), "Active", now, now, options);

@@ -13,7 +13,6 @@ import com.limelight.R;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.preferences.GlPreferences;
-import com.limelight.preferences.StreamSettings;
 import com.limelight.utils.UiHelper;
 import com.limelight.utils.UpdateChecker;
 import com.limelight.utils.UpdateDialogHelper;
@@ -94,7 +93,7 @@ public class HomeActivity extends V2HostActivity {
 
             @Override
             public void openSettings() {
-                startActivity(new Intent(HomeActivity.this, StreamSettings.class));
+                startActivity(new Intent(HomeActivity.this, SettingsActivity.class));
             }
 
             @Override
@@ -216,7 +215,7 @@ public class HomeActivity extends V2HostActivity {
         finish();
     }
 
-    /** Until Réglages v2 (phase 2) has its theme page: Braise, Affiche or Ludique from the home */
+    /** Braise, Affiche or Ludique straight from the home (long press on light / dark); Réglages › Apparence has them too */
     private void showThemePicker() {
         String[] ids = {V2Theme.BRAISE, V2Theme.AFFICHE, V2Theme.LUDIQUE};
         String[] names = {getString(R.string.v2_theme_braise), getString(R.string.v2_theme_affiche), getString(R.string.v2_theme_ludique)};

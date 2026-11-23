@@ -48,6 +48,15 @@ public final class V2ListDialog {
      */
     public static Dialog show(Context context, V2Theme theme, String title, List<String> labels, int cancelIndex,
                               Pick onPick, Runnable onCancel) {
+        return show(context, theme, title, labels, cancelIndex, -1, onPick, onCancel);
+    }
+
+    /**
+     * @param selectedIndex the current choice (Réglages): a check and the accent, and the focus
+     *                      starts there; -1 for none
+     */
+    public static Dialog show(Context context, V2Theme theme, String title, List<String> labels, int cancelIndex,
+                              int selectedIndex, Pick onPick, Runnable onCancel) {
         final Dialog dialog = new ThemedDialog(context);
         Configuration config = context.getResources().getConfiguration();
         int entries = labels.size() - (cancelIndex >= 0 ? 1 : 0);
@@ -82,6 +91,7 @@ public final class V2ListDialog {
 
         final boolean[] picked = {false};
         List<View> rows = new ArrayList<>();
+        View selectedRow = null;
         LinearLayout line = null;
         int shown = 0;
         for (int i = 0; i < labels.size(); i++) {
@@ -89,13 +99,16 @@ public final class V2ListDialog {
                 continue;
             }
             final int index = i;
-            View row = row(context, theme, labels.get(i), () -> {
+            View row = row(context, theme, labels.get(i), i == selectedIndex, () -> {
                 picked[0] = true;
                 dialog.dismiss();
                 if (onPick != null) {
                     onPick.onPick(index);
                 }
             });
+            if (i == selectedIndex) {
+                selectedRow = row;
+            }
             if (shown % cols == 0) {
                 line = new LinearLayout(context);
                 line.setOrientation(LinearLayout.HORIZONTAL);
@@ -165,7 +178,11 @@ public final class V2ListDialog {
         });
         dialog.show();
         if (!rows.isEmpty() && V2Input.showFocus(context)) {
-            rows.get(0).requestFocus();
+            (selectedRow != null ? selectedRow : rows.get(0)).requestFocus();
+        } else if (selectedRow != null) {
+            final View target = selectedRow;
+            // A long list opens on the current choice
+            scroll.post(() -> scroll.scrollTo(0, Math.max(0, ((View) target.getParent()).getTop() - Ui.dp(context, 48))));
         }
         return dialog;
     }
@@ -190,7 +207,7 @@ public final class V2ListDialog {
         return d;
     }
 
-    private static View row(Context context, V2Theme theme, String label, Runnable click) {
+    private static View row(Context context, V2Theme theme, String label, boolean selected, Runnable click) {
         final float radius = Ui.dpf(context, theme.isAffiche() ? 0 : (theme.isLudique() ? 16 : 10));
         final TextView row = new TextView(context) {
             @Override
@@ -205,6 +222,7 @@ public final class V2ListDialog {
                 paint(this, theme, radius);
             }
         };
+        row.setSelected(selected);
         row.setTypeface(theme.textFont(context, 600));
         row.getPaint().setFakeBoldText(V2Theme.needsFakeBold(600));
         row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 16);
@@ -226,7 +244,19 @@ public final class V2ListDialog {
         boolean focus = row.isFocused() && V2Input.showFocus(row.getContext());
         boolean highlighted = focus || row.isPressed();
         int bg = highlighted ? theme.sel : 0;
-        row.setTextColor(highlighted ? theme.selFg : theme.fg);
+        int fg = highlighted ? theme.selFg : theme.fg;
+        row.setTextColor(fg);
+        if (row.isSelected()) {
+            // The current choice: a check at the end
+            android.graphics.drawable.Drawable check = Ui.icon(row.getContext(), R.drawable.v2_ic_check, highlighted ? fg : theme.accent);
+            if (check != null) {
+                int s = Ui.dp(row.getContext(), 18);
+                check.setBounds(0, 0, s, s);
+            }
+            row.setCompoundDrawablesRelative(null, null, check, null);
+            row.setCompoundDrawablePadding(Ui.dp(row.getContext(), 10));
+            row.setTypeface(theme.textFont(row.getContext(), 700));
+        }
         if (focus) {
             // The ring of the v2 focus, inside the row: the list scrolls and would cut it outside
             row.setBackground(Ui.roundRect(bg, radius, Ui.dp(row.getContext(), 2), theme.accent));
