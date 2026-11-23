@@ -726,7 +726,7 @@ public class BenchmarkActivity extends Activity {
             if (r.status != Status.OK) {
                 int label = r.status == Status.SKIPPED ? R.string.benchmark_status_skipped
                         : r.status == Status.FALLBACK ? R.string.benchmark_status_fallback : R.string.benchmark_status_failed;
-                TextView t = text(getString(label) + (r.note.isEmpty() ? "" : ": " + r.note));
+                TextView t = text(getString(label) + (r.note.isEmpty() ? "" : ": " + com.limelight.benchmark.BenchmarkNotes.localize(this, r.note)));
                 t.setTextColor(r.status == Status.FALLBACK ? Color.rgb(255, 152, 0) : WORSE);
                 continue;
             }

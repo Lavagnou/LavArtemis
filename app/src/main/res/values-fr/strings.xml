@@ -797,4 +797,13 @@
     <string name="toast_pyrowave_3d">PyroWave ne fonctionne pas avec les modes 3D. Un autre codec est utilisé.</string>
     <string name="toast_pyrowave_unsupported">PyroWave demande un appareil 64 bits avec un GPU Vulkan 1.3. Un autre codec est utilisé.</string>
     <string name="unexpected_error_during_file_export">Erreur inattendue pendant l\'export du fichier.</string>
+    <!-- Notes des passages du benchmark, traduites à l'affichage (BenchmarkNotes) -->
+    <string name="bench_note_no_frames_arrived">Aucune image n\'est arrivée pour la mesure.</string>
+    <string name="bench_note_cut_short">Le passage a été interrompu.</string>
+    <string name="bench_note_no_frames_shown">Aucune image n\'a été affichée.</string>
+    <string name="bench_note_no_vrr">Le pacing VRR n\'est pas disponible</string>
+    <string name="bench_note_fell_back">%1$s n\'est pas disponible : l\'appareil est revenu à %2$s</string>
+    <string name="bench_note_ran_as">Passé en %1$s, %2$s à la place.</string>
+    <string name="bench_note_start_failed">Échec au démarrage (%1$s) : erreur %2$d.</string>
+    <string name="bench_note_connection_ended">La connexion s\'est coupée (erreur %1$d).</string>
 </resources>

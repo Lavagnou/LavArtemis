@@ -910,4 +910,13 @@
     <string name="benchmark_mode_quick_short">Quick</string>
     <string name="benchmark_mode_full_short">Full</string>
     <string name="benchmark_mode_adaptive_short">Adaptive</string>
+    <!-- Benchmark run notes, translated when shown (BenchmarkNotes) -->
+    <string name="bench_note_no_frames_arrived">No frames arrived to measure.</string>
+    <string name="bench_note_cut_short">The run was cut short.</string>
+    <string name="bench_note_no_frames_shown">No frames were shown.</string>
+    <string name="bench_note_no_vrr">VRR pacing is not available</string>
+    <string name="bench_note_fell_back">%1$s is not available: the device fell back to %2$s</string>
+    <string name="bench_note_ran_as">Ran as %1$s, %2$s instead.</string>
+    <string name="bench_note_start_failed">Starting %1$s failed: error %2$d.</string>
+    <string name="bench_note_connection_ended">The connection ended (error %1$d).</string>
 </resources>
