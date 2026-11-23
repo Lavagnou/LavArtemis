@@ -288,6 +288,12 @@ public class GameMenu implements Game.GameMenuCallbacks {
     public void showMenu(GameInputDevice device) {
         List<MenuOption> options = new ArrayList<>();
 
+        // LavApollo Link: a game runs inside Playnite -> close it, the stream goes back to Playnite
+        String playniteGame = game.getPlayniteGameName();
+        if (playniteGame != null) {
+            options.add(new MenuOption(game.getResources().getString(R.string.game_menu_quit_playnite_game, playniteGame), game::quitPlayniteGame));
+        }
+
         options.add(new MenuOption(getString(R.string.game_menu_disconnect), game::disconnect));
 
         options.add(new MenuOption(getString(R.string.game_menu_quit_session), game::quit));

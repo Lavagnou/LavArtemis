@@ -681,6 +681,9 @@
     <string name="game_menu_advanced">Advanced Menu</string>
     <string name="game_dialog_title_quit_confirm">Really want to quit?</string>
     <string name="game_dialog_message_quit_confirm">Please make sure you have no unsaved progress. Quitting the session will terminate your current running application.</string>
+    <string name="game_menu_quit_playnite_game">Quit %1$s (back to Playnite)</string>
+    <string name="playnite_game_quitting">Closing the game, back to Playnite…</string>
+    <string name="playnite_game_quit_failed">Could not close the game in Playnite</string>
     <string name="game_menu_quit_session">Quit Session</string>
     <string name="game_menu_server_cmd">Server Commands</string>
     <string name="game_menu_fetch_clipboard">Fetch Clipboard</string>

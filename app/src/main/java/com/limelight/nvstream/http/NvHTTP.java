@@ -625,6 +625,20 @@ public class NvHTTP {
      * LavApollo's mode of the display the stream captures: {width, height, refresh}, or null when
      * the host does not announce it (other hosts, older LavApollo).
      */
+    /** LavApollo Link: name of the game running inside the host's Playnite, null if none. */
+    public static String getPlayniteGameName(String serverInfo) throws XmlPullParserException, IOException {
+        String name = getXmlString(serverInfo, "PlayniteGameName", false);
+        return name == null || name.isEmpty() ? null : name;
+    }
+
+    /**
+     * LavApollo Link: closes the game running inside Playnite and keeps the stream, which goes
+     * back to Playnite ("Quitter le jeu"). Unlike quitApp(), the session and the app go on.
+     */
+    public void quitPlayniteGame() throws IOException {
+        openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "playnite-quit-game");
+    }
+
     /** LavApollo Link: the running app is the host's Playnite front end (Playnite games start inside it). */
     public static boolean isPlayniteHostRunning(String serverInfo) throws XmlPullParserException, IOException {
         return "1".equals(getXmlString(serverInfo, "PlayniteHostRunning", false));

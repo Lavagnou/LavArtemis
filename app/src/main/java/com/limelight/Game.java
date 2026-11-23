@@ -4664,6 +4664,25 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         prefConfig.enableTouchSensitivity = !prefConfig.enableTouchSensitivity;
     }
 
+    /** LavApollo Link: the game running inside the host's Playnite, null if none. */
+    public String getPlayniteGameName() {
+        return conn != null ? conn.getPlayniteGameName() : null;
+    }
+
+    /** "Quitter le jeu": closes the Playnite game, the stream goes back to Playnite. */
+    public void quitPlayniteGame() {
+        final NvConnection c = conn;
+        if (c == null) {
+            return;
+        }
+        new Thread(() -> {
+            boolean ok = c.quitPlayniteGame();
+            runOnUiThread(() -> Toast.makeText(Game.this,
+                    ok ? R.string.playnite_game_quitting : R.string.playnite_game_quit_failed,
+                    Toast.LENGTH_SHORT).show());
+        }, "QuitPlayniteGame").start();
+    }
+
     public void disconnect() {
         if (prefConfig.smartClipboardSync) {
             getClipboard(-1);

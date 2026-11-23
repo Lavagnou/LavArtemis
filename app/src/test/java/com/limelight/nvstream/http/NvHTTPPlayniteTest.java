@@ -37,4 +37,11 @@ public class NvHTTPPlayniteTest {
         assertFalse(NvHTTP.isPlayniteHostRunning("<root status_code=\"200\"><PlayniteHostRunning>0</PlayniteHostRunning></root>"));
         assertFalse(NvHTTP.isPlayniteHostRunning("<root status_code=\"200\"><hostname>OLD</hostname></root>"));
     }
+
+    @Test
+    public void playniteGameNameOnlyWhenAGameRuns() throws Exception {
+        assertEquals("Cyberpunk 2077", NvHTTP.getPlayniteGameName(
+                "<root status_code=\"200\"><PlayniteGameName>Cyberpunk 2077</PlayniteGameName></root>"));
+        org.junit.Assert.assertNull(NvHTTP.getPlayniteGameName("<root status_code=\"200\"><hostname>X</hostname></root>"));
+    }
 }

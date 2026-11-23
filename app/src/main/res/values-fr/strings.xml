@@ -565,6 +565,9 @@
     <string name="game_menu_advanced">Menu avancé</string>
     <string name="game_dialog_title_quit_confirm">Voulez-vous vraiment quitter ?</string>
     <string name="game_dialog_message_quit_confirm">Veuillez vous assurer que vous n\'avez aucune progression non enregistrée. La quittance de la session mettra fin à l\'application en cours d\'exécution.</string>
+    <string name="game_menu_quit_playnite_game">Quitter %1$s (retour à Playnite)</string>
+    <string name="playnite_game_quitting">Fermeture du jeu, retour à Playnite…</string>
+    <string name="playnite_game_quit_failed">Impossible de fermer le jeu dans Playnite</string>
     <string name="game_menu_quit_session">Quitter la session</string>
     <string name="game_menu_server_cmd">Commandes du serveur</string>
     <string name="game_menu_fetch_clipboard">Récupérer le presse-papiers</string>

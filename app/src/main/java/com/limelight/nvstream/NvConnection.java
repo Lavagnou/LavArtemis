@@ -231,6 +231,10 @@ public class NvConnection {
         NvHTTP h = new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider);
 
         String serverInfo = h.getServerInfo(true);
+        try {
+            playniteGameName = NvHTTP.getPlayniteGameName(serverInfo);
+        } catch (Exception ignored) {
+        }
         hostDisplayMode = NvHTTP.getCurrentDisplayMode(serverInfo);
         settingWidth = context.streamConfig.getWidth();
         settingHeight = context.streamConfig.getHeight();
@@ -468,9 +472,30 @@ public class NvConnection {
     public int[] fetchHostDisplayMode() {
         try {
             NvHTTP h = new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider);
-            return NvHTTP.getCurrentDisplayMode(h.getServerInfo(true));
+            String serverInfo = h.getServerInfo(true);
+            // The same poll keeps the game running inside Playnite up to date (in-game menu)
+            playniteGameName = NvHTTP.getPlayniteGameName(serverInfo);
+            return NvHTTP.getCurrentDisplayMode(serverInfo);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    // LavApollo Link: the game running inside the host's Playnite (null if none), from serverinfo
+    private volatile String playniteGameName;
+
+    public String getPlayniteGameName() {
+        return playniteGameName;
+    }
+
+    /** "Quitter le jeu": closes the game inside Playnite, the stream goes back to Playnite. Network. */
+    public boolean quitPlayniteGame() {
+        try {
+            new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider).quitPlayniteGame();
+            return true;
+        } catch (Exception e) {
+            LimeLog.warning("Could not close the Playnite game: " + e.getMessage());
+            return false;
         }
     }
 
