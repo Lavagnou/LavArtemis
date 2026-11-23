@@ -52,8 +52,8 @@ if ($pinned -ne $qtHead) {
 if (git status --porcelain --untracked-files=no) { throw "LavArtemis has uncommitted changes." }
 
 # --- Android ---------------------------------------------------------------------------------
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 if (-not $SkipAndroid) {
-    $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
     .\gradlew.bat assembleNonRoot_gameRelease
     if ($LASTEXITCODE -ne 0) { throw "Android build failed" }
     .\gradlew.bat --stop | Out-Null
