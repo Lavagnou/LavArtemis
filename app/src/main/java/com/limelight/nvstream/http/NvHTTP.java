@@ -451,6 +451,8 @@ public class NvHTTP {
             details.benchmarkAppId = 0;
         }
         details.benchmarkAppUuid = getXmlString(serverInfo, "BenchmarkAppUuid", false);
+        details.playniteHostRunning = isPlayniteHostRunning(serverInfo);
+        details.playniteGameName = getXmlString(serverInfo, "PlayniteGameName", false);
         details.serverCodecModeSupport = getServerCodecModeSupport(serverInfo);
 
         // We could reach it so it's online
@@ -623,6 +625,11 @@ public class NvHTTP {
      * LavApollo's mode of the display the stream captures: {width, height, refresh}, or null when
      * the host does not announce it (other hosts, older LavApollo).
      */
+    /** LavApollo Link: the running app is the host's Playnite front end (Playnite games start inside it). */
+    public static boolean isPlayniteHostRunning(String serverInfo) throws XmlPullParserException, IOException {
+        return "1".equals(getXmlString(serverInfo, "PlayniteHostRunning", false));
+    }
+
     public static int[] getCurrentDisplayMode(String serverInfo) throws XmlPullParserException, IOException {
         String w = getXmlString(serverInfo, "CurrentDisplayWidth", false);
         String h = getXmlString(serverInfo, "CurrentDisplayHeight", false);
@@ -789,6 +796,10 @@ public class NvHTTP {
                     app.setAppId(xpp.getText());
                 } else if (currentTag.peek().equals("IsHdrSupported")) {
                     app.setHdrSupported(xpp.getText().equals("1"));
+                } else if (currentTag.peek().equals("IsPlayniteGame")) {
+                    app.setPlayniteGame(xpp.getText().equals("1"));
+                } else if (currentTag.peek().equals("IsPlayniteHost")) {
+                    app.setPlayniteHost(xpp.getText().equals("1"));
                 }
                 break;
             }
@@ -816,7 +827,9 @@ public class NvHTTP {
     }
     
     public String getAppListRaw() throws IOException {
-        return openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "applist");
+        // playnite=1: LavApollo also lists the host's Playnite games (LavApollo Link), which it
+        // keeps from clients that do not ask for them.
+        return openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "applist", "playnite=1");
     }
     
     public LinkedList<NvApp> getAppList() throws HostHttpResponseException, IOException, XmlPullParserException {
@@ -825,7 +838,7 @@ public class NvHTTP {
             return getAppListByReader(new StringReader(getAppListRaw()));
         }
         else {
-            try (final ResponseBody resp = openHttpConnection(httpClientLongConnectTimeout, getHttpsUrl(true), "applist", null, null)) {
+            try (final ResponseBody resp = openHttpConnection(httpClientLongConnectTimeout, getHttpsUrl(true), "applist", "playnite=1", null)) {
                 return getAppListByReader(new InputStreamReader(resp.byteStream()));
             }
         }

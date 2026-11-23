@@ -10,6 +10,10 @@ public class NvApp {
     private int appIndex;
     private boolean initialized;
     private boolean hdrSupported;
+    // LavApollo Link: a game of the host's Playnite library, and the host's Playnite front end
+    // (where those games start without ending the session)
+    private boolean playniteGame;
+    private boolean playniteHost;
     
     public NvApp() {}
     
@@ -62,6 +66,22 @@ public class NvApp {
 
     public void setHdrSupported(boolean hdrSupported) {
         this.hdrSupported = hdrSupported;
+    }
+
+    public void setPlayniteGame(boolean playniteGame) {
+        this.playniteGame = playniteGame;
+    }
+
+    public boolean isPlayniteGame() {
+        return this.playniteGame;
+    }
+
+    public void setPlayniteHost(boolean playniteHost) {
+        this.playniteHost = playniteHost;
+    }
+
+    public boolean isPlayniteHost() {
+        return this.playniteHost;
     }
     
     public String getAppName() {

@@ -93,6 +93,9 @@ public class ComputerDetails {
     // Not in the app list: the benchmark launches it by these.
     public int benchmarkAppId;
     public String benchmarkAppUuid;
+    // LavApollo Link (Playnite): the running app is the Playnite front end, and its running game
+    public boolean playniteHostRunning;
+    public String playniteGameName;
     // ServerCodecModeSupport, for the benchmark to leave out codecs the host can't encode
     public long serverCodecModeSupport;
 
@@ -175,6 +178,8 @@ public class ComputerDetails {
 
         this.benchmarkAppId = details.benchmarkAppId;
         this.benchmarkAppUuid = details.benchmarkAppUuid;
+        this.playniteHostRunning = details.playniteHostRunning;
+        this.playniteGameName = details.playniteGameName;
         this.serverCodecModeSupport = details.serverCodecModeSupport;
     }
 

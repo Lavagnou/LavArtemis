@@ -353,6 +353,14 @@ public class NvConnection {
                 } else if (Objects.equals(NvApp.REMOTE_INPUT_UUID, app.getAppUUID())) {
                     // When launching InputOnly, we shouldn't try terminating the current running app
                     return launchNotRunningApp(h, context);
+                } else if (NvHTTP.isPlayniteHostRunning(serverInfo) && isPlayniteGame(h, app)) {
+                    // LavApollo Link: a Playnite game picked while the host's Playnite front end
+                    // runs starts inside it; LavApollo answers the resume and the session goes on.
+                    applyHostDisplayMode(true);
+                    if (!h.launchApp(context, "resume", app.getAppUUID(), app.getAppId(), context.negotiatedHdr)) {
+                        context.connListener.displayMessage("Failed to start the game inside Playnite");
+                        return false;
+                    }
                 } else {
                     return quitAndLaunch(h, context);
                 }
@@ -380,6 +388,22 @@ public class NvConnection {
         else {
             return launchNotRunningApp(h, context);
         }
+    }
+
+    private static boolean isPlayniteGame(NvHTTP h, NvApp app) {
+        try {
+            for (NvApp candidate : h.getAppList()) {
+                if (candidate.isPlayniteGame() &&
+                        (candidate.getAppId() == app.getAppId() ||
+                         (app.getAppUUID() != null && !app.getAppUUID().isEmpty() &&
+                          app.getAppUUID().equalsIgnoreCase(candidate.getAppUUID())))) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            LimeLog.warning("Could not check the Playnite app list: " + e.getMessage());
+        }
+        return false;
     }
 
     protected boolean quitAndLaunch(NvHTTP h, ConnectionContext context) throws IOException,

@@ -751,7 +751,10 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
 
                 // Only open the context menu if something is running, otherwise start it
                 if (lastRunningAppId != 0) {
-                    if (prefConfig.resumeWithoutConfirm && lastRunningAppId == app.app.getAppId()) {
+                    if (app.app.isPlayniteGame() && computer.playniteHostRunning) {
+                        // LavApollo Link: starts inside the running Playnite, nothing to quit
+                        ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, prefConfig.useVirtualDisplay);
+                    } else if (prefConfig.resumeWithoutConfirm && lastRunningAppId == app.app.getAppId()) {
                         ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, prefConfig.useVirtualDisplay);
                     } else {
                         openContextMenu(arg1);

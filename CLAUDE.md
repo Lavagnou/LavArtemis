@@ -153,6 +153,27 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
   sur la branche `dev` de LavArtemis-Qt, tag `vX.Y.Z-dev.N`. `publish` tolère un `build-linux` sauté
   **seulement** pour une Dev ; tout échec bloque toujours.
 
+## 🎮 Jeux Playnite (LavApollo Link, Dev)
+
+Chaque jeu installé de Playnite devient une appli de l'hôte, lancée **dans** Playnite (extension
+« LavApollo Link » et applis virtuelles côté LavApollo : `LavApollo/docs/superpowers/specs/
+2026-11-23-playnite-integration-design.md`). Les clients Dev demandent `applist` avec
+**`playnite=1`** : sans ce paramètre LavApollo ne liste pas ces jeux, donc la stable ne voit rien changer.
+
+- Android : `NvApp.isPlayniteGame()/isPlayniteHost()` (`IsPlayniteGame`/`IsPlayniteHost` de
+  `applist`), `ComputerDetails.playniteHostRunning`/`playniteGameName` (`serverinfo`), testés par
+  `NvHTTPPlayniteTest`. Toucher un jeu Playnite pendant que Playnite tourne le lance directement
+  (`AppView`), et `NvConnection` envoie alors un **`resume`** avec ce jeu : LavApollo le démarre dans
+  Playnite et la session continue, au lieu de quitter l'appli en cours.
+- Desktop : même logique (`AppModel::startsInsidePlaynite()`, `Session`).
+
+## 🎨 Refonte de l'interface (Dev)
+
+Spec `docs/superpowers/specs/2026-11-23-ui-redesign-design.md`, prototype validé de référence dans
+`docs/ui-redesign/prototype/`, copie locale hors git car elle contient des noms de machines (`lavartemis-prototype.html#braise-pc`, `#affiche`, `#ludique-pc`…,
+images absentes hors claude.ai). Phase 1 livrée côté desktop (`desktop/app/gui/v2/`, voir
+`desktop/CLAUDE.md`) ; Android à venir.
+
 ## ⚡ Hot path streaming — valeur ajoutée LavArtemis
 
 C'est ici que réside l'essentiel du travail spécifique au fork (performances / fluidité du stream) :
