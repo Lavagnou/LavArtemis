@@ -23,7 +23,22 @@ import covers
 
 HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES = HERE / "fixtures"
-LAVAPOLLO = pathlib.Path(os.environ.get("LAV_TESTBENCH_LAVAPOLLO", HERE.parents[2] / "LavApollo"))
+
+
+B = chr(92)  # backslash
+
+
+def _resolve_lavapollo():
+    root = pathlib.Path(os.environ.get("LAV_TESTBENCH_LAVAPOLLO", HERE.parents[2] / "LavApollo")).resolve()
+    low = str(root).lower()
+    if (B + "program files") in low or (B+"programdata") in low:
+        raise RuntimeError(f"{root}: the test build must never be the installed LavApollo")
+    if not (root / "build" / "t").is_dir() or not (root / "src").is_dir():
+        raise RuntimeError(f"{root}: no src/ and build/t/ layout (set LAV_TESTBENCH_LAVAPOLLO)")
+    return root
+
+
+LAVAPOLLO = _resolve_lavapollo()
 SUNSHINE = LAVAPOLLO / "build" / "t" / "sunshine.exe"
 PORT_MIN, PORT_MAX = 40000, 44999
 # Offsets used by an instance around its base port (base-5 .. base+21).
@@ -213,9 +228,13 @@ def ensure_built():
 
 # ------------------------------------------------------------------ up / pin
 
+# Loopback requests never go through a proxy configured on the machine.
+OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def _serverinfo_ok(port):
     try:
-        return b"LavTestHost" in urllib.request.urlopen(f"http://127.0.0.1:{port}/serverinfo", timeout=2).read()
+        return b"LavTestHost" in OPENER.open(f"http://127.0.0.1:{port}/serverinfo", timeout=2).read()
     except (OSError, urllib.error.URLError):
         return False
 
@@ -243,7 +262,11 @@ def up(fixtures, workdir=None):
             continue
         shutil.rmtree(pcdir, ignore_errors=True)
         write_pc_files(pc, f, pcdir)
-        env = dict(os.environ, LAVAPOLLO_APPDATA=str(pcdir), ProgramData=str(pcdir / "pd"))
+        # The exe imports only Windows system DLLs (checked with objdump), so the child gets a system-only
+        # PATH: nothing from the user's PATH (the installed LavApollo, msys64...) can be loaded by accident.
+        sysroot = os.environ.get("SystemRoot", "C:" + B + "Windows")
+        env = dict(os.environ, LAVAPOLLO_APPDATA=str(pcdir), ProgramData=str(pcdir / "pd"),
+                   PATH=sysroot + B + "System32;" + sysroot)
         flags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
         p = subprocess.Popen([str(SUNSHINE), str(pcdir / "sunshine.conf")], cwd=str(LAVAPOLLO / "build" / "t"),
                              env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
@@ -271,4 +294,5 @@ def pin(host, pin, name="testbench"):
     req = urllib.request.Request(f"https://127.0.0.1:{host.port + 1}/api/test/pin",
                                  data=json.dumps({"pin": pin, "name": name}).encode(),
                                  headers={"Content-Type": "application/json"}, method="POST")
-    return json.loads(urllib.request.urlopen(req, context=ctx, timeout=10).read())
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ctx))
+    return json.loads(opener.open(req, timeout=10).read())

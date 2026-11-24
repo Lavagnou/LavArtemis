@@ -42,12 +42,23 @@ def fingerprint():
                 except OSError:
                     continue
                 out[str(p)] = (st.st_size, st.st_mtime_ns)
-    return hashlib.sha256(json.dumps(sorted(out.items())).encode()).hexdigest()
+    return out
+
+
+def assert_same(before, after, what):
+    changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+    assert not changed, f"{what} changed: {changed}"
+
+
+def buildt_listing():
+    root = hosts.LAVAPOLLO / "build" / "t"
+    return {e.name: (e.stat().st_size, e.stat().st_mtime_ns) for e in os.scandir(root) if e.is_file()} | {
+        "<dirs>": sorted(e.name for e in os.scandir(root) if e.is_dir())}
 
 
 def real_service_reachable():
     try:
-        urllib.request.urlopen(REAL_SERVICE, timeout=3).read(1)
+        hosts.OPENER.open(REAL_SERVICE, timeout=3).read(1)
         return True
     except urllib.error.HTTPError:
         return True
@@ -118,6 +129,21 @@ def test_only_test_exe_is_killable(tmp_path):
     assert os.getpid() == me
 
 
+def test_lavapollo_root_guard(monkeypatch):
+    monkeypatch.setenv("LAV_TESTBENCH_LAVAPOLLO", r"C:\Program Files\LavApollo")
+    with pytest.raises(RuntimeError):
+        hosts._resolve_lavapollo()
+    monkeypatch.setenv("LAV_TESTBENCH_LAVAPOLLO", str(pathlib.Path(tempfile.gettempdir())))
+    with pytest.raises(RuntimeError):
+        hosts._resolve_lavapollo()
+
+
+def test_cli_rejects_unknown_fixture():
+    import testbench
+    with pytest.raises(SystemExit):
+        testbench.main(["up", "nope-test"])
+
+
 def test_default_jobs(monkeypatch):
     monkeypatch.delenv("LAV_TESTBENCH_JOBS", raising=False)
     assert hosts.build_jobs() == 1
@@ -136,19 +162,27 @@ def workdir():
 
 
 def serverinfo(port):
-    return urllib.request.urlopen(f"http://127.0.0.1:{port}/serverinfo", timeout=5).read().decode()
+    return hosts.OPENER.open(f"http://127.0.0.1:{port}/serverinfo", timeout=5).read().decode()
 
 
 @pytest.mark.integration
 def test_up_atlas_is_isolated(workdir):
     assert real_service_reachable(), "the real service should answer on 45989 on this PC"
     before = fingerprint()
+    buildt_before = buildt_listing()
     started = hosts.up(["atlas-test"], workdir)
     assert [h.name for h in started] == ["Test-Atlas"]
     info = serverinfo(40989)
     assert "LavTestHost" in info and "Test-Atlas" in info
+    # the instance really ran inside the sandbox: its own log, CA and history db are there ...
+    pcdir = workdir / "atlas-test"
+    for rel in ("sunshine.log", "credentials/cacert.pem", "lavapollo_history.db"):
+        assert (pcdir / rel).is_file(), rel
+    # ... and the default config location (build/t/config) and build/t itself were not written
+    assert not (hosts.LAVAPOLLO / "build" / "t" / "config").exists()
+    assert_same(buildt_before, buildt_listing(), "build/t")
     hosts.down(workdir)
-    assert fingerprint() == before
+    assert_same(before, fingerprint(), "real LavApollo config")
     assert real_service_reachable()
     # nothing of ours outside the workdir: pids gone, ports closed
     with pytest.raises(OSError):
@@ -175,7 +209,8 @@ def test_up_kills_surviving_instance_of_previous_run(workdir):
 @pytest.mark.integration
 def test_offline_has_no_listener_and_pin(workdir):
     started = hosts.up(["offline-test", "atlas-test"], workdir)
-    assert [h.name for h in started] == ["Test-Eteint", "Test-Atlas"] or len(started) == 2
+    assert [h.name for h in started] == ["Test-Eteint", "Test-Atlas"]
+    assert started[0].pid is None
     with pytest.raises(OSError):
         serverinfo(44500)
     r = hosts.pin(next(h for h in started if h.name == "Test-Atlas"), "1234", "x")

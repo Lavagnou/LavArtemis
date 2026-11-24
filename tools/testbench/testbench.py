@@ -19,13 +19,18 @@ def main(argv=None):
     s.add_argument("stream", nargs="?", default="events", choices=["input", "commands", "events"])
     a = ap.parse_args(argv)
     if a.cmd == "up":
+        bad = [f for f in a.fixtures if f not in hosts.available_fixtures()]
+        if bad:
+            ap.error(f"unknown fixture(s) {bad}; available: {hosts.available_fixtures()}")
         for h in hosts.up(a.fixtures, a.workdir):
             print(f"{h.name}\tport {h.port}\tpid {h.pid if h.pid else '-'}\t{h.dir}")
     elif a.cmd == "down":
         hosts.down(a.workdir)
     else:
-        pc = a.pc if (a.workdir / a.pc).is_dir() else next(
-            (f for f in hosts.available_fixtures() if hosts.load_fixture(f)["name"] == a.pc), a.pc)
+        pc = next((f for f in hosts.available_fixtures()
+                   if a.pc in (f, hosts.load_fixture(f)["name"])), None)
+        if pc is None:
+            ap.error(f"unknown PC {a.pc!r}; available: {hosts.available_fixtures()}")
         f = a.workdir / pc / "testhost" / f"{a.stream}.jsonl"
         print(f.read_text(encoding="utf-8") if f.exists() else "", end="")
 
