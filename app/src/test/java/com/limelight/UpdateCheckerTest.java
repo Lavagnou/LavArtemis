@@ -120,6 +120,8 @@ public class UpdateCheckerTest {
     @Test
     public void devVersionsAreRecognised() {
         assertTrue(UpdateChecker.isDevVersion("21.8.0-dev.1"));
+        assertTrue(UpdateChecker.isDevVersion("0.7.0-dev.1"));
+        assertFalse(UpdateChecker.isDevVersion("1.0.0"));
         assertTrue(UpdateChecker.isDevVersion("v21.8.0-dev.12"));
         assertFalse(UpdateChecker.isDevVersion("21.8.0"));
         assertFalse(UpdateChecker.isDevVersion("21.8.0-ci.40"));
@@ -131,6 +133,22 @@ public class UpdateCheckerTest {
         assertTrue(UpdateChecker.compareVersions("21.8.0-dev.2", "21.8.0-dev.10") < 0);
         assertTrue(UpdateChecker.compareVersions("21.8.0-dev.9", "21.9.0-dev.1") < 0);
         assertEquals(0, UpdateChecker.compareVersions("21.8.0-dev.3", "21.8.0-dev.3"));
+        assertTrue(UpdateChecker.compareVersions("0.7.0-dev.2", "0.7.0-dev.10") < 0);
+        assertTrue(UpdateChecker.compareVersions("0.7.0-dev.9", "0.8.0-dev.1") < 0);
+        assertTrue(UpdateChecker.compareVersions("0.7.0-dev.9", "0.7.0") < 0);
+        assertTrue(UpdateChecker.compareVersions("0.9.0", "1.0.0") < 0);
+    }
+
+    @Test
+    public void oldMoonlightNumberingIsOlderThanTheNewOne() {
+        // Up to 21.x the version came from Moonlight; LavArtemis then restarted at 0.7.0-dev.1
+        // (Dev) and 1.0.0 (stable). An old version must never pass for a newer one.
+        assertTrue(UpdateChecker.compareVersions("21.8.0-dev.9", "0.7.0-dev.1") < 0);
+        assertTrue(UpdateChecker.compareVersions("0.7.0-dev.1", "21.8.0-dev.9") > 0);
+        assertTrue(UpdateChecker.compareVersions("21.7.1", "1.0.0") < 0);
+        assertTrue(UpdateChecker.compareVersions("20.0.0", "0.0.1") < 0);
+        assertTrue(UpdateChecker.compareVersions("19.9.9", "20.0.0") > 0);
+        assertTrue(UpdateChecker.compareVersions("21.8.0-dev.9-ci.40", "0.7.0-dev.1-ci.1") < 0);
     }
 
     @Test

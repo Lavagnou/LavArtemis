@@ -33,16 +33,17 @@ Playnite, refonte de l'interface) part d'abord dans la Dev.
 
 ### Le canal se lit dans la version
 
-**Une version qui contient `-dev.` est une Dev** (`21.8.0-dev.1`). C'est la seule source de vérité :
+**Une version qui contient `-dev.` est une Dev** (`0.7.0-dev.1`). C'est la seule source de vérité :
 
-- `versionName` dans `app/build.gradle` sur la branche `dev` : `21.8.0-dev.N`.
+- `versionName` dans `app/build.gradle` sur la branche `dev` : `0.7.0-dev.N` (`21.8.0-dev.N` avant la
+  renumérotation, voir plus bas).
 - La release pose le tag `v<versionName>` (`scripts/local-release.ps1`) : tag et version ne peuvent
   pas diverger.
 - Le desktop reçoit la même chaîne dans `app/version.txt` (écrite par le build de release, via
   `CI_VERSION`).
 
 Ainsi rien ne dépend du nom de branche, et une fusion `dev → main` ne peut pas « emporter » le canal :
-le passage en stable change la version (`21.8.0`), donc le canal.
+le passage en stable change la version (`1.0.0`), donc le canal.
 
 Branches : `main` = stable (inchangée), `dev` = Dev, dans LavArtemis **et** LavArtemis-Qt. Le
 sous-module `desktop/` de la branche `dev` pointe sur la branche `dev` de LavArtemis-Qt.
@@ -69,14 +70,15 @@ sous-module `desktop/` de la branche `dev` pointe sur la branche `dev` de LavArt
 | Organisation Qt (registre, `AppData`) | `LavArtemis` | `LavArtemis Dev` |
 | Dossier d'installation | `LavArtemis` | `LavArtemis Dev` |
 | Raccourcis, pare-feu, nom du paquet | LavArtemis | LavArtemis Dev |
-| UpgradeCode MSI et bundle | inchangés | nouveaux GUID |
+| UpgradeCode MSI | inchangé | nouveau GUID |
+| UpgradeCode bundle | nouveau depuis la renumérotation | nouveau depuis la renumérotation |
 | `art://` et `.art` | enregistrés | **non** enregistrés (la stable les garde) |
 
 - Changer l'**organisation** et pas seulement le nom d'appli est obligatoire : la désinstallation de la
   stable supprime `HKCU\Software\LavArtemis` et `%LOCALAPPDATA%\LavArtemis` entiers.
-- `version.txt` peut contenir `-dev.N` : qmake reçoit une version numérique `21.8.0.N` (ressource
+- `version.txt` peut contenir `-dev.N` : qmake reçoit une version numérique `0.7.0.N` (ressource
   Windows, version MSI), `VERSION_STR` garde la chaîne lisible. Le MSI ignore le 4ᵉ nombre dans ses
-  comparaisons : la Dev autorise donc la mise à niveau à version égale.
+  comparaisons : la Dev remplace donc aussi une version égale (ligne (a) de la table Upgrade).
 - **Premier lancement de la Dev** : si elle n'a encore aucun réglage, elle copie une fois ceux de la
   stable (registre et fichiers `AppConfigLocation` : hôtes appairés, profils, macros). La stable n'est
   que lue. Ainsi la Dev PC n'a pas à être réappairée.
@@ -89,7 +91,8 @@ sous-module `desktop/` de la branche `dev` pointe sur la branche `dev` de LavArt
 - Dev : `/releases`, première release dont le tag contient `-dev.`.
 - Le réglage « canal prerelease / CI » disparaît des deux clients (le tri des réglages l'avait retiré :
   l'appli Dev le remplace).
-- Comparaison de versions : déjà compatible (`21.8.0-dev.2 < 21.8.0-dev.10 < 21.8.0`).
+- Comparaison de versions : `0.7.0-dev.2 < 0.7.0-dev.10 < 0.7.0`, et toute version de majeur ≥ 20
+  (ancienne numérotation) passe avant toute version de la nouvelle (`21.8.0-dev.9 < 0.7.0-dev.1`).
 
 ### Releases
 
@@ -98,7 +101,7 @@ sous-module `desktop/` de la branche `dev` pointe sur la branche `dev` de LavArt
   main.
 - Une version `-dev.` est publiée en **prerelease** (elle ne devient jamais « latest »), Android +
   Windows seulement.
-- Les noms d'artefacts gardent le tag (`LavArtemis-v21.8.0-dev.1-android-arm64-v8a.apk`), ce qui suffit
+- Les noms d'artefacts gardent le tag (`LavArtemis-v0.7.0-dev.1-android-arm64-v8a.apk`), ce qui suffit
   à les distinguer.
 - Tout le travail va dans la Dev, sans report vers la stable ; la stable ne sort qu'après des semaines
   d'usage de la Dev par l'utilisateur.
@@ -115,3 +118,27 @@ sous-module `desktop/` de la branche `dev` pointe sur la branche `dev` de LavArt
 - **Propriété Gradle `-Pchannel=dev`** : un build local de la branche `dev` sans l'option produirait la
   stable ; source d'erreur.
 - **Fichier de canal versionné par branche** : une fusion `dev → main` l'emporterait silencieusement.
+
+## Renumérotation (2026-11-24)
+
+Jusqu'à `21.8.0-dev.9` (Dev) et `21.7.1` (stable), le numéro venait de Moonlight. LavArtemis est
+désormais une appli à part entière et compte seule : **la Dev repart à `0.7.0-dev.1`**, **la stable
+passera à `1.0.0`** à la toute fin. Le `versionCode` Android continue de croître (98 pour 0.7.0-dev.1).
+
+- **Saut unique, à la main** : l'utilisateur réinstalle lui-même ses appareils. Les updaters des 21.x
+  voient 0.7 comme plus ancien et ne le proposent pas ; c'est accepté.
+- **Invariant : la nouvelle numérotation reste sous `20.0.0`, pour toujours.** Les deux updaters
+  (`UpdateChecker.compareVersions()`, `AutoUpdateChecker::compareVersionStrings()`) et le MSI prennent un
+  majeur ≥ 20 pour l'ancienne numérotation, plus vieille que toute nouvelle. `app/build.gradle` et
+  `scripts/build-arch.bat` refusent de construire une version ≥ 20.
+- **MSI** (`wix/LavArtemis/Product.wxs`, les deux canaux, même UpgradeCode) : table Upgrade explicite à
+  la place de `MajorUpgrade`. (a) `0.0.0` → cette version : mise à niveau (version égale incluse pour la
+  Dev) ; (b) au-dessus, sous `20.0.0` : détectée, refusée par une condition de lancement (« Une version
+  plus récente de [ProductName] est déjà installée. ») — la protection permanente contre le retour en
+  arrière ; (c) `20.0.0` et plus : mise à niveau (le saut). `RemoveExistingProducts` après
+  `InstallInitialize`, ancien produit retiré avec `UPGRADINGPRODUCTCODE` : réglages et appairages gardés,
+  jamais de désinstallation.
+- **Bundle** : nouveaux UpgradeCodes (Dev `72171b88-37c9-4543-9707-1cd668b848a4`, stable
+  `51150c91-b139-4a69-aa95-e8e6df6efaec`), sans quoi Burn refuserait 0.7 comme plus ancien que 21.8.
+  L'entrée du bundle 21.x reste une fois dans « Applications installées » : la désinstaller est sans
+  risque (son MSI est déjà parti, les VC++ sont permanents), la réparer réinstallerait la 21.x.

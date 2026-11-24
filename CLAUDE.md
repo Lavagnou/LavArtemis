@@ -120,7 +120,7 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
 - **Branches** : `main` = stable, `dev` = Dev, dans LavArtemis **et** LavArtemis-Qt. Le `desktop/` de
   la branche `dev` pointe sur la branche `dev` de LavArtemis-Qt.
 - **Le canal se lit dans la version, jamais dans la branche** : une version qui contient `-dev.`
-  (`21.8.0-dev.3`) construit la Dev. `def lavVersionName` en tête d'`app/build.gradle` est la source
+  (`0.7.0-dev.3`) construit la Dev. `def lavVersionName` en tête d'`app/build.gradle` est la source
   (`scripts/local-release.ps1` et `release.yml` lisent cette ligne). Passer en stable = changer la version, donc le canal : une fusion
   `dev → main` ne peut pas l'emporter en douce.
 
@@ -135,15 +135,57 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
 | Updater in-app | `/releases/latest` | `/releases`, première release `-dev.` |
 
 > ⚠️ **Valeurs stables intouchables.** Le suffixe `.lav`, l'organisation `LavArtemis`, les UpgradeCodes
-> MSI/bundle et les clés `HKCU\Software\LavArtemis` doivent rester identiques au bit près : les
-> changer couperait la mise à jour des installations existantes.
+> **MSI** et les clés `HKCU\Software\LavArtemis` doivent rester identiques au bit près : les
+> changer couperait la mise à jour des installations existantes. Les UpgradeCodes du **bundle** ont
+> changé une fois, avec la renumérotation (ci-dessous) ; les nouveaux sont à leur tour intouchables.
 
 > ⚠️ **La Dev a sa propre organisation Qt, pas seulement un autre nom d'appli** : désinstaller la
-> stable supprime `HKCU\Software\LavArtemis` et `%LOCALAPPDATA%\LavArtemis` en entier.
+> stable supprime `HKCU\Software\LavArtemis` et `%LOCALAPPDATA%\LavArtemis` en entier. **Une mise à
+> jour ne doit donc jamais exiger de désinstaller.**
 
-> ⚠️ **Version numérique côté Windows.** qmake et le MSI refusent `21.8.0-dev.3` : `app.pro` en fait
-> `21.8.0.3` (`VERSION`), `VERSION_STR` garde la chaîne lisible. Le MSI ne compare que trois nombres :
-> la Dev autorise la mise à niveau à version égale (`AllowSameVersionUpgrades`).
+> ⚠️ **Version numérique côté Windows.** qmake et le MSI refusent `0.7.0-dev.3` : `app.pro` en fait
+> `0.7.0.3` (`VERSION`), `VERSION_STR` garde la chaîne lisible. Le MSI ne compare que trois nombres :
+> la Dev remplace donc aussi une version égale (ligne (a) ci-dessous).
+
+### 🔢 Numérotation propre (depuis 0.7.0-dev.1)
+
+Jusqu'à `21.8.0-dev.9` / `21.7.1`, le numéro venait de Moonlight. LavArtemis compte désormais seul :
+la Dev repart à **`0.7.0-dev.N`** (première : `0.7.0-dev.1`, `versionCode` 98, qui continue de
+croître), la stable passera à **`1.0.0`** à la toute fin. Le saut se fait **une fois, à la main** :
+l'utilisateur réinstalle ses appareils lui-même (les updaters des 21.x voient 0.7 comme plus ancien et
+ne le proposent pas ; c'est accepté).
+
+> ⚠️ **INVARIANT : la nouvelle numérotation reste sous `20.0.0`, pour toujours.** Tout ce qui compare
+> des versions prend un majeur ≥ 20 pour l'ancienne numérotation, plus vieille que toute nouvelle :
+> `UpdateChecker.compareVersions()` (Android : updater et nettoyage des APK téléchargés),
+> `AutoUpdateChecker::compareVersionStrings()` (desktop : updater et nettoyage des installeurs), et la
+> table Upgrade du MSI. `app/build.gradle` et `desktop/scripts/build-arch.bat`
+> refusent de construire une version ≥ 20.
+
+**Installeur Windows** (`desktop/wix/LavArtemis/Product.wxs`, les deux canaux) : `MajorUpgrade` est
+remplacé par une table Upgrade explicite sur le même UpgradeCode MSI :
+
+| Ligne | Versions installées | Effet |
+|---|---|---|
+| (a) | `0.0.0` → cette version (incluse pour la Dev, exclue pour la stable, comme avant) | mise à niveau |
+| (b) | au-dessus de cette version, sous `20.0.0` | détectée seulement ; la condition de lancement refuse : « Une version plus récente de [ProductName] est déjà installée. » — **la protection permanente contre le retour en arrière** |
+| (c) | `20.0.0` et plus (les 21.x) | mise à niveau, quel que soit le numéro : le saut unique |
+
+`RemoveExistingProducts` reste juste après `InstallInitialize`. L'ancien produit est retiré avec
+`UPGRADINGPRODUCTCODE` posé, quelle que soit la ligne qui l'a trouvé : son `DeleteRegistryKey`
+(`NOT UPGRADINGPRODUCTCODE`) ne part pas, les réglages et appairages restent, comme avec `MajorUpgrade`.
+
+**Bundle Burn** (`Bundle.wxs`) : Burn refuse un bundle plus ancien qu'un bundle apparenté installé, et
+0.7 est « plus ancien » que 21.8. Le bundle a donc **de nouveaux UpgradeCodes** (Dev
+`72171b88-37c9-4543-9707-1cd668b848a4`, stable `51150c91-b139-4a69-aa95-e8e6df6efaec`) : le bundle
+21.x n'est plus apparenté, la ligne (c) du MSI remplace son MSI, et le contrôle de version de Burn
+protège à nouveau la nouvelle numérotation (il compare aussi le 4ᵉ nombre, que le MSI ignore).
+
+> 📋 **Reste une fois** : l'entrée du bundle 21.x dans « Applications installées ». La désinstaller est
+> sans risque (son MSI, identifié par son propre ProductCode, est déjà parti ; les VC++ sont
+> `Permanent`). Ne **pas** la « réparer » : elle réinstallerait son MSI 21.x, dont la table voit 0.7
+> comme plus ancien. Même limite pour un ancien installeur 21.x lancé à la main : ses règles sont
+> figées, il redescendrait en 21.x.
 
 - **Premier lancement de la Dev PC** : `ChannelMigration::importStableSettingsOnce()` copie une fois les
   réglages de la stable (registre + fichiers de `AppConfigLocation`) ; la stable n'est que lue. Android
@@ -744,6 +786,7 @@ la Dev n'en a plus le lien (`NOT_SHOWN`) ; seul l'ancien écran de réglages de 
 > ⚠️ **L'APK téléchargé est vérifié avant l'installeur système** (`UpdateDownloader.verifyApk()`) : même package, `versionCode` supérieur, signé par la clé de l'app installée (rotation acceptée via l'historique). Un rejet supprime le fichier et ouvre la page de release. La règle elle-même est `checkUpdateCandidate()`, testée dans `UpdateVerificationTest`. ⚠️ Elle ne vaut que ce que vaut la clé : une app installée signée avec la clé de debug partagée accepte tout APK signé avec cette même clé, comme l'installeur système.
 
 - Check automatique au plus toutes les 12 h (1 h après un échec), bouton « Ignorer cette version » (le check manuel des réglages la propose toujours).
+- Une version de majeur ≥ 20 (ancienne numérotation, 21.x) compte comme plus ancienne que toute version de la nouvelle (0.7, 1.0) : voir « Numérotation propre ».
 - Les APK de versions ≤ installée sont supprimés au démarrage ; un téléchargement qui finit après la destruction de l'activité donne une notification « mise à jour prête ».
 - `res/xml/provider_file_paths.xml` n'expose que `updates/`, `export_settings/` et la racine du cache : tout nouveau `getUriForFile()` sur un autre dossier doit l'y ajouter.
 
@@ -1086,7 +1129,7 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/app/streaming/video/ffmpeg.cpp` | Décodeur + `writePerfCsvRow()` (CSV perf) |
 | `desktop/moonlight-common-c/moonlight-common-c.pro` | LTO du cœur natif (release) |
 | `desktop/scripts/build-arch.bat` | Build Windows par architecture |
-| `desktop/wix/LavArtemis{,Setup}/` | Installeur WiX (⚠️ `UpgradeCode` propre à LavArtemis) |
+| `desktop/wix/LavArtemis{,Setup}/` | Installeur WiX (⚠️ `UpgradeCode` propre à LavArtemis ; table Upgrade explicite et versions < 20.0.0, voir « Numérotation propre ») |
 
 ---
 
@@ -1118,5 +1161,7 @@ git submodule update --init --recursive desktop                                 
 **Tests** — Robolectric JVM only (no instrumentation). You **must shadow** JNI classes (`MoonBridge`, `GameManager`) or you get `UnsatisfiedLinkError`. See `android_test_setup.md`.
 
 **Release** — built **locally** to spare the Actions quota: `scripts/local-release.ps1 -NotesFile <notes.md>` builds the signed APKs (one per ABI: arm64-v8a and armeabi-v7a; key in `key/release.keystore`, password in `key/keystore.properties` — never commit or print them) and the Windows **x64-only** installer + portable zip (`LAV_X64_ONLY=1`), then tags `v<lavVersionName>`, pushes and runs `gh release create` (a `-dev.` version is a prerelease). No Linux AppImage or ARM64 locally. `.github/workflows/release.yml` (Android + Windows x64/ARM64 + Linux) and the Qt compile check are **manual-only** (`workflow_dispatch`). Nothing runs tests on push: run the JVM tests locally (`unit-tests.yml` only runs on PRs or by hand; 5 tests are known red).
+
+**Version numbering** — up to 21.x the number came from Moonlight; LavArtemis now has its own: Dev `0.7.0-dev.N` (first `0.7.0-dev.1`, versionCode 98 and still increasing), stable `1.0.0` later. **Versions must stay below 20.0.0 forever**: both updaters and the Windows MSI treat a 20+ major as the old numbering, older than any new version (Gradle and `build-arch.bat` refuse to build 20+). The MSI's explicit Upgrade table upgrades 0.0.0→this version and 20.0.0+ (the one-time jump), and refuses to install over a newer version below 20.0.0 (downgrade protection); the Burn bundle got new UpgradeCodes, so the old 21.x bundle entry stays once in "Installed apps" (safe to uninstall, never repair). See "Numérotation propre".
 
 **Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (6b) ship **both** ABIs — Android TV sticks (Fire TV, Chromecast with Google TV) are 32-bit, and an arm64-only release only fails at install time with `INSTALL_FAILED_NO_MATCHING_ABIS`; (7) both clients now share **one** `moonlight-common-c` (`Lavagnou/moonlight-common-c`, branch `lavartemis`) — when rebumping it, remember FEC is nanors (not reedsolomon) and decode-unit timestamps are microseconds converted to milliseconds at the JNI boundary; see the desktop section.

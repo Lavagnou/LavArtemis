@@ -56,6 +56,16 @@ offer to install it (Android downloads the APK for the device, checks it is sign
 app's key, then hands it to the system installer; Windows downloads and runs the installer). *Skip
 this version* silences one version until a manual check.
 
+### Version numbers
+
+Up to 21.x (stable 21.7.1, Dev 21.8.0-dev.9) the version number came from Moonlight. LavArtemis now
+counts on its own: Dev restarts at **0.7.0-dev.1**, and the stable app will become **1.0.0**. Because
+the new numbers look *lower*, the 21.x apps do not offer them as updates: install the first 0.7 (and
+later the first 1.0) by hand, once. On Android it installs over the old app as usual. On Windows the
+installer replaces the 21.x version and keeps your settings and pairings (no need to uninstall); the
+old 21.x entry stays once in *Installed apps* and can be uninstalled safely. From then on, an
+installer older than the installed version refuses to run.
+
 ### Which Android APK?
 
 Take `arm64-v8a` unless the device is 32-bit. Android TV hardware often is, even on 64-bit silicon:

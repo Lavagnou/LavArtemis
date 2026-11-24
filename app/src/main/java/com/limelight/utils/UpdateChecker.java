@@ -133,7 +133,7 @@ public class UpdateChecker {
         check(BuildConfig.LAV_DEV, callback);
     }
 
-    /** Whether a version string belongs to the Dev channel ("21.8.0-dev.3"). */
+    /** Whether a version string belongs to the Dev channel ("0.7.0-dev.3"). */
     public static boolean isDevVersion(String version) {
         return version != null && version.contains("-dev.");
     }
@@ -272,10 +272,18 @@ public class UpdateChecker {
     }
 
     /**
-     * Compares two version strings of the form x.y.z with an optional "-ci.N" suffix.
+     * Versions from this major up are the old Moonlight-derived numbering (21.x), older than
+     * every version of LavArtemis' own numbering (0.7.0-dev.1, then 1.0.0), which stays below
+     * 20.0.0 forever. The Windows installer applies the same rule (LavArtemis-Qt Product.wxs).
+     */
+    static final int LEGACY_VERSION_MAJOR = 20;
+
+    /**
+     * Compares two version strings of the form x.y.z with an optional "-dev.N" / "-ci.N" suffix.
      *
      * A prerelease (suffix present) sorts before the stable release with the same base
-     * version. Returns a negative value if a &lt; b, 0 if equal, positive if a &gt; b.
+     * version, and an old 20+ version before any version of the new numbering.
+     * Returns a negative value if a &lt; b, 0 if equal, positive if a &gt; b.
      */
     public static int compareVersions(String a, String b) {
         String[] partsA = a.split("-", 2);
@@ -283,6 +291,12 @@ public class UpdateChecker {
 
         String[] numsA = partsA[0].split("\\.");
         String[] numsB = partsB[0].split("\\.");
+
+        boolean legacyA = parseIntSafe(numsA[0]) >= LEGACY_VERSION_MAJOR;
+        boolean legacyB = parseIntSafe(numsB[0]) >= LEGACY_VERSION_MAJOR;
+        if (legacyA != legacyB) {
+            return legacyA ? -1 : 1;
+        }
 
         for (int i = 0; i < Math.max(numsA.length, numsB.length); i++) {
             int numA = i < numsA.length ? parseIntSafe(numsA[i]) : 0;

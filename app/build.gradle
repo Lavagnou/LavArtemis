@@ -5,8 +5,17 @@ apply plugin: 'com.android.application'
 // label and icon). Nothing depends on the branch name, so merging dev into main cannot
 // carry the channel over: promoting to stable changes the version, hence the channel.
 // See docs/superpowers/specs/2026-11-23-stable-dev-split-design.md.
-def lavVersionName = "21.8.0-dev.9"
+//
+// Numbering: up to 21.x the version came from Moonlight. LavArtemis now counts on its own
+// (Dev 0.7.0-dev.N, stable 1.0.0 later) and stays below 20.0.0 forever: the updaters and
+// the Windows installer take 20+ for the old numbering, older than any new version
+// (UpdateChecker.compareVersions(), LavArtemis-Qt wix/LavArtemis/Product.wxs). versionCode
+// keeps increasing across the change.
+def lavVersionName = "0.7.0-dev.1"
 def lavDev = lavVersionName.contains("-dev.")
+if (lavVersionName.tokenize('.-')[0].toInteger() >= 20) {
+    throw new GradleException("lavVersionName ${lavVersionName}: LavArtemis versions stay below 20.0.0 (20+ is the old Moonlight-derived numbering)")
+}
 
 android {
     ndkVersion "27.0.12077973"
@@ -20,7 +29,7 @@ android {
         targetSdk 34
 
         versionName lavVersionName
-        versionCode = 97
+        versionCode = 98
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
