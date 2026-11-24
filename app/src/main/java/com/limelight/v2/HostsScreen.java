@@ -296,6 +296,7 @@ public final class HostsScreen {
 
         HostCard(Context context, V2Theme theme, boolean compact, Actions actions) {
             super(context, theme);
+            setScaleOnFocus(true);
             setFocusable(true);
             setClickable(true);
             setLongClickable(true);
@@ -411,6 +412,7 @@ public final class HostsScreen {
     private static final class AddCard extends V2Frame {
         AddCard(Context context, V2Theme theme, boolean compact) {
             super(context, theme);
+            setScaleOnFocus(true);
             setFocusable(true);
             setClickable(true);
             GradientDrawable dashed = new GradientDrawable();

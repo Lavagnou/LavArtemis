@@ -44,6 +44,7 @@ public class AppCard extends V2Frame {
 
     public AppCard(Context context, V2Theme theme, float heightDp, boolean compact) {
         super(context, theme);
+        setScaleOnFocus(true);
         setFocusable(true);
         setClickable(true);
         setLongClickable(true);

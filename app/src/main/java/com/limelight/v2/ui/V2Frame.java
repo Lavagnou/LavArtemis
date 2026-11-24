@@ -96,9 +96,29 @@ public class V2Frame extends FrameLayout {
         return isFocused() && V2Input.showFocus(getContext());
     }
 
+    /** Gamepad/keyboard focus scales the view to 1.04, as on the desktop and in the prototype
+     *  (`ring`). Only cards and covers, not buttons or settings rows. */
+    private boolean scaleOnFocus;
+    private static final float FOCUS_SCALE = 1.04f;
+
+    protected void setScaleOnFocus(boolean on) {
+        scaleOnFocus = on;
+    }
+
+    private void applyFocusScale() {
+        if (!scaleOnFocus) {
+            return;
+        }
+        float s = showFocus() ? FOCUS_SCALE : 1f;
+        if (getScaleX() != s) {
+            animate().scaleX(s).scaleY(s).setDuration(150).start();
+        }
+    }
+
     @Override
     protected void onFocusChanged(boolean gainFocus, int direction, Rect previouslyFocusedRect) {
         super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
+        applyFocusScale();
         invalidate();
         // The ring and the dim are drawn outside / over the view: the parent repaints too
         if (getParent() instanceof View) {

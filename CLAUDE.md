@@ -419,6 +419,11 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > long tienne dans la tuile (`CoverTile.fittedSize`) — un mot n'est jamais coupé en deux (« Redem/ption »).
 
 > ⚠️ **Halo et anneau de focus sont dessinés hors des vues** (`V2Frame`) : tout parent doit avoir
+
+> 📋 **Focus à la manette ou au clavier : les cartes et jaquettes grossissent à 1,04** (`V2Frame.setScaleOnFocus(true)`
+> dans `CoverTile`, `AppCard`, `SeeAllTile` et les cartes de Mes PC ; pas les boutons ni les lignes de réglages), et la
+> couleur revient sur une carte assombrie (`theme.dim(showFocus())`), comme sur le PC et dans le prototype. Le
+> survol à la souris (le PC : ombre + liseré) n'a pas d'équivalent ici, le tactile n'a pas de survol.
 > `Ui.noClip()` (clipChildren/clipToPadding faux), sinon ils sont coupés. L'assombrissement passe par
 > un `saveLayer` avec `ColorMatrix` (gris puis luminosité **multipliée**, puis opacité), le halo par une
 > image floutée rendue en logiciel (BlurMaskFilter n'est pas fiable en accéléré).

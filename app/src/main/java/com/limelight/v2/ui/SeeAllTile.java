@@ -21,6 +21,7 @@ public class SeeAllTile extends V2Frame {
 
     public SeeAllTile(Context context, V2Theme theme, float widthDp, float heightDp) {
         super(context, theme);
+        setScaleOnFocus(true);
         setFocusable(true);
         setClickable(true);
         radius = Ui.dpf(context, Math.min(theme.rs, 16));

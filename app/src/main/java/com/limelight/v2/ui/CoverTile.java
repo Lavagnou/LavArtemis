@@ -29,6 +29,7 @@ public class CoverTile extends V2Frame {
 
     public CoverTile(Context context, V2Theme theme, float widthDp, float heightDp, String liveLabel) {
         super(context, theme);
+        setScaleOnFocus(true);
         setFocusable(true);
         setClickable(true);
         setLongClickable(true);
