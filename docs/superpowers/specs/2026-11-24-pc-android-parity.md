@@ -83,6 +83,7 @@ s'ajoute ici comme écart.
 | Créer un raccourci .art (menu d'une appli) | Image dans l'image, latence moyenne en fin de stream |
 | Avertissements de configuration | Retenir le zoom |
 | Mise à jour : pastille « Mise à jour » dans l'en-tête (pas de dialogue au démarrage) | Mise à jour : dialogue au démarrage |
+| Pas de stream vers son propre PC (« Impossible de streamer %1 depuis lui-même… », `NvComputer::isThisPc`, depuis 0.7.0-dev.7) : un appareil Android n'est jamais son propre hôte | — |
 
 Les textes qui nomment l'appareil restent différents exprès : « suit le mode clair ou sombre de Windows » /
 « de l'appareil », « Ctrl+Alt+Maj+U le coupe en jeu » / « le menu en jeu le coupe ».

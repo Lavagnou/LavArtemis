@@ -27,6 +27,7 @@ piste 5c / 5d).
 cd docs/branding
 npm install            # @resvg/resvg-js, prebuilt binaries
 npm run icons          # writes out/ (SVG, PNG 16..1024, ICO) and out/android/ (vector drawables)
+python -I generate-installer-fonts.py <LavArtemis-Qt>/app/res/fonts out/installer/fonts   # installer fonts (fontTools)
 npm run installer      # writes out/installer/<dev|stable>/ (Windows installer window, see below)
 python -I generate-banners.py out <LavArtemis-Qt>/app/res/fonts/SpaceGrotesk.ttf   # Android TV banners
 ```
@@ -45,15 +46,18 @@ Shapes and colours live in `generate-icons.mjs` (and their VectorDrawable copy i
 | `lavapollo*.{svg,ico}`, `-1024/-16/-45.png` | LavApollo `src_assets/common/assets/web{,-v2}/public/images/` as `apollo-<state>.*`, `logo-apollo*.*`, `apollo.ico` |
 | `lavapollo-128.png` | LavApollo `tools/playnite/icon.png` (the LavApollo Link extension in Playnite) |
 | `lavartemis-braise.svg`, `lavartemis-affiche-{light,dark}.svg` | LavArtemis-Qt `app/res/` (logo of the v2 header per theme; Ludique keeps `lavartemis.svg`) |
-| `out/installer/dev/*`, `out/installer/stable/*` | LavArtemis-Qt `wix/LavArtemisSetup/theme/dev/`, `theme/stable/` (replace the folder: file names are listed in its `payloads.wxi`) |
+| `out/installer/{dev,stable,fonts}/*` | LavArtemis-Qt `wix/LavArtemisSetup/theme/dev/`, `theme/stable/`, `theme/fonts/` (replace the folders: file names are listed in `payloads.wxi`) |
 
 ## Windows installer window
 
 `generate-installer.mjs` draws the window of the LavArtemis-Qt installer (WiX standard bootstrapper,
 direction "A" of the prototype canvas, page V7, validated on 2026-11-24): the whole window takes the
 background of the logo (blueprint grid for Dev, night gradient for stable), the logo on the left, pill
-buttons. It writes, per channel, the theme (`thm.xml`, layout and fonts), every image (background,
-logo, 4 states per button rectangle, progress bar) and `payloads.wxi`. Layout, colours and the theme
+buttons. It writes, per channel, the theme (`thm.xml`, layout and fonts), every image (background with
+the drawn title bar, logo, 4 states per button with its text drawn in, checkbox, folder field, rounded
+progress bar ends) and `payloads.wxi`. `generate-installer-fonts.py` first makes the fonts it uses: Inter
+400/500/700 and Space Grotesk 700 instances, Latin subset, each renamed into its own family (GDI picks a font
+by family and weight; the installer loads them privately through its BAFunctions DLL). Layout, colours and the theme
 engine's constraints (why each image carries its piece of background, the 1 px wider background...)
 are in the script's header comment. The French strings are not generated: they live in LavArtemis-Qt
 `wix/LavArtemisSetup/theme/thm.wxl`.

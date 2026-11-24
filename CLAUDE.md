@@ -461,6 +461,9 @@ d'un texte ou d'un réglage commun). Repères Android :
 - « Version du logiciel hôte non prise en charge » : règle `v2/HostSupport` reprise telle quelle par le
   desktop (`NvComputer::isSupportedAppVersion()`), même message avec la version, mêmes points de contrôle
   (ouvrir, lancer, benchmark).
+- **Pas de stream vers son propre PC** (desktop seulement, depuis 0.7.0-dev.7) : un PC dont l'adresse ou la MAC
+  est celle de cette machine (`NvComputer::isThisPc`) est refusé au lancement, à la reprise et au benchmark,
+  avec « Impossible de streamer %1 depuis lui-même… ». Détails : `desktop/CLAUDE.md`.
 
 ## 🖼️ Icônes (LavArtemis + LavApollo)
 
@@ -479,11 +482,13 @@ d'atelier » `#1D4E89` quadrillé, dessin blanc, pastille verte `DEV`.
 - ⚠️ **On modifie le générateur, jamais un rendu** : les vecteurs Android, les PNG, les `.ico` et les SVG
   des trois dépôts sortent des mêmes formes ; une retouche à la main les ferait diverger.
 - « Lav » vient d'un nom de famille : **pas d'imagerie de lave**.
-- **Fenêtre de l'installeur Windows** (LavArtemis-Qt, depuis 0.7.0-dev.6) : `docs/branding/generate-installer.mjs`
-  (`npm run installer`) en écrit le thème, les images et la liste des payloads pour les deux canaux
-  (direction « A » du prototype, page V7 : fond du logo, logo à gauche, boutons pilule, sans licence) ; les
-  textes français sont dans `wix/LavArtemisSetup/theme/thm.wxl` de LavArtemis-Qt. Règles du moteur de thème
-  WiX : `desktop/CLAUDE.md`, « Fenêtre de l'installeur ».
+- **Fenêtre de l'installeur Windows** (LavArtemis-Qt, depuis 0.7.0-dev.7) : `docs/branding/generate-installer-fonts.py`
+  (polices Inter / Space Grotesk du thème) puis `generate-installer.mjs` (`npm run installer`) en écrivent le
+  thème, les images (textes des boutons compris) et la liste des payloads pour les deux canaux (direction « A »
+  du prototype, page V7 : fenêtre sans barre Windows, fond du logo, logo à gauche, boutons pilule, sans
+  licence) ; les textes des libellés sont dans `wix/LavArtemisSetup/theme/thm.wxl` de LavArtemis-Qt, et une DLL
+  BAFunctions (`wix/LavArtemisSetup/bafunctions/`) fait ce que le thème ne sait pas faire. Règles :
+  `desktop/CLAUDE.md`, « Fenêtre de l'installeur ».
 
 ## ⚡ Hot path streaming — valeur ajoutée LavArtemis
 
