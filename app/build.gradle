@@ -11,7 +11,7 @@ apply plugin: 'com.android.application'
 // the Windows installer take 20+ for the old numbering, older than any new version
 // (UpdateChecker.compareVersions(), LavArtemis-Qt wix/LavArtemis/Product.wxs). versionCode
 // keeps increasing across the change.
-def lavVersionName = "0.7.0-dev.5"
+def lavVersionName = "0.7.0-dev.6"
 def lavDev = lavVersionName.contains("-dev.")
 if (lavVersionName.tokenize('.-')[0].toInteger() >= 20) {
     throw new GradleException("lavVersionName ${lavVersionName}: LavArtemis versions stay below 20.0.0 (20+ is the old Moonlight-derived numbering)")
@@ -29,7 +29,7 @@ android {
         targetSdk 34
 
         versionName lavVersionName
-        versionCode = 102
+        versionCode = 103
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'

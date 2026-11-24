@@ -130,7 +130,7 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
 | Nom, icône | LavArtemis, logo lune | LavArtemis Dev, plan d'atelier bleu + pastille DEV (`app/src/dev/res`, ajouté aux source sets des flavors) |
 | Textes français | vouvoiement hérité | **tutoiement** : `app/src/dev/res/values-fr/strings_tu.xml` remplace, pour la Dev seule, les chaînes au « vous » qu'elle peut afficher (mise à jour, quitter, erreurs de stream, benchmark…). Une nouvelle chaîne affichée par la Dev dont le texte stable dit « vous » s'y ajoute |
 | Qt : organisation (registre, AppData) | `LavArtemis` | `LavArtemis Dev` |
-| Installeur Windows | dossier, raccourcis, UpgradeCodes d'origine | les siens ; **pas** d'`art://` ni de `.art` |
+| Installeur Windows | dossier, raccourcis, UpgradeCodes d'origine ; fenêtre fond nuit | les siens ; **pas** d'`art://` ni de `.art` ; fenêtre « plan d'atelier » |
 | Release (construite en local) | tag `vX.Y.Z`, Android + Windows x64 | tag `vX.Y.Z-dev.N`, **prerelease**, Android + Windows x64 |
 | Updater in-app | `/releases/latest` | `/releases`, première release `-dev.` |
 
@@ -479,6 +479,11 @@ d'atelier » `#1D4E89` quadrillé, dessin blanc, pastille verte `DEV`.
 - ⚠️ **On modifie le générateur, jamais un rendu** : les vecteurs Android, les PNG, les `.ico` et les SVG
   des trois dépôts sortent des mêmes formes ; une retouche à la main les ferait diverger.
 - « Lav » vient d'un nom de famille : **pas d'imagerie de lave**.
+- **Fenêtre de l'installeur Windows** (LavArtemis-Qt, depuis 0.7.0-dev.6) : `docs/branding/generate-installer.mjs`
+  (`npm run installer`) en écrit le thème, les images et la liste des payloads pour les deux canaux
+  (direction « A » du prototype, page V7 : fond du logo, logo à gauche, boutons pilule, sans licence) ; les
+  textes français sont dans `wix/LavArtemisSetup/theme/thm.wxl` de LavArtemis-Qt. Règles du moteur de thème
+  WiX : `desktop/CLAUDE.md`, « Fenêtre de l'installeur ».
 
 ## ⚡ Hot path streaming — valeur ajoutée LavArtemis
 

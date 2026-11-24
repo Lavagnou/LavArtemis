@@ -2,9 +2,10 @@
   "name": "lavartemis-branding",
   "private": true,
   "type": "module",
-  "description": "Generates the LavArtemis / LavApollo icons (see README.md)",
+  "description": "Generates the LavArtemis / LavApollo icons and the Windows installer window (see README.md)",
   "scripts": {
-    "icons": "node generate-icons.mjs && node generate-android.mjs"
+    "icons": "node generate-icons.mjs && node generate-android.mjs",
+    "installer": "node generate-installer.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2"
