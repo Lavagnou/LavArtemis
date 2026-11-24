@@ -91,9 +91,126 @@ def test_call_raises_on_refusal_and_wait_for():
         client.Client(client.Channel(t)).call("click", text="x")
 
 
-def test_staleness_uses_qt_sources():
-    # does not build anything: only compares mtimes
-    assert isinstance(client.sources_newer_than_exe(), bool)
+def _fake_qt(tmp_path, monkeypatch):
+    root = tmp_path / "qt"
+    (root / "app").mkdir(parents=True)
+    (root / "moonlight-common-c").mkdir()
+    exe = root / "build" / "test-x64" / "deploy" / "LavArtemisTest.exe"
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b"x")
+    (root / "lavartemis.pro").write_text("x")
+    (root / "app" / "a.cpp").write_text("x")
+    monkeypatch.setenv("LAV_TESTBENCH_QT", str(root))
+    return root, exe
+
+
+def test_staleness_mtimes_and_fingerprint(tmp_path, monkeypatch):
+    import os
+    root, exe = _fake_qt(tmp_path, monkeypatch)
+    old, new = 1_000_000_000, 1_000_000_100
+    for p in (root / "lavartemis.pro", root / "app" / "a.cpp"):
+        os.utime(p, (old, old))
+    os.utime(exe, (new, new))
+    assert client.sources_newer_than_exe() is False
+    # sources outside app/ and non-C++ resources count too
+    for rel in ("moonlight-common-c/x.c", "app/shader.frag", "app/logo.svg", "app/m.qml", "app/t.ts"):
+        f = root / rel
+        f.write_text("x")
+        os.utime(f, (new + 50, new + 50))
+        assert client.sources_newer_than_exe() is True, rel
+        f.unlink()
+    # build products and git dirs are ignored
+    (root / "app" / "build").mkdir()
+    f = root / "app" / "build" / "gen.cpp"
+    f.write_text("x")
+    os.utime(f, (new + 50, new + 50))
+    assert client.sources_newer_than_exe() is False
+    # a recorded fingerprint wins over mtimes (no rebuild loop when the exe mtime did not advance)
+    os.utime(root / "app" / "a.cpp", (new + 99, new + 99))
+    assert client.sources_newer_than_exe() is True
+    client.mark_built()
+    assert client.sources_newer_than_exe() is False
+    (root / "app" / "a.cpp").write_text("changed content")
+    assert client.sources_newer_than_exe() is True
+    exe.unlink()
+    assert client.sources_newer_than_exe() is True
+
+
+def test_ensure_built_failure_raises_and_records_nothing(tmp_path, monkeypatch):
+    root, exe = _fake_qt(tmp_path, monkeypatch)
+    client.mark_built()
+    (root / "app" / "a.cpp").write_text("changed")
+
+    class R:
+        returncode = 1
+    calls = []
+    monkeypatch.setattr(client.subprocess, "run", lambda *a, **k: calls.append(a) or R())
+    with pytest.raises(client.ClientError, match="build failed"):
+        client.ensure_built()
+    assert len(calls) == 1  # no retry
+    assert client.sources_newer_than_exe() is True
+
+
+def test_foreign_instance_refused_before_build(tmp_path, monkeypatch):
+    root, exe = _fake_qt(tmp_path, monkeypatch)
+    monkeypatch.setattr(client, "tasklist_pids", lambda: [4242])
+    monkeypatch.setattr(client, "_image_path", lambda pid: r"C:\somewhere\else\LavArtemisTest.exe")
+    built = []
+    monkeypatch.setattr(client, "ensure_built", lambda: built.append(1))
+    killed = []
+    monkeypatch.setattr(client.subprocess, "run", lambda *a, **k: killed.append(a))
+    with pytest.raises(client.ClientError, match="not ours"):
+        client.Client.start(tmp_path / "wd")
+    assert not built and not killed
+
+
+def test_own_stale_instance_is_killed_by_pid_and_exe(tmp_path, monkeypatch):
+    root, exe = _fake_qt(tmp_path, monkeypatch)
+    wd = tmp_path / "wd"
+    wd.mkdir()
+    (wd / "client.json").write_text(json.dumps({"pid": 777, "exe": str(exe)}))
+    monkeypatch.setattr(client, "tasklist_pids", lambda: [777, 888])
+    monkeypatch.setattr(client, "_image_path", lambda pid: str(exe) if pid == 777 else r"D:\other\LavArtemisTest.exe")
+    killed = []
+    monkeypatch.setattr(client.subprocess, "run", lambda args, **k: killed.append(args))
+    monkeypatch.setattr(client.time, "sleep", lambda s: None)
+    with pytest.raises(client.ClientError, match="888"):
+        client.Client._clear_previous(wd)
+    assert killed == [["taskkill", "/PID", "777", "/T", "/F"]]  # ours only, never 888
+
+
+def test_wait_idle_without_page(monkeypatch):
+    class T(FakeTransport):
+        def write(self, data):
+            self.req = json.loads(data.decode())
+
+        def read_available(self, timeout):
+            return line(id=self.req["id"], ok=True, page="", pageBusy=False)
+    c = client.Client(client.Channel(T([])))
+    assert c.wait_idle(timeout=1, page_required=False)["pageBusy"] is False
+
+
+def test_gamepad_attach_waits_for_pad(monkeypatch):
+    seq = iter([{"ok": True}, {"ok": True, "pad": False}, {"ok": True, "pad": True}])
+
+    class T(FakeTransport):
+        def write(self, data):
+            self.req = json.loads(data.decode())
+            self.sent.append(self.req)
+
+        def read_available(self, timeout):
+            return line(id=self.req["id"], **next(seq))
+    t = T([])
+    monkeypatch.setattr(client.time, "sleep", lambda s: None)
+    client.Client(client.Channel(t)).gamepad_attach()
+    assert t.sent[0]["cmd"] == "gamepad" and t.sent[0]["attach"] is True
+
+
+@pytest.mark.skip(reason="stream-window capture (PrintWindow on the SDL window, black-capture check, "
+                         "frames.read_frame_number with stream_size/content_rect) is exercised by the C3 stream "
+                         "scenario, which owns a real stream")
+def test_stream_window_capture_marker():
+    pass
 
 
 # ---------------------------------------------------------------- integration
@@ -127,9 +244,3 @@ def test_start_state_tree_screenshot_stop(running_client, tmp_path):
     pid = c.proc.pid
     c.stop()
     assert client.tasklist_pids() == [] or pid not in client.tasklist_pids()
-
-
-@pytest.mark.integration
-def test_refuses_foreign_instance(tmp_path):
-    # no foreign LavArtemisTest.exe is started here: just check the guard sees none now
-    assert client.tasklist_pids() == []

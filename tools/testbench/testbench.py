@@ -24,7 +24,13 @@ def main(argv=None):
     s = sub.add_parser("shot", help="screenshot of the running test client's main window (absolute PNG path)")
     s.add_argument("path", type=pathlib.Path)
     s.add_argument("--window", default="0", help="Qt window index, or 'stream'")
+    sub.add_parser("mark-client-built", help="record the current sources as the ones the client exe was built "
+                                             "from (after checking the newer mtimes are comment-only edits)")
     a = ap.parse_args(argv)
+    if a.cmd == "mark-client-built":
+        import client
+        client.mark_built()
+        return
     if a.cmd in ("client", "shot"):
         import client
         c = client.Client(client.Channel(client.PipeTransport()))

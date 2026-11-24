@@ -13,12 +13,19 @@ import pathlib
 import subprocess
 import time
 
+import frames
+
 HERE = pathlib.Path(__file__).resolve().parent
 PIPE_PATH = "\\\\.\\pipe\\lavartemis-test"
 EXE_NAME = "LavArtemisTest.exe"
 QT_SOURCE_SUFFIXES = (".cpp", ".h", ".qml", ".qrc", ".pro", ".pri", ".ui", ".js", ".c", ".hpp")
 
 _PROCS = []  # Popen objects of clients started by this process
+
+try:  # physical pixels for every window rect and capture of this process, set once
+    ctypes.windll.user32.SetProcessDPIAware()
+except (OSError, AttributeError):
+    pass
 
 
 class ClientError(RuntimeError):
@@ -127,19 +134,64 @@ def _is_our_exe(pid):
     return p is not None and os.path.normcase(os.path.abspath(p)) == os.path.normcase(str(exe_path()))
 
 
+SOURCE_DIRS = ("app", "moonlight-common-c", "qmdnsengine", "h264bitstream", "AntiHooking", "pyrowave")
+SOURCE_FILES = ("lavartemis.pro", "globaldefs.pri")
+SOURCE_SUFFIXES = QT_SOURCE_SUFFIXES + (".hlsl", ".glsl", ".vert", ".frag", ".svg", ".png", ".ts", ".cu", ".cc",
+                                        ".cxx", ".inc", ".mk", ".json", ".ttf", ".otf")
+SKIP_DIRS = {".git", "build", "debug", "release", "__pycache__"}
+
+
+def source_fingerprint():
+    """Hash of (path, size, mtime) of every source the test client is built from."""
+    import hashlib
+    h = hashlib.sha256()
+    root = qt_root()
+    for name in SOURCE_FILES:
+        f = root / name
+        if f.exists():
+            st = f.stat()
+            h.update(f"{name}|{st.st_size}|{st.st_mtime_ns}\n".encode())
+    for d in SOURCE_DIRS:
+        for dirpath, dirs, files in os.walk(root / d):
+            dirs[:] = sorted(x for x in dirs if x.lower() not in SKIP_DIRS)
+            for f in sorted(files):
+                if f.lower().endswith(SOURCE_SUFFIXES):
+                    p = os.path.join(dirpath, f)
+                    st = os.stat(p)
+                    h.update(f"{os.path.relpath(p, root)}|{st.st_size}|{st.st_mtime_ns}\n".encode())
+    return h.hexdigest()
+
+
+def _fingerprint_file():
+    return exe_path().parent.parent / ".testbench-built-from"
+
+
+def mark_built():
+    """Record the current sources as the ones the existing exe was built from (use after checking that a newer
+    source mtime is a comment-only edit).  CLI: testbench mark-client-built."""
+    _fingerprint_file().write_text(source_fingerprint())
+
+
 def sources_newer_than_exe():
+    """True when the exe must be rebuilt.  With a recorded fingerprint of the last build, only a real change of
+    the sources counts (an mtime that did not advance can never loop a rebuild); without one, source mtimes are
+    compared with the exe's."""
     exe = exe_path()
     if not exe.exists():
         return True
+    rec = _fingerprint_file()
+    if rec.exists():
+        return rec.read_text().strip() != source_fingerprint()
     mt = exe.stat().st_mtime
-    for root in (qt_root() / "app", qt_root() / "lavartemis.pro"):
-        if root.is_file():
-            if root.stat().st_mtime > mt:
-                return True
-            continue
-        for dirpath, _d, files in os.walk(root):
+    root = qt_root()
+    for name in SOURCE_FILES:
+        if (root / name).exists() and (root / name).stat().st_mtime > mt:
+            return True
+    for d in SOURCE_DIRS:
+        for dirpath, dirs, files in os.walk(root / d):
+            dirs[:] = [x for x in dirs if x.lower() not in SKIP_DIRS]
             for f in files:
-                if f.endswith(QT_SOURCE_SUFFIXES) and os.stat(os.path.join(dirpath, f)).st_mtime > mt:
+                if f.lower().endswith(SOURCE_SUFFIXES) and os.stat(os.path.join(dirpath, f)).st_mtime > mt:
                     return True
     return False
 
@@ -148,10 +200,12 @@ def ensure_built():
     if not sources_newer_than_exe():
         return
     env = dict(os.environ, LAV_TEST_JOBS=str(test_jobs()))
+    fp = source_fingerprint()  # the sources as they were when the build began
     r = subprocess.run(["cmd", "/c", str(qt_root() / "scripts" / "build-test.bat")], cwd=str(qt_root()), env=env)
-    if r.returncode:
+    if r.returncode or not exe_path().exists():
         raise ClientError("test client build failed (killed for low memory? Free memory and retry with "
                           "LAV_TEST_JOBS=1; not retrying automatically)")
+    _fingerprint_file().write_text(fp)
 
 
 def foreground_hwnd():
@@ -162,10 +216,6 @@ def capture_window(hwnd, path):
     """PrintWindow (PW_CLIENTONLY | PW_RENDERFULLCONTENT) of a window to a PNG.  Never activates or raises it."""
     from PIL import Image
     user32, gdi32 = ctypes.windll.user32, ctypes.windll.gdi32
-    try:
-        user32.SetProcessDPIAware()  # physical pixels, not virtualised ones
-    except OSError:
-        pass
     hwnd = ctypes.c_void_p(int(hwnd))
     rect = ctypes.wintypes.RECT()
     user32.GetClientRect(hwnd, ctypes.byref(rect))
@@ -189,6 +239,7 @@ def capture_window(hwnd, path):
     mem = gdi32.CreateCompatibleDC(screen)
     bmp = gdi32.CreateCompatibleBitmap(screen, w, h)
     old = gdi32.SelectObject(mem, bmp)
+    selected = True
     try:
         if not user32.PrintWindow(hwnd, mem, 1 | 2):
             raise ClientError("PrintWindow failed")
@@ -200,6 +251,9 @@ def capture_window(hwnd, path):
                         ("biXPelsPerMeter", ctypes.c_int32), ("biYPelsPerMeter", ctypes.c_int32),
                         ("biClrUsed", ctypes.c_uint32), ("biClrImportant", ctypes.c_uint32)]
 
+        # GetDIBits wants the bitmap deselected from any DC (documented contract)
+        gdi32.SelectObject(mem, old)
+        selected = False
         bi = BITMAPINFOHEADER(ctypes.sizeof(BITMAPINFOHEADER), w, -h, 1, 32, 0, 0, 0, 0, 0, 0)
         buf = ctypes.create_string_buffer(w * h * 4)
         gdi32.GetDIBits.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint,
@@ -208,10 +262,13 @@ def capture_window(hwnd, path):
             raise ClientError("GetDIBits failed")
         img = Image.frombuffer("RGBA", (w, h), buf, "raw", "BGRA", 0, 1).convert("RGB")
     finally:
-        gdi32.SelectObject(mem, old)
+        if selected:
+            gdi32.SelectObject(mem, old)
         gdi32.DeleteObject(bmp)
         gdi32.DeleteDC(mem)
         user32.ReleaseDC(None, screen)
+    if img.getextrema() == ((0, 0), (0, 0), (0, 0)):
+        raise ClientError("stream window captured black (PrintWindow returned nothing drawn)")
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path, "PNG")
@@ -231,11 +288,11 @@ class Client:
     def start(cls, workdir, reset=False, build=True, timeout=40.0):
         workdir = pathlib.Path(workdir)
         workdir.mkdir(parents=True, exist_ok=True)
+        cls._clear_previous(workdir)  # first: a foreign instance must refuse before any (long) build
         if build:
             ensure_built()
         elif not exe_path().exists():
             raise ClientError(f"{exe_path()} does not exist")
-        cls._clear_previous(workdir)
         proc = subprocess.Popen([str(exe_path())], cwd=str(exe_path().parent), stdin=subprocess.DEVNULL,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                 creationflags=0x08000000 | 0x00000200)  # CREATE_NO_WINDOW | NEW_PROCESS_GROUP
@@ -336,9 +393,17 @@ class Client:
             time.sleep(interval)
         raise ClientError(f"timeout waiting for a state condition; last state: {json.dumps(st)[:400]}")
 
-    def wait_idle(self, timeout=20.0):
-        """Wait for a finished page transition (state.pageBusy false) and a page."""
-        return self.wait_for(lambda s: s.get("page") and not s.get("pageBusy"), timeout)
+    def wait_idle(self, timeout=20.0, page_required=True):
+        """Wait for a finished page transition (state.pageBusy false); page_required=False for a stream, where
+        there may be no page."""
+        return self.wait_for(lambda s: (s.get("page") or not page_required) and not s.get("pageBusy"), timeout)
+
+    def gamepad_attach(self, timeout=5.0):
+        """Attach the virtual pad (stream only) and wait until the client has opened it: a button pressed
+        earlier would be lost."""
+        self.call("gamepad", attach=True)
+        self.wait_for(lambda s: s.get("pad"), timeout)
+        time.sleep(0.5)
 
     def tree(self, **args):
         self.wait_idle()
@@ -353,13 +418,36 @@ class Client:
     def windows(self):
         return self.call("windows")["windows"]
 
-    def screenshot(self, path, window=0):
-        """Qt window (index) by the channel; window="stream" by PrintWindow on the stream window's hwnd."""
+    def stream_size(self):
+        """Stream resolution: the requested width/height settings (the hosts of the testbench honour them);
+        falls back to the stream window's own size."""
+        try:
+            return (int(self.call("setting", action="get", key="width")["value"]),
+                    int(self.call("setting", action="get", key="height")["value"]))
+        except (ClientError, KeyError, ValueError):
+            for w in self.windows():
+                if w.get("kind") == "stream":
+                    return (int(w["w"]), int(w["h"]))
+        raise ClientError("unknown stream size")
+
+    def screenshot(self, path, window=0, stream_size=None):
+        """Qt window (index) by the channel.  window="stream": PrintWindow on the stream window; the reply also
+        carries `stream_size` and `content_rect` (aspect fit of the stream in the captured window, bars cut
+        off) so frames.read_frame_number(path, stream_size, content_rect) needs nothing by hand."""
         path = str(pathlib.Path(path).resolve())
         if window == "stream":
             for w in self.windows():
                 if w.get("kind") == "stream":
-                    return capture_window(int(str(w["hwnd"]), 0), path)
+                    info = capture_window(int(str(w["hwnd"]), 0), path)
+                    size = tuple(stream_size or self.stream_size())
+                    info["stream_size"] = size
+                    info["content_rect"] = frames.fit_rect(info["width"], info["height"], *size)
+                    return info
             raise ClientError("no stream window")
         self.wait_idle()
         return self.call("screenshot", path=path, window=window)
+
+    def frame_number(self, path, stream_size=None):
+        """Strict frame number of the stream window as it is now (capture, then read)."""
+        info = self.screenshot(path, "stream", stream_size)
+        return frames.read_frame_number(info["path"], info["stream_size"], info["content_rect"])
