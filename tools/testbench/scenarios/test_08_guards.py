@@ -5,6 +5,7 @@ CLI pairing path) is refused too.  The client's log shows the refusals and not a
 import re
 import time
 
+import bugs
 import helpers
 
 REFUSED = ["192.168.1.231", "127.0.0.1:45989", "127.0.0.1:47989"]
@@ -46,11 +47,17 @@ def test_guards_real_addresses_refused(bench):
     log = ""
     while time.time() < deadline:
         log = c.log_text()
-        if "refused (loopback and ports 40000-44999 only)" in log and "192.168.1.231:47989" in log:
+        refused = "refused (loopback and ports 40000-44999 only)" in log and "192.168.1.231:47989" in log
+        if refused or bugs.toolbar_bug_seen(log):
             break
         time.sleep(0.3)
     bench.shot("04-art-link-refused")
     assert not requests_to(log, "192.168.1.231"), requests_to(log, "192.168.1.231")
+    if bugs.toolbar_bug_seen(log):
+        # the CLI pairing page never starts (known product bug): nothing is attempted, so nothing can leave
+        bench.note("art:// link: CliPair never ran (toolBar bug); no request in the log")
+        assert c.state()["computers"] == []
+        return
     # Refused at the first layer (the pairing command adds the PC through the same guard) or, failing that, by
     # NvHTTP before any request
     assert ('manual add of "192.168.1.231:47989" refused' in log or

@@ -104,12 +104,14 @@ def add_by_address(c, address):
     c.click("Ajouter")
 
 
-def read_pin(c, timeout=10.0):
+def read_pin(c, host_name, timeout=10.0):
+    """The PIN of the pairing dialog of this PC (« Sur <PC>, ouvre LavApollo › Appairage et entre ce code : 1 2 3 4 »).
+    Matched on the PC's name: the previous PC's dialog may still be fading out."""
     deadline = time.time() + timeout
     while True:
         for t in texts(c):
             m = PIN_RE.search(t)
-            if m:
+            if m and t.startswith(f"Sur {host_name},"):
                 return m.group(1).replace(" ", "")
         if time.time() > deadline:
             raise AssertionError(f"no PIN on screen; texts: {texts(c)[:30]}")
@@ -132,7 +134,7 @@ def pair_from_add_menu(c, host):
     as the user types it in LavApollo's web UI."""
     open_add_menu(c)
     c.click(f"{host.name} · 127.0.0.1:{host.port}")
-    pin = read_pin(c)
+    pin = read_pin(c, host.name)
     r = give_pin(host, pin)
     assert r.get("status") is True, f"the host refused the PIN {pin}: {r}"
     return wait_computer(c, host.name, lambda comp: comp["paired"])
@@ -142,9 +144,9 @@ def add_and_pair(c, host):
     """Add a running test host by address and pair it (through the add menu: see scenario 1 for the direct path)."""
     add_by_address(c, f"127.0.0.1:{host.port}")
     wait_computer(c, host.name, lambda comp: comp["online"])
-    st = c.wait_idle()
-    if any("ce code :" in t for t in texts(c)):  # the pairing dialog opened by itself
-        pin = read_pin(c)
+    c.wait_idle()
+    if any(t.startswith(f"Sur {host.name},") and "ce code :" in t for t in texts(c)):  # the dialog opened by itself
+        pin = read_pin(c, host.name)
         assert give_pin(host, pin).get("status") is True
         return wait_computer(c, host.name, lambda comp: comp["paired"])
     time.sleep(0.5)

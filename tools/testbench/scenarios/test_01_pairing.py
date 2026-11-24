@@ -31,7 +31,7 @@ def test_pairing_add_by_address_opens_pairing(bench):
             pytest.xfail(bugs.ADD_ALREADY_LISTED)
         time.sleep(0.2)
     bench.shot("01-pairing-dialog")
-    pin = helpers.read_pin(c)
+    pin = helpers.read_pin(c, atlas.name)
     assert helpers.give_pin(atlas, pin).get("status") is True
     comp = helpers.wait_computer(c, atlas.name, lambda x: x["paired"])
     assert comp["address"] == ADDRESS and comp["testHost"]
@@ -57,7 +57,7 @@ def test_pairing_with_pin_from_add_menu(bench):
     entry = f"{atlas.name} · {ADDRESS}"
     assert helpers.find(c, entry), f"the add menu should list {entry}"
     c.click(entry)
-    pin = helpers.read_pin(c)
+    pin = helpers.read_pin(c, atlas.name)
     assert len(pin) == 4 and pin.isdigit()
     bench.shot("02-pin")
     assert helpers.give_pin(atlas, pin).get("status") is True
