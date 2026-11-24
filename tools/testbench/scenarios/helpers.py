@@ -54,6 +54,18 @@ def wait_any_text(c, candidates, timeout=15.0):
         time.sleep(0.2)
 
 
+def click(c, text, timeout=5.0, **args):
+    """c.click, waiting out a popup that is still closing (its modal overlay takes clicks until it is gone)."""
+    deadline = time.time() + timeout
+    while True:
+        try:
+            return c.click(text, **args)
+        except clientmod.ClientError as e:
+            if "modal popup is open" not in str(e) or time.time() > deadline:
+                raise
+            time.sleep(0.2)
+
+
 def wait_page(c, page, timeout=15.0):
     return c.wait_for(lambda s: s.get("page") == page and not s.get("pageBusy"), timeout)
 
@@ -75,7 +87,7 @@ def open_hosts(c):
     st = c.wait_idle()
     if st["page"] != "HostsView":
         try:
-            c.click("Mes PC")
+            click(c, "Mes PC")
         except clientmod.ClientError as e:
             raise AssertionError(f"cannot open Mes PC ({e}); page {st['page']}, texts {texts(c)[-12:]}")
         wait_page(c, "HostsView")
@@ -91,7 +103,7 @@ def go_home(c):
 
 def open_add_menu(c):
     open_hosts(c)
-    c.click("Ajouter un PC", index=0)
+    click(c, "Ajouter un PC", index=0)
     wait_text(c, "Saisir une adresse…")
 
 
@@ -284,10 +296,10 @@ def launch(c, title, timeout=40.0):
         sess = st["session"]
         if sess["streaming"] and sess["decoded"] > 0:
             return st
+        if not sess["active"] and bugs.toolbar_bug_seen(c.log_text()):
+            import pytest
+            pytest.xfail(bugs.TOOLBAR)
         if time.time() > deadline:
-            if bugs.toolbar_bug_seen(c.log_text()):
-                import pytest
-                pytest.xfail(bugs.TOOLBAR)
             raise AssertionError(f"no stream after {timeout:.0f}s: page {st['page']}, session {sess}, "
                                  f"texts {texts(c)[:10] if st['page'] else []}")
         time.sleep(0.3)
