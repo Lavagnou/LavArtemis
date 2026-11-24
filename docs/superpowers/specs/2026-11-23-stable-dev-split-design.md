@@ -36,8 +36,10 @@ Playnite, refonte de l'interface) part d'abord dans la Dev.
 **Une version qui contient `-dev.` est une Dev** (`21.8.0-dev.1`). C'est la seule source de vérité :
 
 - `versionName` dans `app/build.gradle` sur la branche `dev` : `21.8.0-dev.N`.
-- Le tag `v21.8.0-dev.N` déclenche la release Dev ; la CI vérifie déjà que tag = `versionName`.
-- Le desktop reçoit la même chaîne dans `app/version.txt` (écrite par la CI depuis le tag).
+- La release pose le tag `v<versionName>` (`scripts/local-release.ps1`) : tag et version ne peuvent
+  pas diverger.
+- Le desktop reçoit la même chaîne dans `app/version.txt` (écrite par le build de release, via
+  `CI_VERSION`).
 
 Ainsi rien ne dépend du nom de branche, et une fusion `dev → main` ne peut pas « emporter » le canal :
 le passage en stable change la version (`21.8.0`), donc le canal.
@@ -52,7 +54,7 @@ sous-module `desktop/` de la branche `dev` pointe sur la branche `dev` de LavArt
 | applicationId release | `com.limelight.lav` | `com.limelight.lav.dev` |
 | applicationId debug | `com.limelight.lavdebug` | `com.limelight.lavdebug.dev` |
 | Nom | LavArtemis | LavArtemis Dev |
-| Icône | fond noir | même logo, fond orange Braise `#E8541A` |
+| Icône | logo lune, fond bleu nuit | même écran, fond « plan d'atelier » `#1D4E89` quadrillé + pastille verte `DEV` (`docs/branding`) |
 
 - `build.gradle` calcule `lavDev = versionName.contains('-dev.')` ; le suffixe `.lav` reste écrit en
   toutes lettres (commentaire amont), la Dev ajoute `.dev` derrière.
@@ -89,14 +91,17 @@ sous-module `desktop/` de la branche `dev` pointe sur la branche `dev` de LavArt
   l'appli Dev le remplace).
 - Comparaison de versions : déjà compatible (`21.8.0-dev.2 < 21.8.0-dev.10 < 21.8.0`).
 
-### CI (`release.yml`)
+### Releases
 
-- Tag `v*-dev.*` : release marquée **prerelease** (elle ne devient jamais « latest »), Android +
-  Windows seulement, le job Linux est sauté et `publish` ne l'attend pas.
+- Construites sur le PC du mainteneur par `scripts/local-release.ps1` (APK signés, client Windows x64,
+  `gh release create`), pas par GitHub Actions : le quota est court. `release.yml` ne part plus qu'à la
+  main.
+- Une version `-dev.` est publiée en **prerelease** (elle ne devient jamais « latest »), Android +
+  Windows seulement.
 - Les noms d'artefacts gardent le tag (`LavArtemis-v21.8.0-dev.1-android-arm64-v8a.apk`), ce qui suffit
   à les distinguer.
-- Le contrôle de fraîcheur du pointeur desktop est sauté pour la Dev (il compare à `main`).
-- `workflow_dispatch` (prerelease `-ci.N`) reste tel quel.
+- Tout le travail va dans la Dev, sans report vers la stable ; la stable ne sort qu'après des semaines
+  d'usage de la Dev par l'utilisateur.
 
 ## Laissé au constructeur
 

@@ -1,6 +1,8 @@
 # Refonte de l'interface — design
 
-*2026-11-23 — validé d'avance par l'utilisateur. Version Dev uniquement. Décisions détaillées :
+*2026-11-23 — validé d'avance par l'utilisateur. Version Dev uniquement. **Livré** : desktop en
+21.8.0-dev.7 (l'ancienne interface Qt est supprimée), Android en 21.8.0-dev.9.
+Écarts voulus entre les deux : `2026-11-24-pc-android-parity.md`. Décisions détaillées :
 mémoire `ui-redesign-decisions`, prototypes dans `docs/ui-redesign/prototype/` (copie locale hors git ; référence visuelle
 et comportementale : `lavartemis-prototype.html#braise-pc`, `#affiche-pc`, `#ludique-pc`).*
 
@@ -14,12 +16,15 @@ interface qui s'adapte à l'entrée utilisée (manette, clavier, souris, tactile
 ## Objectifs
 
 1. Un **accueil** par hôte : bloc « Scène » de la session en cours (titre, durée, Reprendre, Quitter),
-   Bureau et Playnite Fullscreen en deux demi-cartes, puis la bibliothèque (jeux Playnite).
+   Bureau et Playnite Fullscreen en deux demi-cartes, puis la bibliothèque (jeux Playnite, la plus
+   récemment jouée d'abord, dans l'ordre que donne LavApollo ≥ 2.4.93 ; sans jaquette, le nom du jeu).
 2. La session en cours se voit sur les trois thèmes : Scène + « Projecteur » (le reste assombri et
    désaturé) + halo animé sur l'élément en cours.
 3. **Menu contextuel** : popover collé au pointeur (souris), dialogue centré (manette/clavier). Entrées :
-   Lancer/Reprendre, Quitter, Relancer la session, Créer un raccourci .art, Masquer.
-4. **Mes PC** : liste des hôtes (état, appairage, réveil, ajout manuel).
+   Lancer/Reprendre, Quitter, Relancer la session, Créer un raccourci .art (PC), Masquer (jeux Playnite
+   seulement ; les jeux masqués se réaffichent depuis l'accueil).
+4. **Mes PC** : liste des hôtes (état, ajout, appairage par PIN, renommer, oublier, réveil, benchmark —
+   le benchmark vit avec le PC, pas dans les réglages).
 5. **Thèmes Braise, Affiche, Ludique**, chacun en clair et sombre, avec Système / Clair / Sombre
    (bouton soleil/lune dans l'en-tête + réglage), « Système » suivant l'OS en direct.
 6. **Entrée active** : indications manette seulement avec une vraie manette, clavier avec le clavier,
@@ -42,10 +47,11 @@ interface qui s'adapte à l'entrée utilisée (manette, clavier, souris, tactile
 
 ## Approches
 
-1. **Nouveau frontal QML à côté de l'ancien** *(retenue)* : `app/gui/v2/`, branché par `main.qml`
-   à la place de `PcView` quand l'interface v2 est active (Dev : par défaut, avec un réglage
-   « ancienne interface » de secours). Réutilise `ComputerModel`, `AppModel`, `StreamSegue`, les
-   dialogues d'appairage et de fermeture. Risque contenu, retour arrière immédiat.
+1. **Nouveau frontal QML à côté de l'ancien** *(retenue)* : `app/gui/v2/`, branché par `main.qml`.
+   Réutilise `ComputerModel`, `AppModel`, `StreamSegue`, les dialogues d'appairage et de fermeture.
+   Le réglage « ancienne interface » de secours a servi pendant la transition ; l'ancienne interface
+   (`PcView`, `AppView`, `SettingsView`, barre d'outils) est maintenant supprimée et l'appli démarre
+   toujours sur l'accueil v2.
 2. Restyler les vues existantes : garde la structure Moonlight (grilles, barre), ce que l'utilisateur
    veut quitter.
 3. Réécrire en C++ Widgets : abandonne QML et tout l'existant (navigation manette).
@@ -67,19 +73,23 @@ interface qui s'adapte à l'entrée utilisée (manette, clavier, souris, tactile
 - En-tête : nom de l'hôte + sélecteur ‹ › (Q/E, LB/RB), pastilles Multi-écran, soleil/lune, Mes PC,
   Réglages (icône engrenage).
 - Bureau : appli dont le nom est Desktop/Bureau ; Playnite : appli `IsPlayniteHost` (ou nommée
-  Playnite). Les autres applis de l'utilisateur suivent, puis les jeux Playnite (`IsPlayniteGame`).
+  Playnite). Puis la bibliothèque des jeux Playnite (`IsPlayniteGame`). Les autres applis de l'hôte ne
+  sont pas montrées (pas de section « Applis »).
 - Jeu lancé pendant Playnite : démarre dedans (déjà côté hôte, `startsInsidePlaynite`), la Scène
   affiche « Playnite — en jeu : X ».
 - Clic/A : lance ou reprend ; appui long/clic droit/Y/« ⋯ » : menu contextuel.
 
 ### Réglages
 
-- Pages : Général, Affichage, Vidéo, Audio, Entrées, Manettes, Apparence, PC (le presse-papiers sur Android, depuis le 2026-11-24), Avancé.
-  Le mode expert affiche les 30 réglages « Expert » du tri ; les 14 « à retirer » disparaissent.
-- Phase 1 : la page Apparence (thème, clair/sombre, ancienne interface) est neuve ; les autres
-  réglages ouvrent l'écran existant. Phase 2 : migration complète de `SettingsView.qml`.
+- Pages : Profil, Affichage, Vidéo, Audio, Entrées, Manettes, Apparence, PC, Avancé ; en plus
+  Raccourcis clavier (PC) et Contrôles à l'écran (Android).
+  Le mode expert affiche les réglages « Expert » du tri ; ceux « à retirer » disparaissent et sont figés à
+  leur défaut (HDR, mise à l'échelle de la résolution, souris à la manette… ; « Optimiser les réglages du
+  jeu » toujours actif).
+- Réglages propres à l'appareil, hors profils : langue, apparence, micro, mises à jour (+ côté PC
+  recherche des PC, tampon audio, presse-papiers…).
 
-## Livraison par étapes (chacune publiée en release Dev)
+## Livraison par étapes (chacune publiée en release Dev, toutes livrées)
 
 1. Thèmes + accueil + menu contextuel + Mes PC + page Apparence (desktop).
 2. Réglages v2 avec mode expert et suppressions.

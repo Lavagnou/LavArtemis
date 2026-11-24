@@ -121,7 +121,7 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
   la branche `dev` pointe sur la branche `dev` de LavArtemis-Qt.
 - **Le canal se lit dans la version, jamais dans la branche** : une version qui contient `-dev.`
   (`21.8.0-dev.3`) construit la Dev. `def lavVersionName` en tête d'`app/build.gradle` est la source
-  (la CI lit cette ligne). Passer en stable = changer la version, donc le canal : une fusion
+  (`scripts/local-release.ps1` et `release.yml` lisent cette ligne). Passer en stable = changer la version, donc le canal : une fusion
   `dev → main` ne peut pas l'emporter en douce.
 
 | | Stable | Dev |
@@ -131,7 +131,7 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
 | Textes français | vouvoiement hérité | **tutoiement** : `app/src/dev/res/values-fr/strings_tu.xml` remplace, pour la Dev seule, les chaînes au « vous » qu'elle peut afficher (mise à jour, quitter, erreurs de stream, benchmark…). Une nouvelle chaîne affichée par la Dev dont le texte stable dit « vous » s'y ajoute |
 | Qt : organisation (registre, AppData) | `LavArtemis` | `LavArtemis Dev` |
 | Installeur Windows | dossier, raccourcis, UpgradeCodes d'origine | les siens ; **pas** d'`art://` ni de `.art` |
-| Release | tag `vX.Y.Z`, Android + Windows + Linux | tag `vX.Y.Z-dev.N`, **prerelease**, Android + Windows |
+| Release (construite en local) | tag `vX.Y.Z`, Android + Windows x64 | tag `vX.Y.Z-dev.N`, **prerelease**, Android + Windows x64 |
 | Updater in-app | `/releases/latest` | `/releases`, première release `-dev.` |
 
 > ⚠️ **Valeurs stables intouchables.** Le suffixe `.lav`, l'organisation `LavArtemis`, les UpgradeCodes
@@ -151,8 +151,11 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
 - Le réglage « inclure les pre-releases / builds CI » a disparu des deux clients : l'appli Dev le
   remplace, et un APK d'un autre applicationId serait de toute façon refusé à l'installation.
 - **Release Dev** : `lavVersionName = "X.Y.Z-dev.N"` + `versionCode` +1 sur `dev`, pointeur `desktop/`
-  sur la branche `dev` de LavArtemis-Qt, tag `vX.Y.Z-dev.N`. `publish` tolère un `build-linux` sauté
-  **seulement** pour une Dev ; tout échec bloque toujours.
+  sur le commit voulu de la branche `dev` de LavArtemis-Qt, puis `scripts/local-release.ps1` (voir
+  « CI/CD & release ») qui pose le tag `vX.Y.Z-dev.N` et publie la prerelease.
+- **Politique** (décision de l'utilisateur) : **tout le travail va dans la Dev**, sans report vers la
+  stable. La stable sort en dernier, après des semaines d'essai de la Dev par l'utilisateur, qui est pour
+  l'instant le seul utilisateur : pas de doc ni de parcours « pour les autres utilisateurs ».
 
 ## 🎮 Jeux Playnite (LavApollo Link, Dev)
 
@@ -164,7 +167,7 @@ Chaque jeu installé de Playnite devient une appli de l'hôte, lancée **dans** 
 - Android : `NvApp.isPlayniteGame()/isPlayniteHost()` (`IsPlayniteGame`/`IsPlayniteHost` de
   `applist`), `ComputerDetails.playniteHostRunning`/`playniteGameName` (`serverinfo`), testés par
   `NvHTTPPlayniteTest`. Toucher un jeu Playnite pendant que Playnite tourne le lance directement
-  (`AppView`), et `NvConnection` envoie alors un **`resume`** avec ce jeu : LavApollo le démarre dans
+  (`HomeModel.decide()` → `INSIDE_PLAYNITE` en Dev, `AppView` en stable), et `NvConnection` envoie alors un **`resume`** avec ce jeu : LavApollo le démarre dans
   Playnite et la session continue, au lieu de quitter l'appli en cours.
 - Desktop : même logique (`AppModel::startsInsidePlaynite()`, `Session`).
 - **« Quitter le jeu »** (menu en jeu, Android `GameMenu` et desktop `QuickMenu`) : `/playnite-quit-game`
@@ -176,8 +179,9 @@ Spec `docs/superpowers/specs/2026-11-23-ui-redesign-design.md`, prototype valid�
 `docs/ui-redesign/prototype/`, copie locale hors git car elle contient des noms de machines (`lavartemis-prototype.html#braise-pc`, `#affiche`, `#ludique-pc`…,
 images absentes hors claude.ai). **Desktop terminé** (21.8.0-dev.7) : accueil, thèmes, Mes PC, Réglages v2
 avec **mode expert**, menu en jeu, raccourcis ; l'ancienne interface Qt est supprimée et tout est en
-français (`desktop/app/gui/v2/`, voir `desktop/CLAUDE.md`). Android : phase 1 livrée (accueil +
-bibliothèque, ci-dessous).
+français (`desktop/app/gui/v2/`, voir `desktop/CLAUDE.md`). **Android terminé** (21.8.0-dev.9) :
+accueil, bibliothèque, Mes PC, Réglages v2 avec mode expert, menu en jeu et dialogues aux couleurs du
+thème, en français au tutoiement (ci-dessous).
 
 ### 🤝 Parité PC / Android (règle de l'utilisateur)
 
@@ -259,9 +263,14 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     chaque défaut est celui de `preferences.xml` **et** de `PreferenceConfiguration` (et que la clé y est lue).
   - **Supprimés** (`SettingsCatalog.REMOVED`) : HDR, mise à l'échelle de la résolution, souris à la manette
     (Start maintenu). `PreferenceConfiguration.forceRemovedSettings()` les fige **en Dev seulement**
-    (`BuildConfig.LAV_DEV`, comme `StreamingPreferences::reload` côté desktop). `NOT_SHOWN` : clés que rien
-    ne lit (`checkbox_forceTightThresholds`, `checkbox_enable_joyconfix` — le code lit `checkbox_joycon_fix`),
-    options de l'ancienne grille d'applis (petites icônes, reprise rapide), saisies passées par les listes.
+    (`BuildConfig.LAV_DEV`, comme `StreamingPreferences::reload` côté desktop). « Optimiser les réglages du jeu » (sops)
+    a disparu des Réglages et reste toujours actif, comme sur le desktop. `NOT_SHOWN` : options de
+    l'ancienne grille d'applis (petites icônes, reprise rapide), saisies passées par les listes, liens d'aide
+    (wiki Artemis) et lien Obtainium.
+  - **Corrigés au passage** : le correctif Joy-Con était écrit `checkbox_enable_joyconfix` par les écrans et
+    lu `checkbox_joycon_fix` — il ne faisait rien ; `PreferenceConfiguration` lit maintenant la clé écrite
+    (l'ancienne reste honorée) et la ligne est dans Manettes (expert). « Tight Vsync (Experimental) »
+    (`checkbox_forceTightThresholds`), jamais lu, est **supprimé** (préférence, champ, chaînes).
   - **Écritures** : `SettingsStore` lit par `getOverlayingSharedPreferences` et écrit par
     `ProfileAwarePreferences.putBoolean/putString/putInt/putFloat/remove` (dans le profil actif s'il porte la
     clé, sinon les prefs de base). **Lignes `global()`** (base, jamais dans un profil) : thème et clair/sombre,
@@ -308,8 +317,9 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   - **Textes** : les messages anglais en dur de `NvConnection` (`text(id, anglais)`, repli anglais sans contexte),
     de `Game` (toasts HEVC/AV1/HDR, H.264 absent) et le nom des étapes de moonlight-common-c (`utils/StreamStages` :
     « Échec au démarrage : négociation RTSP (erreur -408) ») passent par `strings.xml` + `values-fr`. Le défaut
-    anglais = l'ancien texte, la stable anglaise ne change pas. Restent anglais : les notes des runs de benchmark
-    (données du rapport JSON partagé avec le desktop) et les toasts système (non thémés, en français).
+    anglais = l'ancien texte, la stable anglaise ne change pas. Les notes des runs de benchmark restent écrites
+    en anglais dans le rapport JSON (format partagé avec le desktop) ; `benchmark/BenchmarkNotes` traduit les
+    notes connues à l'affichage. Les toasts système ne sont pas thémés (mais sont en français).
 - **Deux modes tactiles seulement en Dev : Multitouch (0) et Trackpad (3)**, les deux que l'utilisateur
   utilise, mêmes libellés et même description que la ligne « Écran tactile » du desktop. Trackpad = le mode
   « appui long pour faire glisser » (`RelativeTouchContext` : appui long 650 ms = clic gauche maintenu,
@@ -379,8 +389,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > premier appui directionnel après le tactile, le focus va sur Reprendre (sinon la première carte), pas sur
 > l'en-tête. **A maintenu = options** (comme Y), le relâché ne clique pas. Densité (`Density`) : compacte
 > sous 480 dp de petit côté ; cartes empilées sous 600 dp de large ; en portrait les Récents passent en
-> grille. Reste (phase 2b) : Réglages v2 (et choix du thème, aujourd'hui par appui long / Y sur le bouton
-> clair-sombre).
+> grille.
 >
 > 📋 **Captures** : `HostsScreenshotTest` fait Mes PC (préfixe `hosts-`), le dialogue d'appairage (`pair-`)
 > et le menu en jeu (`gamemenu-`, en `fr`). Ses dialogues sont les vrais (`HostsActivity` construite par
@@ -437,7 +446,7 @@ C'est ici que réside l'essentiel du travail spécifique au fork (performances /
 - **Fix audio + cap configurable** — `binding/audio/AndroidAudioRenderer.java` corrige un bug d'effets audio et rend le cap d'audio pending configurable (`seekbar_max_pending_audio_ms`, 10–100 ms).
 - **Sustained performance + thermal** — `Game.java` : `setSustainedPerformanceMode(true)` (API 24+) et toast `thermal_throttling_warning` (API 29+).
 
-Toutes ces options sont exposées dans **`app/src/main/res/xml/preferences.xml`** (Advanced Settings).
+Toutes ces options sont déclarées dans **`app/src/main/res/xml/preferences.xml`** (Advanced Settings de la stable ; en Dev, lignes de `v2/settings/SettingsCatalog`, la plupart en mode expert).
 
 ## 🎙️ Bouton vocal push-to-talk (Android)
 
@@ -445,7 +454,7 @@ Un bouton micro semi-transparent pendant le stream (bas à droite par défaut) :
 la touche ² de l'hôte reste enfoncée**, pour un outil de dictée côté PC qui écoute ² en push-to-talk.
 `binding/input/VoicePttButton.java` (machine à états, testée par `VoicePttButtonTest`),
 `VoicePttButtonPosition.java` (maths de position), branchement dans `Game.initVoicePttButton()`.
-Réglage `checkbox_voice_ptt_button` (*UI Settings*, défaut off) + entrées « Afficher / Masquer » et
+Réglage `checkbox_voice_ptt_button` (*UI Settings* en stable, Réglages › Contrôles à l'écran en Dev ; défaut off) + entrées « Afficher / Masquer » et
 « Déplacer » du menu en jeu.
 
 > ⚠️ **La touche envoyée est `VK_OEM_3` (0xC0), pas `VK_OEM_7`.** Le client envoie des VK
@@ -480,7 +489,7 @@ Réglage `checkbox_voice_ptt_button` (*UI Settings*, défaut off) + entrées « 
 
 Comme Chrome Remote Desktop : en mode trackpad (souris 2 naturel / 3 gaming ; la Dev ne garde que le 3), **pincer zoome**
 (1×–10×) et **la vue suit le curseur** — elle ne bouge que quand le curseur quitte la moitié centrale
-de l'écran, juste assez pour l'y ramener. Réglage `checkbox_trackpad_pinch_zoom` (*Input Settings*,
+de l'écran, juste assez pour l'y ramener. Réglage `checkbox_trackpad_pinch_zoom` (*Input Settings* en stable, Réglages › Entrées en Dev ;
 défaut off). `binding/input/touch/TrackpadZoomController.java` orchestre ; `TrackedCursor`,
 `PinchArbiter` et `utils/ZoomFollow` portent les calculs (tests JVM) ; `PanZoomHandler` implémente
 `utils/ZoomView`.
@@ -596,7 +605,7 @@ communes aux deux clients (`HostDisplayFitTest`, `tests/hostdisplay`).
 
 ## 🖥️ Client desktop (`desktop/`)
 
-LavArtemis existe aussi en **client desktop Qt**, dans le sous-module `desktop/` → [`Lavagnou/LavArtemis-Qt`](https://github.com/Lavagnou/LavArtemis-Qt) (C++/Qt 6.11, **qmake**, Windows x64/ARM64 + Linux).
+LavArtemis existe aussi en **client desktop Qt**, dans le sous-module `desktop/` → [`Lavagnou/LavArtemis-Qt`](https://github.com/Lavagnou/LavArtemis-Qt) (C++/Qt 6.11, **qmake**, Windows x64/ARM64 + Linux ; les releases construites en local ne portent que Windows x64).
 
 **Lignage** : Moonlight-Qt → [wjbeckett/artemis](https://github.com/wjbeckett/artemis) (portage desktop des features Artemis) → LavArtemis-Qt. Remotes dans le sous-module : `upstream-qt` = moonlight-stream/moonlight-qt, `upstream-artemis` = wjbeckett/artemis.
 
@@ -606,8 +615,8 @@ Déjà présent côté desktop (hérité du portage wjbeckett) : clipboard sync,
 
 | Feature | Où | Notes |
 |---|---|---|
-| **Profils de réglages** | `settings/profilemanager.{h,cpp}`, groupe « Settings Profile » en haut de `gui/SettingsView.qml` | `profiles.json` dans `AppConfigLocation`. Un profil est un **snapshot complet**, pas un patch épars : `save()` écrit toutes les clés, donc un profil créé capture l'état courant puis vit sa vie. `language` et `defaultver` **bypassent** les profils (changer de profil ne doit pas changer la langue de l'app). |
-| **Send keys + macros clavier** | `backend/keymacromanager.{h,cpp}`, sous-menu « Send Keys » de `gui/QuickMenu.qml` | 15 presets intégrés (ceux de la Dev Android) + macros utilisateur dans `keyboard-macros.json` (`AppConfigLocation`). **Même format JSON et mêmes noms `VK_` que l'Android** → un fichier marche sur les deux. La table des 174 noms est extraite de `utils/KeyMapper.java`, pas retapée. |
+| **Profils de réglages** | `settings/profilemanager.{h,cpp}`, page « Profil » de `gui/v2/SettingsView2.qml` | `profiles.json` dans `AppConfigLocation`. Un profil est un **snapshot complet**, pas un patch épars : `save()` écrit toutes les clés, donc un profil créé capture l'état courant puis vit sa vie. Ce qui tient à l'appareil **bypasse** les profils : `language`, `defaultver`, `k_AppWideKeys` (recherche des PC, détection des connexions bloquées, fenêtre au démarrage, trace VRR) et les réglages globaux d'`ArtemisSettings` (micro…). Même principe côté Android (`ProfilesManager.APP_WIDE_KEYS`). |
+| **Send keys + macros clavier** | `backend/keymacromanager.{h,cpp}`, sous-menu « Envoyer des touches » de `gui/QuickMenu.qml` | 15 presets intégrés (ceux de la Dev Android) + macros utilisateur dans `keyboard-macros.json` (`AppConfigLocation`). **Même format JSON et mêmes noms `VK_` que l'Android** → un fichier marche sur les deux. La table des 174 noms est extraite de `utils/KeyMapper.java`, pas retapée. |
 | **Liens `art://` + fichiers `.art`** | `cli/artlink.{h,cpp}`, enregistrement OS dans `wix/LavArtemis/Product.wxs` (HKCU) et `deploy/linux/com.lavartemis.LavArtemis.{desktop,xml}` | `ArtLink::rewriteArguments()` **traduit le lien en ligne de commande existante** (`stream <host> <app>` / `pair <host> --pin --passphrase`) au lieu d'ajouter un chemin de lancement parallèle → hérite du host seeking, du wake-on-LAN et de l'UI de segue. Formats identiques à l'Android. |
 
 > ⚠️ **Le bug Android des profils n'est pas reproduit.** Côté Android, `OverlaySharedPreferences` lit à travers la map du profil mais `edit()` renvoie l'éditeur de base (`ProfilesManager.java:251`) : les écritures s'échappent du profil et atterrissent dans les prefs globales. Côté Qt, `StreamingPreferences::reload()` **et** `save()` passent tous les deux par `ProfileManager::value()`/`setValue()` — lecture et écriture ne peuvent pas diverger par construction.
@@ -620,7 +629,7 @@ Deux effets de bord utiles du portage `art://` : le lancement CLI accepte désor
 
 > ⚠️ **Un seul appelant reste sur l'ancien helper** : `Session::getWindowDimensions()` (`session.cpp:1538`) réutilise l'ajustement d'aspect pour dimensionner la fenêtre. Y appliquer le zoom **redimensionnerait la fenêtre** au lieu d'agrandir la vidéo. C'est pour ça que c'est une seconde fonction et pas un flag dans la première.
 
-**Export de fichiers `.art`** : `AppModel::exportArtFile()`, entrée « Export Shortcut File… » du menu contextuel d'`AppView.qml`. Même format `[clé] valeur` que `ShortcutHelper.java:243` → un fichier écrit ici s'ouvre sur Android et inversement.
+**Export de fichiers `.art`** : `AppModel::exportArtFile()`, entrée « Créer un raccourci .art » du menu d'une appli (`gui/v2/AppMenu.qml`, dialogue dans `HomeView.qml`). Même format `[clé] valeur` que `ShortcutHelper.java:243` → un fichier écrit ici s'ouvre sur Android et inversement.
 
 Pas encore porté : **SBS 3D MiDaS** (hors périmètre v1).
 
@@ -628,8 +637,8 @@ Pas encore porté : **SBS 3D MiDaS** (hors périmètre v1).
 
 Quand le PC client a plusieurs moniteurs, l'hôte **LavApollo** en émule un écran virtuel chacun, aux
 bonnes résolutions et à la bonne disposition, et le client réaffiche chaque écran hôte sur le
-moniteur correspondant. Réglage « Virtual Display Multi-Screen », désactivé par défaut et grisé si l'écran
-virtuel de base est désactivé. **Exclusivement desktop** — l'Android est hors périmètre.
+moniteur correspondant. Réglage « Un écran virtuel par moniteur » (Réglages › Affichage), désactivé par
+défaut et grisé si l'écran virtuel de base est désactivé. **Exclusivement desktop** — l'Android est hors périmètre.
 
 Le protocole ne transporte qu'**un seul flux vidéo** (`LiStartConnection` est un singleton global,
 `cmd_announce` ne lit que `x-nv-video[0]`), donc le flux porte **une toile** unique = la bounding box
@@ -645,9 +654,9 @@ Une seule addition au protocole : `&displayLayout=<x>,<y>,<w>,<h>,<primary>;…`
 plus `MultiDisplayCapable` dans `serverinfo`. Rétrocompatible : un hôte qui ignore le paramètre crée
 un unique grand écran de la taille de la toile, et le client avertit au lieu de laisser deviner.
 
-Un bouton de bascule est aussi posé dans la barre d'outils du client, à côté des autres — c'est le
-réglage qu'on change selon l'endroit où l'on est assis, pas selon ses goûts. Il suit jusqu'à la liste
-des applications d'un hôte, l'écran d'où l'on lance réellement un jeu.
+Une pastille « Multi-écran » est aussi posée dans l'en-tête de l'accueil (`HomeView.qml`), l'écran d'où
+l'on lance réellement un jeu — c'est le réglage qu'on change selon l'endroit où l'on est assis, pas selon
+ses goûts.
 
 > ⚠️ **Deux pièges déjà payés, à ne pas réintroduire.** Une préférence QML écrite depuis
 > `onCheckedChanged` s'efface toute seule (le signal suit le binding, pas le clic) — utiliser
@@ -673,7 +682,7 @@ Trois pièces côté Qt :
 1. **Repli générique** — `MappingManager::applyFallbackMappings()` synthétise un mapping pour tout joystick ignoré, en reprenant le raisonnement Android (première paire d'axes = stick gauche ; la suivante = stick droit à 4 axes, gâchettes à 6+). Le **critère d'éligibilité est celui de l'amont** (`4-8 axes, ≥8 boutons, ≤1 hat`, cf. `getUnmappedGamepads()`) : l'appareil dont on avertit et celui qu'on répare sont le même par construction.
    - Appelé **à la fin d'`applyMappings()`**, donc une entrée réelle gagne toujours, et les trois appelants en héritent sans duplication.
    - Les suppositions **ne sont pas persistées** (recalculées à chaque lancement) et **s'annoncent** via un launch warning nommant l'appareil — sinon un succès silencieux serait indiscernable d'une disposition silencieusement fausse.
-   - Réglage `genericGamepadFallback` (défaut **on**) dans *LavArtemis Features → Input*.
+   - Réglage `genericGamepadFallback` (défaut **on**) : « Deviner la disposition des manettes inconnues », Réglages › Manettes.
 2. **Mapper** — `gui/sdlgamepadmapper.{h,cpp}` + `gui/GamepadMapper.qml` + `gui/ControllerDiagram.qml` + `gui/GamepadControl.qml`. Le bouton existait en amont derrière `visible: false` et un TODO, pointant sur un stub de 5 lignes. **On clique le contrôle sur un schéma de manette, puis on l'actionne** : une seule cible à la fois, et une file (`selectElements()`) qui sert aux trois usages — un bouton, une paire d'axes de stick, ou les 21 éléments à la suite.
 3. **Dialogue** des manettes non mappées : ouvre le mapper au lieu d'un lien wiki.
 
@@ -698,10 +707,12 @@ Trois pièces côté Qt :
 
 `desktop/app/backend/autoupdatechecker.{h,cpp}` interroge les releases GitHub de **LavArtemis** et,
 sous Windows, télécharge et lance l'installeur lui-même — les autres plateformes ouvrent la page de
-release. Deux canaux : stable (`/releases/latest`) ou CI (`/releases`, les builds CI étant publiés en
-prerelease). Sous Windows, l'asset est **`-win-installer.exe` quelle que soit l'architecture** : le
-bundle WiX embarque les MSI x64 et arm64 et choisit par `NativeMachine`, alors que les zips par arch
-sont des builds portables sans installeur dedans.
+release. Le canal suit l'appli : stable → `/releases/latest`, Dev → première release `-dev.` de
+`/releases` (le réglage « prereleases / CI » a disparu). « Ignorer cette version » au check du démarrage ;
+le check manuel la propose toujours. Sous Windows, l'asset est **`-win-installer.exe` quelle que soit
+l'architecture** (bundle x64 seul en release locale, `LAV_X64_ONLY=1` ; x64 + arm64 choisis par
+`NativeMachine` quand la CI le construit), alors que les zips par arch sont des builds portables sans
+installeur dedans.
 
 > ⚠️ **Trois invariants payés en 20.8.1, détaillés dans `desktop/CLAUDE.md`.** Un `Dialog` Qt Quick se
 > ferme dès qu'on presse un bouton standard, donc le téléchargement a son propre dialogue au lieu de
@@ -722,8 +733,9 @@ sont des builds portables sans installeur dedans.
 
 ### 🔄 Mise à jour in-app (Android)
 
-`utils/UpdateChecker.java` + `UpdateDownloader.java` + `UpdateDialogHelper.java`, en plus d'Obtainium
-(stable seulement : la Dev n'a plus le lien).
+`utils/UpdateChecker.java` + `UpdateDownloader.java` + `UpdateDialogHelper.java`. Le canal suit l'appli
+(stable : `/releases/latest` ; Dev : première release `-dev.` de `/releases`). Obtainium n'a jamais servi :
+la Dev n'en a plus le lien (`NOT_SHOWN`) ; seul l'ancien écran de réglages de la stable le montre encore.
 
 > ⚠️ **L'APK se choisit par ABI** (`UpdateChecker.pickAsset()` sur `Build.SUPPORTED_ABIS`) : un Fire TV ou un Chromecast with Google TV ne peut pas installer l'APK arm64. Sans asset compatible, le dialogue ouvre la page de release.
 >
@@ -824,8 +836,9 @@ ms près) et bride le jeu au rythme du stream.
 
 ## 📊 Benchmark des réglages (LavApollo + les deux clients)
 
-Choisir codec, débit et pacing « au ressenti » est remplacé par une mesure : clic droit (desktop) ou appui
-long (Android) sur un hôte → **Benchmark**. Le client streame plusieurs fois de suite la **même scène
+Choisir codec, débit et pacing « au ressenti » est remplacé par une mesure : menu d'un PC dans **Mes PC** →
+« Benchmark des réglages » (Dev, les deux clients : le benchmark vit avec le PC, pas dans les réglages) ;
+clic droit (desktop) ou appui long (Android) sur un hôte dans la stable. Le client streame plusieurs fois de suite la **même scène
 animée**, servie par l'app cachée « Benchmark » de LavApollo (`tools/benchmark_scene.cpp`, fonction du seul
 numéro d'image), une combinaison par run, et note chaque run sur 100 en **latence** et en **fluidité** face
 aux réglages actuels, mesurés en premier et en dernier. Modes Rapide / Complet / Adaptatif, bouton
@@ -837,8 +850,9 @@ valeurs de référence.
   `/applist` sauf pendant qu'elle tourne. Aucun changement dans `moonlight-common-c`.
 - **Desktop** : `backend/benchmark/` + `gui/BenchmarkView.qml`, détails dans `desktop/CLAUDE.md`.
 - **Android** : `com.limelight.benchmark` (`BenchmarkPlanner`, `BenchmarkScoring`, `BenchmarkReport` : ports
-  ligne à ligne du C++, testés par `BenchmarkTest` / `BenchmarkControllerTest`), `BenchmarkActivity`, menu
-  `BENCHMARK_ID` de `PcView`.
+  ligne à ligne du C++, testés par `BenchmarkTest` / `BenchmarkControllerTest`), `BenchmarkActivity` (habillée par `V2Page`
+  en Dev), ouverte par le menu d'une carte de `HostsActivity` (Dev) ou `BENCHMARK_ID` de `PcView` (stable).
+  Les notes des runs sont écrites en anglais et traduites à l'affichage (`BenchmarkNotes`).
 
 > ⚠️ **Android : chaque run est une activité `Game` normale**, lancée avec l'extra `BenchmarkRun` (JSON) que
 > `Game` applique à `prefConfig` **en mémoire**, juste après `readPreferences()`. Le run se mesure lui-même
@@ -921,43 +935,69 @@ Requiert **Qt 6.11 + MSVC (VS2026)** et **WiX 7**. Sur Linux : `qmake6 lavartemi
 | ADPF | ❌ pas d'équivalent Windows. La partie « inhibition veille » est déjà couverte par `SDL_DisableScreenSaver()` (`session.cpp:2137`) → `SetThreadExecutionState`. |
 | Sustained performance mode, avertissement thermique | ❌ pas d'équivalent Windows — hors périmètre |
 
-Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cpp}` (singleton QSettings, fichier `artemis-settings.ini` dans `AppConfigLocation`), exposés en QML via `qmlRegisterSingletonType` dans `main.cpp` et édités dans le groupe **LavArtemis Features → Streaming Performance** de `gui/SettingsView.qml`.
+Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cpp}` (singleton QSettings, fichier `artemis-settings.ini` dans `AppConfigLocation`), exposés en QML via `qmlRegisterSingletonType` dans `main.cpp` et édités dans les pages de `gui/v2/SettingsView2.qml`.
 
-> ⚠️ Les setters d'`ArtemisSettings` **ne persistent pas** tout seuls : `SettingsView.qml` appelle `ArtemisSettings.save()` dans `StackView.onDeactivating` et `Component.onDestruction`, à côté de `StreamingPreferences.save()`. Tout nouveau point d'édition doit faire pareil.
+> ⚠️ Les setters d'`ArtemisSettings` **ne persistent pas** tout seuls : `SettingsView2.qml` appelle `ArtemisSettings.save()` (avec `StreamingPreferences.save()`) dans `saveNow()`, déclenché par `persist()` après chaque modification. Tout nouveau point d'édition doit faire pareil.
 
 ## 🤖 CI/CD & release
 
 - **Les releases se construisent sur le PC du mainteneur** (depuis le 2026-11-23, quota Actions trop juste) :
-  `scripts/local-release.ps1 -NotesFile <notes.md>` construit les APK signés (`key/release.keystore`, mot de
-  passe dans `key/keystore.properties`, hors git — ne jamais l'ouvrir ni l'afficher), le client Windows **x64
-  seulement** (pas de kit Qt arm64 ici : `LAV_X64_ONLY=1` donne un installeur sans ARM64), le zip portable,
-  puis tag, push et `gh release create` (prerelease pour une `-dev.`). Pas d'AppImage Linux en local.
-  ⚠️ Le clone `LavArtemis-Qt` doit être sur le commit épinglé par `desktop/` (le script le vérifie).
-- **`.github/workflows/release.yml`** : **manuel seulement** (`workflow_dispatch`), plus déclenché par un tag ; reste
-  le secours pour une release avec Linux et ARM64. **Une seule release contient Android + Windows + Linux.**
-  - Job `version` : lit `lavVersionName` dans `app/build.gradle`. Sur tag push, **échoue si le tag ≠ versionName** → `versionName` reste la source de vérité unique ; `desktop/app/version.txt` est écrit depuis le tag au build (sa valeur committée est périmée et ignorée). Une version `-dev.` publie une **prerelease** Dev sans le job Linux (voir « Stable / Dev »).
-  - Job `build-android` : Ubuntu, JDK 17, NDK `27.0.12077973`, `assembleNonRoot_gameRelease`. N'initialise **que** le sous-module natif (pas `desktop/`).
-  - Job `build-windows` : `windows-2025`, Qt 6.11, build x64 **et** arm64 dans le même job (l'installeur combiné a besoin des deux MSI), depuis le commit `desktop/` épinglé ici.
-  - Job `build-linux` : `ubuntu-22.04`, AppImage x86_64. **Le plus long de loin** — aucun paquet prébuildé n'existe pour ce dont le client a besoin, donc SDL3, sdl2-compat, SDL_ttf, libva, libplacebo, dav1d et FFmpeg sont compilés depuis les sources avant même de configurer l'app. Les deps sont clonées sous `desktop/deps/` pour que les chemins relatifs des patchs du sous-module continuent de résoudre. Empaquetage par `desktop/scripts/build-appimage.sh` + linuxdeploy.
-  - Job `publish` : agrège les artefacts et publie via `softprops/action-gh-release@v2`. **Bloquant sur les 3 jobs de build** : une plateforme qui casse fait échouer la release entière plutôt que de publier une release incomplète en silence.
-  - Job `version` : contrôle aussi la santé du pointeur `desktop/`, en deux temps. **1)** Le commit épinglé a-t-il un compile-check vert *à lui* — c'est la question qui compte, puisque c'est ce commit-là qu'on publie. **2)** Seulement ensuite, est-il en retard sur le dernier commit vert, avec la liste des commits manqués. Il **signale sans corriger** — un tag doit reconstruire la même chose à chaque fois, donc avancer le pointeur en cours de release casserait la reproductibilité. En `continue-on-error` : un hoquet de l'API GitHub annote le run, il ne fait pas échouer la release.
-  - ⚠️ **`compare/BASE...HEAD` décrit HEAD *par rapport à* BASE** : seul le statut `ahead` veut dire que le pointeur est réellement en retard. `behind` signifie que le dernier commit vert est un **ancêtre** de ce qu'on épingle — ce qui arrive dès que le commit épinglé n'a pas de build vert. Se contenter d'un `!=` faisait annoncer « 0 commits ahead » à chaque release, une alerte qui a crié dans le vide pendant 17 jours (v20.7.x → v20.8.2).
-  - ⚠️ **Le compile-check et la release ne compilent pas le même code.** `build.yml` côté LavArtemis-Qt construit Linux **sans** `APP_IMAGE`, le job `build-linux` d'ici le construit **avec**. Les branches `#ifdef` diffèrent donc, et une erreur qui ne touche qu'un chemin peut laisser la release verte pendant que le compile-check est rouge — exactement ce qui est arrivé à `findAssetDownloadUrl()`. **Un compile-check rouge n'est pas cosmétique même quand la release passe.**
-  - Les tests JVM tournent dans **`.github/workflows/unit-tests.yml`** (PR et lancement manuel **seulement** : plus sur chaque push vers `main`, où le travail arrive directement, déjà testé en local — les minutes Actions sont gardées pour les releases), en **`continue-on-error`** : non bloquant tant que ces tests-ci sont rouges. ⚠️ **5 tests JVM échouent déjà** sur `main` (`LayoutInflationTest`, `SimpleStartupTest`, `StartupTest`, `ProfilesNavigationTest` ×2) — problèmes de setup Robolectric préexistants, sans rapport avec le portage desktop.
-- **`.github/workflows/update-desktop-pointer.yml`** : avance le sous-module `desktop/` vers le dernier commit **vert** de LavArtemis-Qt. **Manuel** (`workflow_dispatch`, avec SHA optionnel) — pas de cron, le pointeur ne comptant qu'au moment de couper un tag. Tourne **dans** LavArtemis et écrit **dans** LavArtemis, donc le `GITHUB_TOKEN` intégré suffit : aucun PAT à provisionner. Réécrit le gitlink via `git update-index --cacheinfo` plutôt que de checkouter le sous-module (économise un clone de ~250 Mo).
-  - **Flatpak non câblé** : demande un manifeste (inexistant) et une soumission Flathub, chantier à part. Le Steam Deck tourne l'AppImage.
-- **`.github/workflows/claude.yml`** (Claude sur les commentaires d'issues/PR, réservé aux membres) et **`claude-code-review.yml`** (revue Claude des PR). Ne buildent rien.
-- **`LavArtemis-Qt/.github/workflows/build.yml`** : compile-check du client desktop (Windows x64/arm64 + Linux) à chaque push. Ne produit pas de release.
-  - ⚠️ `build-appimage.yml` y est **orphelin** (`workflow_call` que personne n'appelle) : c'est la référence dont le job `build-linux` ci-dessus est dérivé. Toute correction doit aller dans les deux.
-
-Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-android-armeabi-v7a.apk`, `LavArtemis-<tag>-win-{x64,arm64}.zip`, `LavArtemis-<tag>-win-installer.exe`, `LavArtemis-<tag>-linux-x86_64.AppImage`.
+  `scripts/local-release.ps1 -NotesFile <notes.md>` (`-SkipAndroid` / `-SkipWindows` réutilisent un build,
+  `-NoPublish` s'arrête avant le tag) construit les APK signés (`key/release.keystore`, mot de passe dans
+  `key/keystore.properties`, hors git — ne jamais l'ouvrir ni l'afficher), le client Windows **x64
+  seulement** (pas de kit Qt arm64 ici : `LAV_X64_ONLY=1` donne un installeur sans ARM64 ; `CI_VERSION` et un
+  `version.txt` réécrit le temps du build donnent la version), le zip portable, puis tag `v<lavVersionName>`,
+  push et `gh release create` (prerelease pour une `-dev.`). Pas d'AppImage Linux ni d'ARM64 en local.
+  ⚠️ Le clone `LavArtemis-Qt` (à côté de ce dépôt) doit être sur le commit épinglé par `desktop/` (le script
+  le vérifie) et LavArtemis ne doit pas avoir de modification non commitée.
+- **Le pointeur `desktop/` s'avance à la main** (commit du gitlink, « Point desktop/ at … »), sur le commit
+  de LavArtemis-Qt qui vient d'être construit et essayé en local.
+- Artefacts : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>-android-armeabi-v7a.apk`,
+  `LavArtemis-<tag>-win-x64.zip`, `LavArtemis-<tag>-win-installer.exe` (+ `-win-arm64.zip` et
+  `-linux-x86_64.AppImage` quand `release.yml` construit la release).
+- **Tous les workflows GitHub sont manuels ou liés aux PR** — aucun ne part sur un push ou un tag :
+  - **`.github/workflows/release.yml`** : `workflow_dispatch` seulement ; reste le secours pour une release
+    avec Linux et ARM64 (Android + Windows x64/arm64 + Linux dans une seule release). Lancé sur un tag
+    `v<lavVersionName>` déjà poussé (« Use workflow from » → le tag), il publie cette release (et refuse un tag
+    ≠ version) ; lancé sur une branche, une prerelease `v<version>-ci.<run>` — ⚠️ sur `dev`, ce tag contient
+    `-dev.` et l'updater de la Dev le prendrait. Job `version` : lit
+    `lavVersionName`, écrit `desktop/app/version.txt` au build (sa valeur committée est périmée et ignorée),
+    contrôle la santé du pointeur `desktop/` (signale sans corriger, `continue-on-error`). `build-android`
+    (Ubuntu, JDK 17, NDK `27.0.12077973`, n'initialise **que** le sous-module natif), `build-windows`
+    (`windows-2025`, Qt 6.11, x64 **et** arm64 pour l'installeur combiné), `build-linux` (`ubuntu-22.04`,
+    AppImage x86_64, **de loin le plus long** : SDL3, sdl2-compat, SDL_ttf, libva, libplacebo, dav1d et
+    FFmpeg compilés depuis les sources sous `desktop/deps/`, empaquetage par `desktop/scripts/build-appimage.sh`
+    + linuxdeploy), `publish` (`softprops/action-gh-release@v2`, **bloquant sur les 3 builds** ; une version
+    `-dev.` saute Linux et part en prerelease).
+  - ⚠️ **`compare/BASE...HEAD` décrit HEAD *par rapport à* BASE** (contrôle du pointeur) : seul `ahead` veut
+    dire que le pointeur est en retard ; `behind` = le dernier commit vert est un ancêtre de l'épinglé. Un
+    simple `!=` a fait crier une alerte dans le vide pendant 17 jours (v20.7.x → v20.8.2).
+  - **`unit-tests.yml`** : PR et lancement manuel, `continue-on-error`. ⚠️ **5 tests JVM échouent déjà**
+    (`LayoutInflationTest`, `SimpleStartupTest`, `StartupTest`, `ProfilesNavigationTest` ×2) — setup
+    Robolectric préexistant. Les lancer en local avant chaque push.
+  - **`update-desktop-pointer.yml`** : manuel ; cherche le dernier build **vert déclenché par un push** sur
+    `main` de LavArtemis-Qt et écrit dans `main` d'ici. Le compile-check n'étant plus lancé par les push, il
+    ne trouve plus de nouveau commit : **obsolète** tant que le pointeur s'avance à la main (et il ignore la
+    branche `dev`).
+  - **`claude.yml`** / **`claude-code-review.yml`** : Claude sur les issues / PR. Ne buildent rien.
+  - **`LavArtemis-Qt/.github/workflows/build.yml`** : compile-check (Windows x64/arm64 + Linux), **manuel
+    seulement** ; le client est construit en local avant chaque push. ⚠️ Il construit Linux **sans**
+    `APP_IMAGE`, `build-linux` d'ici **avec** : les branches `#ifdef` diffèrent (cas de
+    `findAssetDownloadUrl()`) — un compile-check rouge n'est pas cosmétique même quand la release passe.
+    `build-appimage.yml` y est **orphelin** (`workflow_call` que personne n'appelle) : c'est la référence dont
+    `build-linux` est dérivé, toute correction va dans les deux.
+- **Flatpak non câblé** : demande un manifeste (inexistant) et une soumission Flathub.
 
 ### Signature
 - Aucun keystore committé (`key/` + `*.keystore`/`*.jks`/`*.b64` sont gitignored).
-- **Mise en place initiale : voir `SIGNING.md`** (script `scripts/generate-release-keystore.ps1` + secrets GitHub à créer). Sans ça, chaque release CI est signée avec une debug key éphémère → les mises à jour sont refusées (« package en conflit »).
-- Release Android signée via variables d'environnement : `CI_KEYSTORE_PATH`, `CI_KEYSTORE_PASSWORD`, `CI_KEY_ALIAS`, `CI_KEY_PASSWORD` (le secret GitHub `RELEASE_KEYSTORE_BASE64` est décodé vers `CI_KEYSTORE_PATH` dans le workflow).
-- Sans secret : sur GitHub Actions → fallback **debug key** (artefacts installables mais signature distincte) ; en local → APK **non signé** (signer manuellement avec `apksigner`).
-- Windows : Authenticode **optionnel** via `WINDOWS_CERT_BASE64` / `WINDOWS_CERT_PASSWORD`. Absents → binaires publiés non signés (le build ne casse pas).
+- **Mise en place : voir `SIGNING.md`** (`scripts/generate-release-keystore.ps1`).
+- `app/build.gradle` signe une release, dans cet ordre : `signingConfigs.ci` si `CI_KEYSTORE_PATH` est posé
+  (workflow : secret `RELEASE_KEYSTORE_BASE64` décodé) ; sinon `signingConfigs.local` si
+  `key/keystore.properties` et `key/release.keystore` existent (**le cas normal, release locale**) ; sinon,
+  sur GitHub Actions seulement, la **debug key** (installable, mais les mises à jour sont refusées
+  « package en conflit ») ; ailleurs, APK non signé.
+- Windows : Authenticode **optionnel** via `WINDOWS_CERT_BASE64` / `WINDOWS_CERT_PASSWORD` (workflow
+  seulement). Absents → binaires publiés non signés (le build ne casse pas).
 
 ## 🛡️ ProGuard / R8 & lint
 
@@ -991,13 +1031,13 @@ Artefacts publiés : `LavArtemis-<tag>-android-arm64-v8a.apk`, `LavArtemis-<tag>
 ## 🧹 Renommages incomplets / Dette technique (Artemis → LavArtemis)
 
 Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
-- ✅ ~~`README.md`~~ réécrit pour LavArtemis (deux clients, lignage, liens Obtainium corrigés). Le « Disclaimer » de ClassicOldSong, un témoignage personnel à la première personne, a été retiré — il n'avait pas à figurer sous le nom d'un autre mainteneur ; son travail est crédité dans « Lineage and credits ».
+- ✅ ~~`README.md`~~ réécrit pour LavArtemis (deux clients, stable / Dev, lignage, sans Obtainium). Le « Disclaimer » de ClassicOldSong, un témoignage personnel à la première personne, a été retiré — il n'avait pas à figurer sous le nom d'un autre mainteneur ; son travail est crédité dans « Lineage and credits ».
 - Classe **`ArtemisApplication.java`** non renommée (référencée par `AndroidManifest.xml` et par `StartupTest`/`SimpleStartupTest`).
 - Identifiant clipboard **`"ArtemisStreaming"`** dans `Game.java`.
 - ✅ ~~Email/branding du partage des logs de perf~~ : plus de destinataire imposé (c'était la boîte de collecte de l'amont), sujet « LavArtemis - Performance Log ».
-- Typo **« Nior »** (devrait être « Noir ») dans `summary_software_update` (`strings.xml`) + mention résiduelle de ClassicOldSong.
+- Typo **« Nior »** (devrait être « Noir ») dans `summary_software_update` des traductions `values-ru` et `values-zh-rTW` (l'anglais et le français sont corrigés).
 - ✅ ~~Icônes launcher~~ : icônes LavArtemis propres depuis 21.8.0-dev.5 (voir « Icônes »). Les couleurs du
-  thème Android classique restent celles d'Artemis (`#1A1A1A` / `#000000`) ; la refonte de l'interface les remplacera.
+  thème Android classique (stable) restent celles d'Artemis (`#1A1A1A` / `#000000`) ; la Dev a les thèmes v2.
 - `fastlane/metadata/android/en-US/title.txt` = « Moonlight Game Streaming ».
 
 ## 🔑 Fichiers clés
@@ -1015,8 +1055,10 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `.../binding/audio/AndroidAudioRenderer.java` | Rendu audio — LavArtemis (fix + cap) |
 | `.../preferences/StreamSettings.java` | Réglages + CSV perf log |
 | `app/src/main/res/xml/preferences.xml` | Toutes les options (dont LavArtemis) |
-| `.github/workflows/release.yml` | CI build & release **unifiée** (Android + Windows + Linux) |
-| `.github/workflows/update-desktop-pointer.yml` | Avance le sous-module `desktop/` vers le dernier commit vert (manuel) |
+| `scripts/local-release.ps1` | **La** release : APK signés + Windows x64, tag, `gh release create` (sur le PC du mainteneur) |
+| `.github/workflows/release.yml` | Release Android + Windows x64/arm64 + Linux, **manuelle seulement** (secours) |
+| `app/src/main/java/com/limelight/v2/` | Interface v2 de la Dev (accueil, bibliothèque, Mes PC, Réglages v2, briques `ui/`, table `settings/SettingsCatalog`) |
+| `docs/superpowers/specs/2026-11-24-pc-android-parity.md` | Parité PC / Android : commun, écarts voulus, reste à faire (à tenir à jour) |
 | `android_test_setup.md` | Guide de tests JVM / Robolectric |
 | `app/src/main/jni/pyrowave-renderer/` | Renderer PyroWave Android (Vulkan, arm64) |
 | `app/src/main/jni/pyrowave/` | Sous-module `Lavagnou/pyrowave` (⚠️ même commit que LavApollo et le desktop) |
@@ -1033,9 +1075,9 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/app/gui/GamepadMapper.qml` | Page du mapper — ⚠️ suspend `SdlGamepadKeyNavigation`, consomme `Escape` pendant une capture |
 | `desktop/app/gui/ControllerDiagram.qml` | Schéma cliquable de la manette (repère 1000×620, `res/gamepad_body.svg` en fond) |
 | `desktop/app/gui/GamepadControl.qml` | Un contrôle du schéma : cliquable, coloré par état, animé par l'entrée live |
-| `desktop/app/gui/SettingsView.qml` | UI des réglages, groupes « Settings Profile » et « LavArtemis Features » |
+| `desktop/app/gui/v2/` | Interface v2 desktop (`HomeView`, `HostsView`, `SettingsView2`, `Theme`…) ; l'ancienne interface est supprimée |
 | `desktop/app/backend/autoupdatechecker.{h,cpp}` | Vérification, téléchargement et lancement de l'installeur (⚠️ un signal terminal par check ; NAM recréé à chaque fois) |
-| `desktop/app/gui/QuickMenu.qml` | Menu in-stream (server commands, send keys) |
+| `desktop/app/gui/QuickMenu.qml` | Menu en jeu (commandes du PC hôte, envoyer des touches, presse-papiers, micro, mode tactile) |
 | `desktop/app/streaming/video/pacingstats.{h,cpp}` | Métriques de fluidité — port de `PacingStats.java` |
 | `desktop/app/streaming/video/ffmpeg.cpp` | Décodeur + `writePerfCsvRow()` (CSV perf) |
 | `desktop/moonlight-common-c/moonlight-common-c.pro` | LTO du cœur natif (release) |
@@ -1046,11 +1088,11 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 
 ## ⚡ Quick reference (English)
 
-**What:** LavArtemis is a GameStream client for **Apollo/Sunshine** hosts, shipped for **Android and desktop**:
+**What:** LavArtemis is a GameStream client for **LavApollo** (and Apollo/Sunshine) hosts, shipped for **Android and desktop**, as two side-by-side apps: the stable LavArtemis (`main`) and **LavArtemis Dev** (`dev`, a version containing `-dev.`), where all new work goes (redesigned French interface, Playnite library) — no backports to stable:
 - **Android** (this repo) — fork of Artemis (`ClassicOldSong/moonlight-android`), itself a fork of Moonlight. Java-only + C (NDK, ndk-build). Fork-specific work sits in the streaming hot path: ADPF, frame pacing, native `-O3`/LTO + thread-priority boosts, AV1-auto, an audio-renderer fix, sustained-performance/thermal handling.
-- **Desktop** (`desktop/` submodule → `Lavagnou/LavArtemis-Qt`) — C++/Qt 6.11, qmake, Windows x64/ARM64. Fork of `wjbeckett/artemis` (the Artemis→Qt port) rebased onto current moonlight-qt.
+- **Desktop** (`desktop/` submodule → `Lavagnou/LavArtemis-Qt`) — C++/Qt 6.11, qmake, Windows x64/ARM64 (+ Linux). Fork of `wjbeckett/artemis` (the Artemis→Qt port) rebased onto current moonlight-qt.
 
-One tag builds and releases both. See the "Client desktop" section above.
+One version builds and releases both. See the "Client desktop" section above.
 
 **First-time setup**
 ```sh
@@ -1071,6 +1113,6 @@ git submodule update --init --recursive desktop                                 
 
 **Tests** — Robolectric JVM only (no instrumentation). You **must shadow** JNI classes (`MoonBridge`, `GameManager`) or you get `UnsatisfiedLinkError`. See `android_test_setup.md`.
 
-**Release** — push a `v*` tag to trigger `.github/workflows/release.yml`. It builds the Android APKs (`nonRoot_game`, one per ABI: arm64-v8a and armeabi-v7a), the Windows x64/ARM64 portable zips + combined installer, **and** the Linux x86_64 AppImage, then publishes them all under one release. The Linux job compiles SDL3/libplacebo/FFmpeg from source and is by far the slowest; `publish` blocks on all three so a broken platform fails the release instead of shipping it half-done. The tag **must** match `versionName` in `app/build.gradle` or the run fails. Android signing via `CI_KEYSTORE_*` / `RELEASE_KEYSTORE_BASE64` (falls back to debug key); Windows Authenticode via `WINDOWS_CERT_BASE64` (skipped if absent). The release workflow runs **no tests**; JVM tests run separately in `unit-tests.yml` (PRs and manual runs only, not on push to `main` — run them locally before pushing; non-blocking: 5 tests are known red).
+**Release** — built **locally** to spare the Actions quota: `scripts/local-release.ps1 -NotesFile <notes.md>` builds the signed APKs (one per ABI: arm64-v8a and armeabi-v7a; key in `key/release.keystore`, password in `key/keystore.properties` — never commit or print them) and the Windows **x64-only** installer + portable zip (`LAV_X64_ONLY=1`), then tags `v<lavVersionName>`, pushes and runs `gh release create` (a `-dev.` version is a prerelease). No Linux AppImage or ARM64 locally. `.github/workflows/release.yml` (Android + Windows x64/ARM64 + Linux) and the Qt compile check are **manual-only** (`workflow_dispatch`). Nothing runs tests on push: run the JVM tests locally (`unit-tests.yml` only runs on PRs or by hand; 5 tests are known red).
 
 **Top gotchas** — (1) init submodules; (2) never drop the `.lav` suffix; (3) shadow JNI in tests; (4) `applicationId` ≠ namespace; (5) R8 minify is on even in debug (`-dontobfuscate`); (6) the Artemis→LavArtemis rebrand is incomplete (see French section above); (6b) ship **both** ABIs — Android TV sticks (Fire TV, Chromecast with Google TV) are 32-bit, and an arm64-only release only fails at install time with `INSTALL_FAILED_NO_MATCHING_ABIS`; (7) both clients now share **one** `moonlight-common-c` (`Lavagnou/moonlight-common-c`, branch `lavartemis`) — when rebumping it, remember FEC is nanors (not reedsolomon) and decode-unit timestamps are microseconds converted to milliseconds at the JNI boundary; see the desktop section.

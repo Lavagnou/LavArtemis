@@ -4,7 +4,8 @@
 `docs/ui-redesign/prototype/` (copie locale hors git) et canvas claude.ai, plateforme `android`, plus les
 trois planches de densité (console Odin 2 Portal, tablette, téléphone Pixel 7). La version PC
 (`desktop/app/gui/v2/`) est la référence de comportement : même accueil, mêmes menus, mêmes textes.
-L'utilisateur a laissé la partie technique à l'implémenteur.*
+L'utilisateur a laissé la partie technique à l'implémenteur. **Livré** en 21.8.0-dev.9 ; état détaillé dans
+`CLAUDE.md` (« Interface v2 Android »), écarts avec le PC dans `2026-11-24-pc-android-parity.md`.*
 
 ## Périmètre
 
@@ -14,7 +15,8 @@ L'utilisateur a laissé la partie technique à l'implémenteur.*
 - Thèmes Braise / Affiche / Ludique, chacun clair et sombre, Système / Clair / Sombre.
 - Tout fonctionne **au tactile** (appui = lancer, appui long ou « … » = options, listes au doigt), à la
   **manette** et au **clavier** (focus visible, A/B/Y, LB/RB pour changer de PC).
-- Textes **en français**, comme la v2 PC. Anglicismes courants gardés (stream, benchmark…).
+- Textes **en français**, comme la v2 PC, au **tutoiement** (`app/src/dev/res/values-fr/strings_tu.xml`).
+  Anglicismes courants gardés (stream, benchmark…).
 
 ## Approches
 
@@ -51,14 +53,16 @@ L'utilisateur a laissé la partie technique à l'implémenteur.*
   session en cours (titre, durée, Reprendre, Quitter), cartes Bureau et Playnite Fullscreen, rangée
   « Récents » (bibliothèque Playnite, la plus récente d'abord, ordre de l'hôte) et « Tout voir » vers la
   bibliothèque complète. Projecteur (le reste assombri) et halo sur l'élément en cours. Menu d'options :
-  Lancer / Reprendre, Quitter, Relancer la session, Masquer / Ne plus masquer. Jeu Playnite pendant que
+  Lancer / Reprendre, Quitter, Relancer la session, Masquer / Ne plus masquer (jeux Playnite seulement). Jeu Playnite pendant que
   Playnite tourne : lancé dedans, sans quitter. Pas de section « Applis ».
 - **Mes PC** : une carte par PC appairé (état, adresse, ce qui tourne), « Ajouter un PC » (trouvés sur
   le réseau, ou par adresse), appairage par PIN, menu Ouvrir / Benchmark / Réveiller / Renommer /
   Oublier.
 - **Réglages v2** : pages et lignes (interrupteurs, choix, curseurs, actions) sur les clés existantes de
   `preferences.xml`, réglages « expert » masqués hors mode expert, écriture compatible avec les profils.
-- **Menu en jeu** : la même liste d'options qu'aujourd'hui, dans un dialogue aux couleurs du thème.
+- **Menu en jeu** : dans un dialogue aux couleurs du thème, entrées communes dans l'ordre et avec les libellés
+  du menu rapide du PC, puis les entrées propres à Android ; une seule entrée « Passer en trackpad /
+  multitouch » (la Dev ne garde que ces deux modes tactiles).
 
 ## Vérification
 

@@ -22,7 +22,8 @@ The script:
    `key/release.keystore.b64`.
 3. Prints the exact GitHub secrets to create.
 
-Then create these repository secrets
+For local release builds, write the password into `key/keystore.properties` (see below). For the
+manual release workflow, create these repository secrets
 (**Settings → Secrets and variables → Actions**):
 
 | Secret | Value |
@@ -47,14 +48,20 @@ again** without forcing every user to uninstall first.
 
 ## How it is wired
 
-- [.github/workflows/release.yml](.github/workflows/release.yml) decodes
-  `RELEASE_KEYSTORE_BASE64` into `$RUNNER_TEMP/release.keystore` and exports
-  `CI_KEYSTORE_PATH`, `CI_KEYSTORE_PASSWORD`, `CI_KEY_ALIAS`, `CI_KEY_PASSWORD`
-  (build-android job).
-- [app/build.gradle](app/build.gradle) uses `signingConfigs.ci` when
-  `CI_KEYSTORE_PATH` is set. Without the secrets, CI falls back to the
-  **debug key** (installable, but signed differently on every runner →
-  updates break), and local builds are left unsigned.
+Releases are built on the maintainer's PC (`scripts/local-release.ps1`), not by GitHub Actions:
+
+- `key/keystore.properties` (gitignored, next to `key/release.keystore`) holds the password:
+  `storePassword=...`, optionally `keyAlias=` (default `lavartemis`) and `keyPassword=`
+  (default: the store password). Never commit it, never print it.
+- [app/build.gradle](app/build.gradle) signs a release build, in this order: with
+  `signingConfigs.ci` when `CI_KEYSTORE_PATH` is set; else with `signingConfigs.local` when
+  `key/keystore.properties` and `key/release.keystore` exist; else, on GitHub Actions only, with the
+  **debug key** (installable, but signed differently on every runner → updates break). Anywhere
+  else the release APK is left unsigned.
+- [.github/workflows/release.yml](.github/workflows/release.yml) (manual runs only) decodes the
+  `RELEASE_KEYSTORE_BASE64` secret into `$RUNNER_TEMP/release.keystore` and exports
+  `CI_KEYSTORE_PATH`, `CI_KEYSTORE_PASSWORD`, `CI_KEY_ALIAS`, `CI_KEY_PASSWORD` (build-android
+  job). The secrets above are only needed for that workflow.
 
 ## Verifying a release
 

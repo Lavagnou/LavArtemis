@@ -1,6 +1,7 @@
 # Interface v2 Android — carte du code existant (pour l'implémentation)
 
 Chemins relatifs à `app/src/main/java/com/limelight/` sauf mention. Relevé du 2026-11-23, branche `dev`.
+Instantané d'avant l'implémentation : les numéros de ligne ont bougé depuis, l'état actuel est dans `CLAUDE.md`.
 
 ## Hôtes (`PcView.java`)
 - Launcher `.PcView` (manifest :93-108, LAUNCHER + LEANBACK + MULTIWINDOW), thème `@style/AppTheme`.

@@ -16,12 +16,12 @@ Thank you for your interest in contributing to this project! We welcome contribu
 #### Getting Started
 
 1. Fork the repository
-2. Create a new branch for your feature or bugfix: `git checkout -b feature/your-feature-name`
+2. Create a new branch from `dev` (all new work goes to LavArtemis Dev first; `main` is the stable app): `git checkout -b feature/your-feature-name dev`
 3. Make your changes
 4. Test your changes thoroughly
 5. Commit your changes with clear, descriptive messages
 6. Push your branch to your fork
-7. Create a pull request
+7. Create a pull request against `dev`
 
 #### Code Standards
 
