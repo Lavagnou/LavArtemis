@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  LavArtemis Dev: the French texts of the dialogs, toasts and messages the Dev can show, in
+  tutoiement like the rest of its interface (strings_v2.xml) and like the desktop client. They
+  replace the stable's vouvoiement (values-fr/strings.xml) only in a "-dev." build: this folder
+  is added to the flavors' source sets for the Dev alone (app/build.gradle), so the stable does
+  not change. A new string the Dev shows goes here if its stable text says "vous".
+-->
+<resources>
+    <!-- Quitting the session (Game.quit, the desktop's QuickMenu has the same two texts) -->
+    <string name="game_dialog_title_quit_confirm">Tu veux vraiment quitter ?</string>
+    <string name="game_dialog_message_quit_confirm">Vérifie que ta progression est enregistrée : quitter la session ferme l\'application qui tourne sur le PC.</string>
+    <string name="applist_quit_confirmation">Tu veux vraiment quitter l\'application en cours ? Ce qui n\'est pas sauvegardé sera perdu.</string>
+    <string name="applist_quit_not_started_here">Le jeu en cours n\'a pas été lancé par cet appareil. Ferme-le à la main sur le PC hôte ou depuis l\'appareil qui l\'a lancé.</string>
+
+    <!-- Updates (UpdateDialogHelper) -->
+    <string name="update_check_failed">La recherche de mise à jour a échoué. Vérifie ta connexion.</string>
+    <string name="update_download_failed">Le téléchargement a échoué. Réessaie plus tard.</string>
+    <string name="update_install_permission">Autorise LavArtemis à installer des mises à jour, puis réessaie.</string>
+    <string name="update_ready_text">Touche pour installer la version %1$s.</string>
+
+    <!-- Stream and connection messages (Game, NvConnection, ServerHelper, UiHelper) -->
+    <string name="nettest_text_waiting">LavArtemis teste ta connexion réseau pour savoir si les ports nécessaires sont bloqués.\n\nCela peut prendre quelques secondes…</string>
+    <string name="nettest_text_success">Ton réseau ne semble pas bloquer LavArtemis. Si tu as encore du mal à te connecter, vérifie le pare-feu de ton PC.\n\nPour streamer depuis Internet, vérifie que ta box redirige les ports vers le PC (ou active l\'UPnP dans LavApollo).</string>
+    <string name="nettest_text_inconclusive">Le test réseau n\'a pas pu se faire : aucun des serveurs de test de LavArtemis n\'a répondu. Vérifie ta connexion Internet ou réessaie plus tard.</string>
+    <string name="nettest_text_failure">Le réseau de ton appareil semble bloquer LavArtemis. Le stream par Internet risque de ne pas marcher tant que tu es connecté à ce réseau.\n\nLes ports suivants sont bloqués :</string>
+    <string name="nettest_text_blocked">Le réseau de ton appareil bloque LavArtemis. Le stream par Internet risque de ne pas marcher tant que tu es connecté à ce réseau.</string>
+    <string name="error_manager_not_running">Le service ComputerManager ne tourne pas. Attends quelques secondes ou redémarre l\'application.</string>
+    <string name="error_404">GFE renvoie une erreur HTTP 404. Vérifie que ton PC a un GPU pris en charge. Un logiciel de bureau à distance peut aussi provoquer cette erreur. Essaie de redémarrer le PC ou de réinstaller GFE.</string>
+    <string name="message_decoding_error">LavArtemis a planté à cause d\'une incompatibilité avec le décodeur vidéo de cet appareil. Essaie d\'ajuster les réglages de stream si ça continue.</string>
+    <string name="message_decoding_reset">Le décodeur vidéo de ton appareil plante encore avec les réglages de stream choisis. Tes réglages de stream ont été remis par défaut.</string>
+    <string name="video_decoder_init_failed">Le décodeur vidéo n\'a pas pu démarrer. Vérifie que ton appareil prend en charge la résolution ou la fréquence d\'images choisie.</string>
+    <string name="no_frame_received_error">Ta connexion réseau ne marche pas bien. Baisse le débit ou passe sur une connexion plus rapide.</string>
+    <string name="early_termination_error">Quelque chose s\'est mal passé sur ton PC hôte au démarrage du stream.\n\nVérifie qu\'aucune application protégée par DRM n\'est ouverte sur le PC. Tu peux aussi essayer de redémarrer le PC.</string>
+    <string name="frame_conversion_error">Le PC hôte a signalé une erreur d\'encodage fatale.\n\nEssaie de désactiver le HDR, de changer la résolution du stream ou celle de ton PC hôte.</string>
+    <string name="check_ports_msg">Vérifie les règles de ton pare-feu pour ces ports :</string>
+    <string name="conn_metered">Attention : ta connexion réseau est limitée !</string>
+    <string name="delete_pc_msg">Tu veux vraiment supprimer ce PC ?</string>
+    <string name="slow_connection_msg">Connexion lente au PC\nBaisse le débit</string>
+    <string name="perf_overlay_netdrops">Images perdues par ta connexion réseau : %1$.2f%%</string>
+    <string name="voice_ptt_move_hint">Fais glisser le bouton, puis touche ailleurs pour valider</string>
+    <string name="wrong_import_format">Mauvais format d\'import, vérifie le fichier !</string>
+    <string name="game_dialog_message_server_cmd_empty">Vérifie que tu utilises Apollo comme logiciel hôte et que tu as donné à cet appareil l\'autorisation « Commande de serveur ».</string>
+    <string name="vdisplay_not_ready">Le pilote d\'écran virtuel n\'est pas prêt sur le PC. Vérifie que le pilote SudoVDA est installé et activé.</string>
+    <string name="clipboard_sync_unsupported">Ce PC ne gère pas la synchronisation du presse-papiers. Installe ou mets à jour LavApollo sur le PC.</string>
+    <string name="unlocking_or_starting">Le PC démarre son serveur ou se déverrouille, patiente…</string>
+    <string name="toast_microphone_permission_denied">L’accès au micro n’a pas été accordé, ton micro ne sera pas envoyé</string>
+    <string name="thermal_throttling_warning">L\'appareil chauffe : les performances peuvent baisser. Pense à baisser le débit ou la fréquence d\'images.</string>
+    <string name="keyboard_clear_all_confirm_message">Masquer toutes les commandes à l\'écran ? Tu pourras les remettre plus tard en mode configuration.</string>
+    <string name="keyboard_configure_movable">Tu peux maintenant déplacer le bouton de réglages.</string>
+
+    <!-- Launch messages (NvConnection), same texts as the desktop -->
+    <string name="conn_msg_mic_disabled">Ton micro ne sera pas envoyé : le passthrough du micro est désactivé sur l\'hôte (LavApollo, réglages Audio/Vidéo).</string>
+    <string name="conn_msg_mic_no_permission">Ton micro ne sera pas envoyé : l\'hôte n\'a pas donné la permission Micro à cet appareil (LavApollo, Clients).</string>
+    <string name="conn_msg_mic_no_device">Ton micro ne sera pas envoyé : l\'hôte n\'a pas de micro virtuel. Installer Steam sur l\'hôte en fournit un.</string>
+    <string name="conn_msg_mic_unsupported">Ton micro ne sera pas envoyé : cet hôte ne gère pas le passthrough du micro. Il faut LavApollo 2.2 ou plus récent.</string>
+    <string name="conn_msg_gfe_4k">Mets à jour GeForce Experience pour streamer en 4K. Le stream sera en 1080p.</string>
+    <string name="conn_msg_resume_not_owner">Cette session n\'a pas été lancée par cet appareil : elle ne peut pas être reprise. Arrête le stream sur l\'appareil d\'origine ou sur le PC, puis réessaie. (Code d\'erreur : %1$d)</string>
+    <string name="conn_msg_minimized">L\'application est réduite. Rouvre-la sur le PC ou quitte la session et relance le stream.</string>
+    <string name="conn_msg_quit_failed">Impossible de quitter la session précédente. Quitte-la à la main.</string>
+    <string name="conn_msg_quit_not_owner">Cette session n\'a pas été lancée par cet appareil : elle ne peut pas être quittée d\'ici. Arrête le stream sur l\'appareil d\'origine ou sur le PC. (Code d\'erreur : %1$d)</string>
+
+    <!-- Benchmark (BenchmarkActivity) -->
+    <string name="benchmark_intro">Streame plusieurs fois de suite une scène animée depuis %1$s, chaque fois avec un autre codec, débit ou rythme d’affichage, et note la latence et la fluidité de chacun par rapport à tes réglages actuels. Tes réglages ne changent pas tant que tu n’appliques pas un résultat.</string>
+    <string name="benchmark_mode_quick">Rapide : tes réglages, les autres codecs, deux autres rythmes d’affichage</string>
+    <string name="benchmark_mode_adaptive">Adaptatif : le meilleur codec, puis son meilleur débit, puis le meilleur rythme, selon ton objectif</string>
+    <string name="benchmark_estimate">Tes réglages : %1$s. Environ %2$d runs, %3$d min. N’utilise pas l’appareil pendant ce temps : tout ce qui se passe à l’écran ou sur le réseau fausse les résultats.</string>
+    <string name="benchmark_baseline_failed">Le stream avec tes réglages a échoué : il n’y a rien à comparer.</string>
+    <string name="benchmark_unstable">Tes réglages ont obtenu %1$.1f points d’écart entre le début et la fin : les conditions ont changé pendant le benchmark, les petites différences ne sont donc pas significatives. Relance-le.</string>
+    <string name="benchmark_legend">Latence et fluidité sont notées sur 100, classées selon ton objectif. Les flèches comparent chaque résultat à tes réglages ; ± indique de combien la note a varié pendant le run.</string>
+    <string name="benchmark_role_baseline">Tes réglages</string>
+    <string name="benchmark_role_repeat">Tes réglages, à nouveau</string>
+    <string name="benchmark_vs_baseline">Par rapport à tes réglages : latence %1$s, fluidité %2$s, %3$s ms</string>
+    <string name="benchmark_applied">Tes réglages utilisent maintenant %1$s.</string>
+</resources>

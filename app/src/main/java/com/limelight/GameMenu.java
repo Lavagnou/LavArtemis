@@ -203,7 +203,6 @@ public class GameMenu implements Game.GameMenuCallbacks {
             {R.string.v2_keys_win_shift_left, new short[]{VK_LWIN, VK_LSHIFT, 0x25}},
             {R.string.v2_keys_ctrl_alt_shift_f1, new short[]{VK_LCONTROL, VK_LMENU, VK_LSHIFT, 0x70}},
             {R.string.v2_keys_ctrl_alt_shift_f12, new short[]{VK_LCONTROL, VK_LMENU, VK_LSHIFT, 0x7B}},
-            {R.string.v2_keys_win_alt_b, new short[]{VK_LWIN, VK_LMENU, 0x42}},
     };
 
     private void showSpecialKeysMenu() {

@@ -128,6 +128,7 @@ Spec : `docs/superpowers/specs/2026-11-23-stable-dev-split-design.md`.
 |---|---|---|
 | applicationId release / debug | `com.limelight.lav` / `.lavdebug` | `com.limelight.lav.dev` / `.lavdebug.dev` |
 | Nom, icône | LavArtemis, logo lune | LavArtemis Dev, plan d'atelier bleu + pastille DEV (`app/src/dev/res`, ajouté aux source sets des flavors) |
+| Textes français | vouvoiement hérité | **tutoiement** : `app/src/dev/res/values-fr/strings_tu.xml` remplace, pour la Dev seule, les chaînes au « vous » qu'elle peut afficher (mise à jour, quitter, erreurs de stream, benchmark…). Une nouvelle chaîne affichée par la Dev dont le texte stable dit « vous » s'y ajoute |
 | Qt : organisation (registre, AppData) | `LavArtemis` | `LavArtemis Dev` |
 | Installeur Windows | dossier, raccourcis, UpgradeCodes d'origine | les siens ; **pas** d'`art://` ni de `.art` |
 | Release | tag `vX.Y.Z`, Android + Windows + Linux | tag `vX.Y.Z-dev.N`, **prerelease**, Android + Windows |
@@ -239,7 +240,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   « Envoyer le presse-papiers » au lieu de « Télécharger »). **Ordre et libellés du menu rapide du desktop
   pour les entrées communes** (Dev) : Quitter <jeu Playnite>, Déconnecter, Quitter la session, Commandes du
   PC hôte, Envoyer des touches, presse-papiers ×2, Statistiques de performance, micro (seulement s'il est
-  envoyé), puis les entrées Android. « Envoyer des touches » = les 16 raccourcis du desktop
+  envoyé), puis les entrées Android. « Envoyer des touches » = les 15 raccourcis du desktop (sans le HDR Win+Alt+B, retiré des deux)
   (`GameMenu.DEV_SEND_KEYS` = presets de `KeyMacroManager`, mêmes libellés `v2_keys_*`) ; « Menu avancé »
   ne garde que ce qui est propre à Android (le gestionnaire des tâches est Ctrl+Maj+Échap de la liste).
 - **Réglages v2** (phase 2b, = `desktop/app/gui/v2/SettingsView2.qml`) : `v2.SettingsActivity` + `SettingsScreen`
@@ -385,6 +386,23 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > et le menu en jeu (`gamemenu-`, en `fr`). Ses dialogues sont les vrais (`HostsActivity` construite par
 > Robolectric, PC posés à la main dans `computers`), dessinés par-dessus la page assombrie. Robolectric
 > garde la fenêtre en mode tactile : pour montrer un focus, `setFocusableInTouchMode(true)` dans le test.
+
+### Parité PC / Android (Dev)
+
+Les deux clients Dev ont les mêmes textes, réglages et menus pour tout ce qu'ils partagent ; état et écarts
+voulus : `docs/superpowers/specs/2026-11-24-pc-android-parity.md` (**à tenir à jour** à chaque changement
+d'un texte ou d'un réglage commun). Repères Android :
+
+- **« Quitter l'appli sur le PC distant à la fin »** (`checkbox_quit_app_after`, page PC, comme le
+  `quitAppAfter` du desktop) : `utils/StreamEndPolicy` décide dans `Game.stopConnection()` — toujours avec
+  « Quitter la session », sinon seulement si le stream a fini normalement (`unexpectedTermination` posé par
+  `connectionTerminated` / `stageFailed`), jamais pendant un benchmark ni pour la reconnexion qui suit un
+  changement d'écran du PC (`restartRequested`).
+- **Micro hors profils** (voir « Passthrough du micro »). **« Envoyer des touches »** : 15 raccourcis, les
+  mêmes que le desktop (sans le raccourci HDR Win+Alt+B).
+- « Version du logiciel hôte non prise en charge » : règle `v2/HostSupport` reprise telle quelle par le
+  desktop (`NvComputer::isSupportedAppVersion()`), même message avec la version, mêmes points de contrôle
+  (ouvrir, lancer, benchmark).
 
 ## 🖼️ Icônes (LavArtemis + LavApollo)
 
@@ -589,7 +607,7 @@ Déjà présent côté desktop (hérité du portage wjbeckett) : clipboard sync,
 | Feature | Où | Notes |
 |---|---|---|
 | **Profils de réglages** | `settings/profilemanager.{h,cpp}`, groupe « Settings Profile » en haut de `gui/SettingsView.qml` | `profiles.json` dans `AppConfigLocation`. Un profil est un **snapshot complet**, pas un patch épars : `save()` écrit toutes les clés, donc un profil créé capture l'état courant puis vit sa vie. `language` et `defaultver` **bypassent** les profils (changer de profil ne doit pas changer la langue de l'app). |
-| **Send keys + macros clavier** | `backend/keymacromanager.{h,cpp}`, sous-menu « Send Keys » de `gui/QuickMenu.qml` | 16 presets intégrés + macros utilisateur dans `keyboard-macros.json` (`AppConfigLocation`). **Même format JSON et mêmes noms `VK_` que l'Android** → un fichier marche sur les deux. La table des 174 noms est extraite de `utils/KeyMapper.java`, pas retapée. |
+| **Send keys + macros clavier** | `backend/keymacromanager.{h,cpp}`, sous-menu « Send Keys » de `gui/QuickMenu.qml` | 15 presets intégrés (ceux de la Dev Android) + macros utilisateur dans `keyboard-macros.json` (`AppConfigLocation`). **Même format JSON et mêmes noms `VK_` que l'Android** → un fichier marche sur les deux. La table des 174 noms est extraite de `utils/KeyMapper.java`, pas retapée. |
 | **Liens `art://` + fichiers `.art`** | `cli/artlink.{h,cpp}`, enregistrement OS dans `wix/LavArtemis/Product.wxs` (HKCU) et `deploy/linux/com.lavartemis.LavArtemis.{desktop,xml}` | `ArtLink::rewriteArguments()` **traduit le lien en ligne de commande existante** (`stream <host> <app>` / `pair <host> --pin --passphrase`) au lieu d'ajouter un chemin de lancement parallèle → hérite du host seeking, du wake-on-LAN et de l'UI de segue. Formats identiques à l'Android. |
 
 > ⚠️ **Le bug Android des profils n'est pas reproduit.** Côté Android, `OverlaySharedPreferences` lit à travers la map du profil mais `edit()` renvoie l'éditeur de base (`ProfilesManager.java:251`) : les écritures s'échappent du profil et atterrissent dans les prefs globales. Côté Qt, `StreamingPreferences::reload()` **et** `save()` passent tous les deux par `ProfileManager::value()`/`setValue()` — lecture et écriture ne peuvent pas diverger par construction.
@@ -866,7 +884,7 @@ Protocole complet : `LavApollo/docs/mic-passthrough.md`.
 |---|---|---|
 | Capture | `binding/audio/MicrophoneStreamer.java` : `AudioRecord` en `VOICE_COMMUNICATION` (annulation d'écho et réduction de bruit de l'appareil) | `streaming/audio/micstreamer.{h,cpp}` : `SDL_OpenAudioDevice(name, 1, …)`, encodage et envoi dans le callback SDL |
 | Encodage | natif, `simplejni.c` (`micStart` / `micSendPcm` / `micStop`) : les points d'entrée JNI vivent là à cause de `--exclude-libs` | `opus_encoder_create` direct |
-| Réglages | `checkbox_mic_passthrough`, `list_mic_device` (clé `type:nom`, pas l'id : il change à chaque reconnexion) | `ArtemisSettings::micPassthroughEnabled` / `micDeviceName`, **globaux** (le micro dépend de la machine, pas du profil) |
+| Réglages | `checkbox_mic_passthrough`, `list_mic_device` (clé `type:nom`, pas l'id : il change à chaque reconnexion). **Globaux en Dev**, comme le desktop : `ProfilesManager.APP_WIDE_KEYS` (l'overlay et `ProfileAwarePreferences` passent par les préférences de base ; `load()` les sort des profils enregistrés en gardant la valeur du profil actif, `AppWideKeysTest`) | `ArtemisSettings::micPassthroughEnabled` / `micDeviceName`, **globaux** (le micro dépend de la machine, pas du profil) |
 | Permission | `RECORD_AUDIO`, demandée quand on coche la case ; refusée → la case se décoche | — |
 | Écho | traité par l'appareil | **aucun** : SDL n'annule pas l'écho, d'où le conseil du casque |
 

@@ -65,7 +65,9 @@ public class SettingsCatalogTest {
     /** Rows of Réglages v2 that are not preferences of the legacy screen */
     private static final Set<String> V2_ONLY = new HashSet<>(Arrays.asList(
             SettingsCatalog.KEY_PROFILE, SettingsCatalog.KEY_PROFILES_MANAGE, SettingsCatalog.KEY_BITRATE_DEFAULT,
-            V2Theme.PREF_THEME, V2Theme.PREF_MODE));
+            V2Theme.PREF_THEME, V2Theme.PREF_MODE,
+            // The desktop's « Quitter l'appli sur le PC distant à la fin », new in the Dev
+            com.limelight.preferences.PreferenceConfiguration.QUIT_APP_AFTER_PREF_STRING));
 
     /**
      * Keys whose value PreferenceConfiguration does not show: read elsewhere (the key layout by the
@@ -349,7 +351,7 @@ public class SettingsCatalogTest {
         }
         assertEquals(Arrays.asList(SettingsCatalog.PROFIL, SettingsCatalog.AFFICHAGE, SettingsCatalog.VIDEO, SettingsCatalog.AUDIO,
                 SettingsCatalog.ENTREES, SettingsCatalog.MANETTES, SettingsCatalog.CONTROLES, SettingsCatalog.APPARENCE,
-                SettingsCatalog.AVANCE), normal);
+                SettingsCatalog.PC, SettingsCatalog.AVANCE), normal);
         // No touchscreen (TV): the on-screen controls go, the page stays for the full keyboard in expert mode
         env.touchscreen = false;
         boolean controls = false;

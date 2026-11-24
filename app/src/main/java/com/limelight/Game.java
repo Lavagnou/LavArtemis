@@ -50,6 +50,7 @@ import com.limelight.ui.StreamContainer;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
+import com.limelight.utils.StreamEndPolicy;
 import com.limelight.utils.PanZoomHandler;
 import com.limelight.utils.RotationPolicy;
 import com.limelight.utils.TouchSpace;
@@ -246,6 +247,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private float lastAbsTouchDownX, lastAbsTouchDownY;
 
     private boolean quitOnStop = false;
+    // The stream ended on an error: « Quitter l'appli sur le PC distant à la fin » leaves the game running
+    private boolean unexpectedTermination = false;
     // Set when BenchmarkActivity started this stream as one of its runs
     private BenchmarkGameRun benchmarkRun;
     private boolean isHidingOverlays;
@@ -3745,10 +3748,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // thread to keep things smooth for the UI. Inside moonlight-common,
             // we prevent another thread from starting a connection before and
             // during the process of stopping this one.
+            // « Quitter la session », or « Quitter l'appli sur le PC distant à la fin » after a
+            // stream that ended normally (StreamEndPolicy, the desktop's rule)
+            final boolean quitHostApp = StreamEndPolicy.quitHostApp(quitOnStop, prefConfig.quitAppAfter,
+                    unexpectedTermination, benchmarkRun != null, restartRequested);
             new Thread() {
                 public void run() {
                     conn.stop();
-                    if (httpConn != null && quitOnStop) {
+                    if (httpConn != null && quitHostApp) {
                         try {
                             sleep(1000);
                             httpConn.quitApp();
@@ -3791,6 +3798,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 if (!displayedFailureDialog) {
                     displayedFailureDialog = true;
+                    unexpectedTermination = true;
                     LimeLog.severe(stage + " failed: " + errorCode);
 
                     // If video initialization failed and the surface is still valid, display extra information for the user
@@ -3879,6 +3887,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 if (!displayedFailureDialog) {
                     displayedFailureDialog = true;
                     LimeLog.severe("Connection terminated: " + errorCode);
+                    unexpectedTermination = errorCode != MoonBridge.ML_ERROR_GRACEFUL_TERMINATION;
                     stopConnection();
 
                     // Display the error dialog if it was an unexpected termination.

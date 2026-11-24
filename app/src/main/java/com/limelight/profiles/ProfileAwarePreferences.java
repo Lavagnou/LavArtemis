@@ -58,6 +58,10 @@ public final class ProfileAwarePreferences {
 
     /** The active profile when it carries this key, null otherwise */
     private static SettingsProfile activeHolding(String key) {
+        if (ProfilesManager.isAppWideKey(key)) {
+            // Read from the base preferences whatever the profile holds (ProfilesManager.APP_WIDE_KEYS)
+            return null;
+        }
         SettingsProfile active = ProfilesManager.getInstance().getActive();
         if (active != null && active.getOptions() != null && active.getOptions().containsKey(key)) {
             return active;

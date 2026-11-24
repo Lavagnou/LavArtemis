@@ -314,8 +314,9 @@ public final class SettingsCatalog {
         choice(l, AUDIO, "list_audio_config", R.string.v2_set_audio, "2").desc(R.string.v2_set_audio_d)
                 .option("2", R.string.v2_set_audio_stereo).option("51", R.string.v2_set_audio_51).option("71", R.string.v2_set_audio_71);
         toggle(l, AUDIO, "checkbox_host_audio", R.string.v2_set_mute_host, false).desc(R.string.v2_set_mute_host_d).inverted();
-        toggle(l, AUDIO, "checkbox_mic_passthrough", R.string.v2_set_mic, false).desc(R.string.v2_set_mic_d);
-        choice(l, AUDIO, "list_mic_device", R.string.v2_set_mic_device, "").desc(R.string.v2_set_mic_device_d).expert().segments(0)
+        // The microphone belongs to this device, not to a profile (ProfilesManager.APP_WIDE_KEYS), as on the desktop
+        toggle(l, AUDIO, "checkbox_mic_passthrough", R.string.v2_set_mic, false).desc(R.string.v2_set_mic_d).global();
+        choice(l, AUDIO, "list_mic_device", R.string.v2_set_mic_device, "").desc(R.string.v2_set_mic_device_d).expert().global().segments(0)
                 .dependsOn("checkbox_mic_passthrough").when(e -> e.sdk >= 23)
                 .options((c, env, v, expert) -> {
                     List<Option> out = new ArrayList<>();
@@ -494,6 +495,8 @@ public final class SettingsCatalog {
 
         // ================================== PC ==================================
         // The page of the desktop that holds the clipboard (Réglages v2 › PC)
+        // As on the desktop (quitAppAfter), first row of the page
+        toggle(l, PC, PreferenceConfiguration.QUIT_APP_AFTER_PREF_STRING, R.string.v2_set_quit_after, false).desc(R.string.v2_set_quit_after_d);
         toggle(l, PC, "checkbox_smart_clipboard_sync", R.string.v2_set_clipboard, false).desc(R.string.v2_set_clipboard_d).expert();
         toggle(l, PC, "checkbox_smart_clipboard_sync_toast", R.string.v2_set_clipboard_toast, true).desc(R.string.v2_set_clipboard_toast_d).expert()
                 .dependsOn("checkbox_smart_clipboard_sync");

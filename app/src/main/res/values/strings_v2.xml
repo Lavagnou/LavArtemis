@@ -163,7 +163,7 @@
 
     <!-- Profil -->
     <string name="v2_set_profile">Profil actif</string>
-    <string name="v2_set_profile_d">Un jeu de réglages de stream par usage, par exemple à la maison et à distance. Ce qui tient à cet appareil reste commun : langue, apparence, mises à jour.</string>
+    <string name="v2_set_profile_d">Un jeu de réglages de stream par usage, par exemple à la maison et à distance. Ce qui tient à cet appareil reste commun : langue, apparence, micro, mises à jour.</string>
     <string name="v2_set_profile_none">Réglages globaux (aucun profil)</string>
     <string name="v2_set_profiles_manage">Gérer les profils</string>
     <string name="v2_set_profiles_manage_d">Un nouveau profil part des réglages en cours.</string>
@@ -335,7 +335,6 @@
     <string name="v2_keys_win_shift_left">Win+Maj+Gauche (fenêtre sur l\'autre écran)</string>
     <string name="v2_keys_ctrl_alt_shift_f1">Ctrl+Alt+Maj+F1 (changer d\'écran)</string>
     <string name="v2_keys_ctrl_alt_shift_f12">Ctrl+Alt+Maj+F12 (changer d\'écran)</string>
-    <string name="v2_keys_win_alt_b">Win+Alt+B (activer/désactiver le HDR)</string>
 
     <!-- In-game menu (Dev): the single touch-mode switch, Game.switchTouchMode() -->
     <string name="v2_menu_touch_to_trackpad">Passer en trackpad</string>
@@ -515,6 +514,8 @@
     <string name="v2_set_check_update_d">Version installée : %1$s.</string>
     <string name="v2_set_releases">Page des versions</string>
     <string name="v2_set_releases_d">Toutes les versions de LavArtemis, avec leurs notes.</string>
+    <string name="v2_set_quit_after">Quitter l\'appli sur le PC distant à la fin</string>
+    <string name="v2_set_quit_after_d">Ferme le jeu quand tu arrêtes le stream : la progression non sauvegardée est perdue.</string>
     <string name="v2_set_clipboard">Synchroniser le presse-papiers</string>
     <string name="v2_set_clipboard_d">Envoie le presse-papiers au début du stream et le récupère quand tu quittes l\'appli (Apollo / LavApollo).</string>
     <string name="v2_set_clipboard_toast">Notifier chaque synchronisation</string>

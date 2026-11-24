@@ -19,7 +19,8 @@ import java.util.UUID;
  * (ProfilesManager.getOverlayingSharedPreferences), writes through ProfileAwarePreferences: a key
  * the active profile holds is written into the profile, anything else into the base preferences,
  * so the next read always sees the value just written. Global rows ({@link SettingDef#global}: the
- * appearance, and the two keys their readers take from the base preferences, the automatic update
+ * appearance, the microphone (ProfilesManager.APP_WIDE_KEYS, which every reader takes from the
+ * base preferences), and the two keys their readers take from the base preferences, the automatic update
  * check and the on-screen key layout) are read from and written to the base preferences. Every write applies at once; the only side effect handled here is
  * the legacy screen's: a new resolution or frame rate resets the bitrate to its default.
  */

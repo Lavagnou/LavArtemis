@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.limelight.BuildConfig;
 import com.limelight.LimeLog;
 import com.limelight.preferences.PreferenceConfiguration;
 
@@ -84,6 +85,9 @@ public class ProfilesManager {
                         profiles.put(p.getUuid(), p);
                     }
                     activeProfileId = data.activeProfileId;
+                    if (appWideKeysEnabled()) {
+                        migrateAppWideKeys();
+                    }
                 }
             } catch (IOException e) {
                 LimeLog.warning("ArtemisProfile: Failed to load profiles from file:" + e);
@@ -128,6 +132,89 @@ public class ProfilesManager {
         }
 
         return true;
+    }
+
+    // ---- settings of this device, not of a stream --------------------------------------------------
+
+    /**
+     * Keys that describe this device rather than a stream: a profile never carries them, like the
+     * desktop's app-wide keys (ProfileManager::isGlobalKey). The microphone is the one the user
+     * plugs in here, whatever the profile. They were profile-scoped before 2026-11-24, so
+     * {@link #load} moves them out of existing profiles (LavArtemis Dev only: the stable keeps
+     * its profiles as they were).
+     */
+    static final String[] APP_WIDE_KEYS = {
+            PreferenceConfiguration.MIC_PASSTHROUGH_PREF_STRING,
+            PreferenceConfiguration.MIC_DEVICE_PREF_STRING,
+    };
+
+    static boolean appWideKeysEnabled() {
+        return BuildConfig.LAV_DEV;
+    }
+
+    /** True for a key no profile may carry (always false in the stable) */
+    public static boolean isAppWideKey(String key) {
+        if (!appWideKeysEnabled() || key == null) {
+            return false;
+        }
+        for (String k : APP_WIDE_KEYS) {
+            if (k.equals(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Takes the app-wide keys out of every profile. What the user sees now is the active
+     * profile's value when it has one: that value goes into {@code toBase}, to be written to the
+     * base preferences. The other profiles' copies would never be read again. Returns true when a
+     * profile changed.
+     */
+    static boolean extractAppWideKeys(Iterable<SettingsProfile> profiles, UUID activeId, Map<String, Object> toBase) {
+        boolean changed = false;
+        for (SettingsProfile p : profiles) {
+            if (p.getOptions() == null) {
+                continue;
+            }
+            Map<String, Object> options = null;
+            for (String key : APP_WIDE_KEYS) {
+                if (!p.getOptions().containsKey(key)) {
+                    continue;
+                }
+                if (options == null) {
+                    options = new LinkedHashMap<>(p.getOptions());
+                }
+                Object value = options.remove(key);
+                if (p.getUuid().equals(activeId) && value != null) {
+                    toBase.put(key, value);
+                }
+            }
+            if (options != null) {
+                p.setOptions(options);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private void migrateAppWideKeys() {
+        Map<String, Object> toBase = new LinkedHashMap<>();
+        if (!extractAppWideKeys(profiles.values(), activeProfileId, toBase)) {
+            return;
+        }
+        SharedPreferences.Editor editor = androidx.preference.PreferenceManager.getDefaultSharedPreferences(appContext).edit();
+        for (Map.Entry<String, Object> e : toBase.entrySet()) {
+            Object v = e.getValue();
+            if (v instanceof Boolean) {
+                editor.putBoolean(e.getKey(), (Boolean) v);
+            } else if (v instanceof String) {
+                editor.putString(e.getKey(), (String) v);
+            }
+        }
+        editor.apply();
+        LimeLog.info("ArtemisProfile: moved app-wide settings out of the profiles");
+        save(appContext);
     }
 
     public List<SettingsProfile> getProfiles() {
@@ -203,7 +290,15 @@ public class ProfilesManager {
         if (active == null || active.getOptions() == null) {
             return base;
         }
-        return new OverlaySharedPreferences(base, active.getOptions());
+        Map<String, Object> patch = active.getOptions();
+        for (String key : APP_WIDE_KEYS) {
+            if (isAppWideKey(key) && patch.containsKey(key)) {
+                // A profile written by an older screen may still carry one: the base value wins
+                patch = new LinkedHashMap<>(patch);
+                patch.remove(key);
+            }
+        }
+        return new OverlaySharedPreferences(base, patch);
     }
 
     /**
