@@ -146,6 +146,16 @@ public class UpdateCheckerTest {
     }
 
     @Test
+    public void devChannelSkipsCiBuildsOfTheDevBranch() {
+        // A manual release.yml run from dev publishes "v…-dev.N-ci.M": never offered to the Dev app
+        JsonArray releases = JsonParser.parseString("["
+                + "{\"tag_name\":\"v21.8.0-dev.9-ci.123\",\"draft\":false},"
+                + "{\"tag_name\":\"v21.8.0-dev.9\",\"draft\":false}"
+                + "]").getAsJsonArray();
+        assertEquals(1, UpdateChecker.pickDevRelease(releases));
+    }
+
+    @Test
     public void devChannelWithoutDevReleaseFindsNothing() {
         JsonArray releases = JsonParser.parseString(
                 "[{\"tag_name\":\"v21.7.1\"},{\"tag_name\":\"v21.7.0\"}]").getAsJsonArray();

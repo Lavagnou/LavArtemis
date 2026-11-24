@@ -151,7 +151,10 @@ public class UpdateChecker {
                 continue;
             }
             JsonElement tag = release.get("tag_name");
-            if (tag != null && !tag.isJsonNull() && isDevVersion(tag.getAsString())) {
+            // A manual run of release.yml from the dev branch publishes "v…-dev.N-ci.M": a build,
+            // not a Dev release, though its tag carries "-dev." too
+            if (tag != null && !tag.isJsonNull() && isDevVersion(tag.getAsString())
+                    && !tag.getAsString().contains("-ci.")) {
                 return i;
             }
         }
