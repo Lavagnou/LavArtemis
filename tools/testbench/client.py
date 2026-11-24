@@ -1,0 +1,365 @@
+"""Drives the LavArtemis test client (LavArtemis-Qt build `CONFIG+=lav_test`, LavArtemisTest.exe).
+
+The client opens a local command channel, the named pipe `\\\\.\\pipe\\lavartemis-test`: one JSON object per line,
+`{"id": n, "cmd": ...}` -> `{"id": n, "ok": bool, ...}`, one connection at a time (protocol: LavArtemis-Qt CLAUDE.md,
+section "Build de test").  Everything here is non-intrusive: no window activation, no mouse or keyboard automation.
+The test client has its own Qt organisation ("LavArtemis Test"); this module never touches LavArtemis settings.
+"""
+import ctypes
+import ctypes.wintypes
+import json
+import os
+import pathlib
+import subprocess
+import time
+
+HERE = pathlib.Path(__file__).resolve().parent
+PIPE_PATH = "\\\\.\\pipe\\lavartemis-test"
+EXE_NAME = "LavArtemisTest.exe"
+QT_SOURCE_SUFFIXES = (".cpp", ".h", ".qml", ".qrc", ".pro", ".pri", ".ui", ".js", ".c", ".hpp")
+
+_PROCS = []  # Popen objects of clients started by this process
+
+
+class ClientError(RuntimeError):
+    pass
+
+
+def qt_root():
+    return pathlib.Path(os.environ.get("LAV_TESTBENCH_QT", HERE.parents[2] / "LavArtemis-Qt")).resolve()
+
+
+def exe_path():
+    return qt_root() / "build" / "test-x64" / "deploy" / EXE_NAME
+
+
+def test_jobs():
+    return int(os.environ.get("LAV_TEST_JOBS", "2"))
+
+
+# ------------------------------------------------------------------ line protocol over a transport
+
+class PipeTransport:
+    """The real pipe.  One thread: write, then poll PeekNamedPipe so a dead client cannot hang us."""
+
+    def __init__(self, path=PIPE_PATH):
+        self.f = open(path, "r+b", buffering=0)
+        import msvcrt
+        self.handle = msvcrt.get_osfhandle(self.f.fileno())
+
+    def write(self, data):
+        self.f.write(data)
+
+    def read_available(self, timeout):
+        k32 = ctypes.windll.kernel32
+        k32.PeekNamedPipe.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_void_p,
+                                      ctypes.POINTER(ctypes.c_ulong), ctypes.c_void_p]
+        deadline = time.time() + timeout
+        while True:
+            avail = ctypes.c_ulong(0)
+            ok = k32.PeekNamedPipe(self.handle, None, 0, None, ctypes.byref(avail), None)
+            if not ok:
+                return b""  # broken pipe: the client went away
+            if avail.value:
+                return os.read(self.f.fileno(), min(avail.value, 1 << 20))
+            if time.time() > deadline:
+                return None  # timeout
+            time.sleep(0.01)
+
+    def close(self):
+        try:
+            self.f.close()
+        except OSError:
+            pass
+
+
+class Channel:
+    """JSON-lines request/response over any transport with write(bytes) and read_available(timeout)."""
+
+    def __init__(self, transport):
+        self.t = transport
+        self.buf = b""
+        self.next_id = 1
+
+    def request(self, cmd, timeout=30.0, **args):
+        rid = self.next_id
+        self.next_id += 1
+        line = json.dumps(dict(args, id=rid, cmd=cmd), separators=(",", ":")) + "\n"
+        self.t.write(line.encode("utf-8"))
+        deadline = time.time() + timeout
+        while True:
+            while b"\n" in self.buf:
+                raw, self.buf = self.buf.split(b"\n", 1)
+                if not raw.strip():
+                    continue
+                reply = json.loads(raw.decode("utf-8"))
+                if reply.get("id") in (rid, None):
+                    return reply
+                # a reply to an older, abandoned request: drop it
+            chunk = self.t.read_available(max(0.0, deadline - time.time()))
+            if chunk is None:
+                raise ClientError(f"timeout waiting for the reply to {cmd!r}")
+            if chunk == b"":
+                raise ClientError(f"the client closed the channel during {cmd!r}")
+            self.buf += chunk
+
+
+# ------------------------------------------------------------------ processes
+
+def tasklist_pids():
+    out = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {EXE_NAME}", "/FO", "CSV", "/NH"],
+                         capture_output=True, text=True).stdout
+    pids = []
+    for line in out.splitlines():
+        parts = [p.strip('"') for p in line.split('","')]
+        if len(parts) > 1 and parts[0].strip('"').lower() == EXE_NAME.lower():
+            pids.append(int(parts[1]))
+    return pids
+
+
+def _image_path(pid):
+    import hosts
+    return hosts._image_path(pid)
+
+
+def _is_our_exe(pid):
+    p = _image_path(pid)
+    return p is not None and os.path.normcase(os.path.abspath(p)) == os.path.normcase(str(exe_path()))
+
+
+def sources_newer_than_exe():
+    exe = exe_path()
+    if not exe.exists():
+        return True
+    mt = exe.stat().st_mtime
+    for root in (qt_root() / "app", qt_root() / "lavartemis.pro"):
+        if root.is_file():
+            if root.stat().st_mtime > mt:
+                return True
+            continue
+        for dirpath, _d, files in os.walk(root):
+            for f in files:
+                if f.endswith(QT_SOURCE_SUFFIXES) and os.stat(os.path.join(dirpath, f)).st_mtime > mt:
+                    return True
+    return False
+
+
+def ensure_built():
+    if not sources_newer_than_exe():
+        return
+    env = dict(os.environ, LAV_TEST_JOBS=str(test_jobs()))
+    r = subprocess.run(["cmd", "/c", str(qt_root() / "scripts" / "build-test.bat")], cwd=str(qt_root()), env=env)
+    if r.returncode:
+        raise ClientError("test client build failed (killed for low memory? Free memory and retry with "
+                          "LAV_TEST_JOBS=1; not retrying automatically)")
+
+
+def foreground_hwnd():
+    return ctypes.windll.user32.GetForegroundWindow()
+
+
+def capture_window(hwnd, path):
+    """PrintWindow (PW_CLIENTONLY | PW_RENDERFULLCONTENT) of a window to a PNG.  Never activates or raises it."""
+    from PIL import Image
+    user32, gdi32 = ctypes.windll.user32, ctypes.windll.gdi32
+    try:
+        user32.SetProcessDPIAware()  # physical pixels, not virtualised ones
+    except OSError:
+        pass
+    hwnd = ctypes.c_void_p(int(hwnd))
+    rect = ctypes.wintypes.RECT()
+    user32.GetClientRect(hwnd, ctypes.byref(rect))
+    w, h = rect.right - rect.left, rect.bottom - rect.top
+    if w <= 0 or h <= 0:
+        raise ClientError("window has an empty client area")
+    for fn in ("GetWindowDC", "GetDC"):
+        getattr(user32, fn).restype = ctypes.c_void_p
+    gdi32.CreateCompatibleDC.restype = ctypes.c_void_p
+    gdi32.CreateCompatibleBitmap.restype = ctypes.c_void_p
+    gdi32.SelectObject.restype = ctypes.c_void_p
+    gdi32.CreateCompatibleDC.argtypes = [ctypes.c_void_p]
+    gdi32.CreateCompatibleBitmap.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+    gdi32.SelectObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
+    gdi32.DeleteDC.argtypes = [ctypes.c_void_p]
+    user32.GetDC.argtypes = [ctypes.c_void_p]
+    user32.ReleaseDC.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    user32.PrintWindow.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
+    screen = user32.GetDC(None)
+    mem = gdi32.CreateCompatibleDC(screen)
+    bmp = gdi32.CreateCompatibleBitmap(screen, w, h)
+    old = gdi32.SelectObject(mem, bmp)
+    try:
+        if not user32.PrintWindow(hwnd, mem, 1 | 2):
+            raise ClientError("PrintWindow failed")
+
+        class BITMAPINFOHEADER(ctypes.Structure):
+            _fields_ = [("biSize", ctypes.c_uint32), ("biWidth", ctypes.c_int32), ("biHeight", ctypes.c_int32),
+                        ("biPlanes", ctypes.c_uint16), ("biBitCount", ctypes.c_uint16),
+                        ("biCompression", ctypes.c_uint32), ("biSizeImage", ctypes.c_uint32),
+                        ("biXPelsPerMeter", ctypes.c_int32), ("biYPelsPerMeter", ctypes.c_int32),
+                        ("biClrUsed", ctypes.c_uint32), ("biClrImportant", ctypes.c_uint32)]
+
+        bi = BITMAPINFOHEADER(ctypes.sizeof(BITMAPINFOHEADER), w, -h, 1, 32, 0, 0, 0, 0, 0, 0)
+        buf = ctypes.create_string_buffer(w * h * 4)
+        gdi32.GetDIBits.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint,
+                                    ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
+        if not gdi32.GetDIBits(mem, bmp, 0, h, buf, ctypes.byref(bi), 0):
+            raise ClientError("GetDIBits failed")
+        img = Image.frombuffer("RGBA", (w, h), buf, "raw", "BGRA", 0, 1).convert("RGB")
+    finally:
+        gdi32.SelectObject(mem, old)
+        gdi32.DeleteObject(bmp)
+        gdi32.DeleteDC(mem)
+        user32.ReleaseDC(None, screen)
+    path = pathlib.Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(path, "PNG")
+    return {"path": str(path), "width": w, "height": h}
+
+
+# ------------------------------------------------------------------ the client
+
+class Client:
+    def __init__(self, channel=None, proc=None, workdir=None):
+        self.channel = channel
+        self.proc = proc
+        self.workdir = pathlib.Path(workdir) if workdir else None
+
+    # -- lifecycle
+    @classmethod
+    def start(cls, workdir, reset=False, build=True, timeout=40.0):
+        workdir = pathlib.Path(workdir)
+        workdir.mkdir(parents=True, exist_ok=True)
+        if build:
+            ensure_built()
+        elif not exe_path().exists():
+            raise ClientError(f"{exe_path()} does not exist")
+        cls._clear_previous(workdir)
+        proc = subprocess.Popen([str(exe_path())], cwd=str(exe_path().parent), stdin=subprocess.DEVNULL,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                creationflags=0x08000000 | 0x00000200)  # CREATE_NO_WINDOW | NEW_PROCESS_GROUP
+        _PROCS.append(proc)
+        (workdir / "client.json").write_text(json.dumps({"pid": proc.pid, "exe": str(exe_path())}))
+        c = cls(None, proc, workdir)
+        c._connect(timeout)
+        if reset:
+            # `reset` wipes the "LavArtemis Test" org only (the client refuses any other) and quits: relaunch.
+            try:
+                c.cmd("reset", timeout=30)
+            except ClientError:
+                pass
+            c._wait_exit(30)
+            return cls.start(workdir, reset=False, build=False, timeout=timeout)
+        return c
+
+    @staticmethod
+    def _clear_previous(workdir):
+        f = workdir / "client.json"
+        ours = None
+        if f.exists():
+            try:
+                ours = json.loads(f.read_text()).get("pid")
+            except ValueError:
+                ours = None
+            f.unlink()
+        for pid in tasklist_pids():
+            if pid == ours and _is_our_exe(pid):
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+                time.sleep(0.5)
+            else:
+                raise ClientError(f"another {EXE_NAME} (pid {pid}) is running and is not ours: not starting")
+
+    def _connect(self, timeout):
+        deadline = time.time() + timeout
+        last = None
+        while time.time() < deadline:
+            if self.proc.poll() is not None:
+                raise ClientError(f"the test client exited at startup (code {self.proc.returncode})")
+            try:
+                self.channel = Channel(PipeTransport())
+                return
+            except OSError as e:  # pipe not there yet (2), or busy (231)
+                last = e
+                time.sleep(0.2)
+        raise ClientError(f"no command channel after {timeout:.0f}s: {last}")
+
+    def _wait_exit(self, timeout):
+        try:
+            self.proc.wait(timeout=timeout)
+            return True
+        except subprocess.TimeoutExpired:
+            return False
+
+    def stop(self):
+        if self.proc is None:
+            return
+        try:
+            if self.channel and self.proc.poll() is None:
+                self.channel.request("quit", timeout=10)
+        except (ClientError, OSError, ValueError):
+            pass
+        if self.channel:
+            self.channel.t.close()
+            self.channel = None
+        if not self._wait_exit(40) and _is_our_exe(self.proc.pid):
+            subprocess.run(["taskkill", "/PID", str(self.proc.pid), "/T", "/F"], capture_output=True)
+            self._wait_exit(10)
+        if self.proc in _PROCS:
+            _PROCS.remove(self.proc)
+        if self.workdir and (self.workdir / "client.json").exists():
+            (self.workdir / "client.json").unlink()
+        self.proc = None
+
+    # -- commands
+    def cmd(self, name, timeout=30.0, **args):
+        """Send one command, return the reply dict (`ok` false on a refusal; transport problems raise)."""
+        return self.channel.request(name, timeout=timeout, **args)
+
+    def call(self, name, **args):
+        r = self.cmd(name, **args)
+        if not r.get("ok"):
+            raise ClientError(f"{name}: {r.get('error')}")
+        return r
+
+    def state(self):
+        return self.call("state")
+
+    def wait_for(self, predicate, timeout=20.0, interval=0.2):
+        """Poll `state` until predicate(state) is truthy; returns that state, raises on timeout."""
+        deadline = time.time() + timeout
+        st = None
+        while time.time() < deadline:
+            st = self.state()
+            if predicate(st):
+                return st
+            time.sleep(interval)
+        raise ClientError(f"timeout waiting for a state condition; last state: {json.dumps(st)[:400]}")
+
+    def wait_idle(self, timeout=20.0):
+        """Wait for a finished page transition (state.pageBusy false) and a page."""
+        return self.wait_for(lambda s: s.get("page") and not s.get("pageBusy"), timeout)
+
+    def tree(self, **args):
+        self.wait_idle()
+        return self.call("tree", **args)["items"]
+
+    def click(self, text=None, **args):
+        self.wait_idle()
+        if text is not None:
+            args["text"] = text
+        return self.call("click", **args)
+
+    def windows(self):
+        return self.call("windows")["windows"]
+
+    def screenshot(self, path, window=0):
+        """Qt window (index) by the channel; window="stream" by PrintWindow on the stream window's hwnd."""
+        path = str(pathlib.Path(path).resolve())
+        if window == "stream":
+            for w in self.windows():
+                if w.get("kind") == "stream":
+                    return capture_window(int(str(w["hwnd"]), 0), path)
+            raise ClientError("no stream window")
+        self.wait_idle()
+        return self.call("screenshot", path=path, window=window)

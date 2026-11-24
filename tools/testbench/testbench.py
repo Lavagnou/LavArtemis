@@ -1,5 +1,6 @@
 """Testbench CLI:  python tools/testbench/testbench.py up [fixtures...] | down | logs <pc> [input|commands|events]"""
 import argparse
+import json
 import pathlib
 import sys
 
@@ -17,7 +18,23 @@ def main(argv=None):
     s = sub.add_parser("logs")
     s.add_argument("pc", help="fixture name (atlas-test) or displayed name (Test-Atlas)")
     s.add_argument("stream", nargs="?", default="events", choices=["input", "commands", "events"])
+    s = sub.add_parser("client", help="one-shot: send one command to a running test client, print the reply")
+    s.add_argument("command")
+    s.add_argument("args", nargs="?", default="{}", help="JSON object of arguments")
+    s = sub.add_parser("shot", help="screenshot of the running test client's main window (absolute PNG path)")
+    s.add_argument("path", type=pathlib.Path)
+    s.add_argument("--window", default="0", help="Qt window index, or 'stream'")
     a = ap.parse_args(argv)
+    if a.cmd in ("client", "shot"):
+        import client
+        c = client.Client(client.Channel(client.PipeTransport()))
+        if a.cmd == "client":
+            print(json.dumps(c.cmd(a.command, **json.loads(a.args))))
+        else:
+            w = a.window if a.window == "stream" else int(a.window)
+            print(json.dumps(c.screenshot(a.path, w)))
+        c.channel.t.close()
+        return
     if a.cmd == "up":
         bad = [f for f in a.fixtures if f not in hosts.available_fixtures()]
         if bad:

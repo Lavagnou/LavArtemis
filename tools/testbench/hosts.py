@@ -38,8 +38,30 @@ def _resolve_lavapollo():
     return root
 
 
-LAVAPOLLO = _resolve_lavapollo()
-SUNSHINE = LAVAPOLLO / "build" / "t" / "sunshine.exe"
+_lazy = {}
+
+
+def __getattr__(name):
+    """LAVAPOLLO / SUNSHINE are resolved on first use: importing this module needs no LavApollo checkout."""
+    if name == "LAVAPOLLO":
+        if "root" not in _lazy:
+            _lazy["root"] = _resolve_lavapollo()
+        return _lazy["root"]
+    if name == "SUNSHINE":
+        return __getattr__("LAVAPOLLO") / "build" / "t" / "sunshine.exe"
+    raise AttributeError(name)
+
+
+def lavapollo_root():
+    return __getattr__("LAVAPOLLO")
+
+
+def sunshine_exe():
+    return __getattr__("SUNSHINE")
+
+
+# Popen objects of the instances started by this process (kept so they are waited on, never leaked).
+_PROCS = []
 PORT_MIN, PORT_MAX = 40000, 44999
 # Offsets used by an instance around its base port (base-5 .. base+21).
 PORT_SPAN = (-5, 21)
@@ -153,7 +175,7 @@ def pid_alive(pid):
 
 
 def _is_test_sunshine(pid):
-    return _same_exe(_image_path(pid), SUNSHINE)
+    return _same_exe(_image_path(pid), sunshine_exe())
 
 
 def _kill(pid):
@@ -180,6 +202,13 @@ def kill_previous(workdir):
 def down(workdir=None):
     """Stop the instances recorded in workdir.  Removes nothing but the PID file."""
     kill_previous(workdir or default_workdir())
+    for p in list(_PROCS):
+        try:
+            p.wait(timeout=5)
+        except Exception:
+            pass
+        if p.poll() is not None:
+            _PROCS.remove(p)
 
 
 # ------------------------------------------------------------------ ports / build
@@ -204,11 +233,11 @@ def check_ports_free(base):
 
 def sources_newer_than_exe():
     """True when the test exe is older than the LavApollo sources (or missing)."""
-    if not SUNSHINE.exists():
+    if not sunshine_exe().exists():
         return True
-    exe = SUNSHINE.stat().st_mtime
-    newest = (LAVAPOLLO / "CMakeLists.txt").stat().st_mtime
-    for root in (LAVAPOLLO / "src", LAVAPOLLO / "cmake"):
+    exe = sunshine_exe().stat().st_mtime
+    newest = (lavapollo_root() / "CMakeLists.txt").stat().st_mtime
+    for root in (lavapollo_root() / "src", lavapollo_root() / "cmake"):
         for dirpath, _d, files in os.walk(root):
             for f in files:
                 if f.endswith((".cpp", ".h", ".c", ".cmake", ".txt", ".in")):
@@ -221,7 +250,7 @@ def ensure_built():
         return
     env = dict(os.environ)
     env["PATH"] = MSYS_PATH + env["PATH"]
-    r = subprocess.run(["ninja", "-C", str(LAVAPOLLO / "build" / "t"), f"-j{build_jobs()}", "sunshine"], env=env)
+    r = subprocess.run(["ninja", "-C", str(lavapollo_root() / "build" / "t"), f"-j{build_jobs()}", "sunshine"], env=env)
     if r.returncode:
         raise RuntimeError("sunshine build failed (out of memory? retry with LAV_TESTBENCH_JOBS=1)")
 
@@ -268,10 +297,11 @@ def up(fixtures, workdir=None):
         env = dict(os.environ, LAVAPOLLO_APPDATA=str(pcdir), ProgramData=str(pcdir / "pd"),
                    PATH=sysroot + B + "System32;" + sysroot)
         flags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
-        p = subprocess.Popen([str(SUNSHINE), str(pcdir / "sunshine.conf")], cwd=str(LAVAPOLLO / "build" / "t"),
+        p = subprocess.Popen([str(sunshine_exe()), str(pcdir / "sunshine.conf")], cwd=str(lavapollo_root() / "build" / "t"),
                              env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL, creationflags=flags)
-        records.append({"name": pc["name"], "pid": p.pid, "exe": str(SUNSHINE)})
+        _PROCS.append(p)
+        records.append({"name": pc["name"], "pid": p.pid, "exe": str(sunshine_exe())})
         (workdir / "pids.json").write_text(json.dumps(records))  # written at once: a crash leaves it
         result.append(Host(pc["name"], pc["port"], p.pid, pcdir, f))
     deadline = time.time() + STARTUP_TIMEOUT
