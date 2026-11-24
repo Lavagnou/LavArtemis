@@ -40,8 +40,9 @@ s'ajoute ici comme écart.
   la même description et les mêmes options : Profil actif, Gérer les profils, Résolution (+
   « Personnalisée… »), Images par seconde (+ « Autre… »), VRR et « Marge du VRR » (Faible latence /
   Équilibrée / Fluide, description par choix), Écran virtuel, **Débit vidéo** (0,5 à 800 Mbit/s sur une
-  piste cubique, quel que soit le codec), Revenir au débit recommandé, **Saisir un débit** (expert, toute
-  valeur au-delà), Format vidéo (Auto, H.264, HEVC, AV1, PyroWave en expert), Couleurs complètes (4:4:4),
+  piste cubique, jusqu'à 3 Gbit/s quand le codec est PyroWave), Revenir au débit recommandé, **Saisir un débit** (expert, toute
+  valeur au-delà), Format vidéo (Auto, H.264, HEVC, AV1, PyroWave en expert — codec expérimental, gardé parce
+  qu'il est construit, que l'utilisateur n'utilise pas pour l'instant), Couleurs complètes (4:4:4),
   Statistiques à l'écran, Canaux audio, Couper le son du PC distant, Envoyer mon micro, Micro utilisé (ces
   deux-là **hors profils** des deux côtés), Tampon audio, Écran tactile (Multitouch / Trackpad), **Retenir le
   mode tactile choisi en jeu** (expert), Souris pour le bureau à distance, Inverser A/B et X/Y, Toujours
@@ -140,7 +141,7 @@ Les textes qui nomment l'appareil restent différents exprès : « suit le mode 
 - Logiciel hôte non pris en charge : règle et message d'Android, vérifiés aussi au lancement et au
   benchmark.
 - « Retenir le mode tactile choisi en jeu » (expert) ; l'appui long à deux doigts ne tient plus le clic droit.
-- Débit : curseur d'Android (0,5–800 Mbit/s, piste cubique) + « Saisir un débit » ; « Débloquer la limite
+- Débit : curseur d'Android (0,5–800 Mbit/s, piste cubique ; 3 Gbit/s avec PyroWave, des deux côtés) + « Saisir un débit » ; « Débloquer la limite
   (500 Mbit/s) » retiré (une valeur au-delà, déjà réglée, est gardée) ; benchmark plafonné à 800.
 - Mise à jour : « Ignorer cette version ».
 - Raccourci HDR retiré ; tutoiement dans toutes les traductions (messages de stream, avertissements de
@@ -166,4 +167,4 @@ Les textes qui nomment l'appareil restent différents exprès : « suit le mode 
 
 Appui long à deux doigts : rien des deux côtés. Zoom au pincement : Android seulement. « Masquer » : jeux
 seulement. « Ignorer cette version » sur PC. Raccourci HDR retiré des deux listes. Débit du PC comme
-Android (800 Mbit/s + saisie). Ligne d'état de la Scène d'Android, avec la durée, sur PC.
+Android (800 Mbit/s, 3 Gbit/s avec PyroWave, + saisie). Ligne d'état de la Scène d'Android, avec la durée, sur PC.

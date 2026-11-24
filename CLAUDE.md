@@ -287,7 +287,9 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     `preferences/SettingsFileActions`, partagé avec `StreamSettings`.
   - Clavier / manette : la ligne a le focus ; A / Entrée bascule ou ouvre la liste, Gauche / Droite font
     défiler un choix ou un curseur, Gauche en bout de course revient à la liste des pages ; B : lignes → pages →
-    accueil. Le curseur du débit est **courbé** (`curve(3)` : 20 Mbit/s au premier tiers, 800 au bout) et ses
+    accueil. Le curseur du débit est **courbé** (`curve(3)` : 20 Mbit/s au premier tiers, 800 au bout ; avec le codec
+    PyroWave il va à 3 Gbit/s — `SettingDef.maxFrom()` / `maxFor()`, `SettingsCatalog.BITRATE_MAX_KBPS` /
+    `BITRATE_MAX_PYROWAVE_KBPS`, mêmes valeurs que `bitrateMax` du desktop) et ses
     pas grandissent avec la valeur. Toute écriture est immédiate, pas de bouton « Enregistrer ».
   - Captures : `SettingsScreenshotTest` (préfixe `settings-`, dont `settings-full-<page>` : chaque page entière
     en mode expert) vérifie aussi qu'aucun texte anglais n'est à l'écran.
@@ -763,6 +765,8 @@ Les deux clients pointent le même commit de [`Lavagnou/moonlight-common-c`](htt
 ondelettes, sur GPU (Vulkan) : décodage sous la milliseconde, une perte ne coûte qu'un flou local sur
 une image, mais il faut des **centaines de Mbit/s** — réseau filaire. Jamais choisi en Auto : codec
 « PyroWave » explicite, repli sur les autres codecs si l'hôte ou l'appareil ne sait pas.
+**Expérimental** : l'utilisateur ne s'en sert pas pour l'instant ; il reste parce qu'il est construit
+(codec proposé en mode expert seulement, curseur de débit jusqu'à 3 Gbit/s avec lui, 800 Mbit/s sinon).
 
 Le protocole est celui de [Vibepollo](https://github.com/Nonary/Vibepollo) / du fork moonlight-qt de
 Nonary, **inchangé** : `docs/pyrowave-protocol.md` dans LavApollo et LavArtemis-Qt (identiques).
