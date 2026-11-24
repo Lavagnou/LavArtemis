@@ -64,7 +64,8 @@ argument (`config.cpp:1526`, un argument sans `=` est le fichier de config).
   bibliothèque Playnite (`playnite.cpp:71`), `nvprefs_undo.json`, `nvcp_overrides.json`, `rtss_overrides.json`
   y sont alors propres à l'instance.
 - Répertoire de travail = `build/t` (les `assets` y sont relatifs, `common.cmake:34`).
-- Ports : base `port` différente par instance (49989, 50989…), loin de 47989 ; tous les autres en dérivent
+- Ports : base `port` différente par instance (40989, 41989…), loin de 47989 et **sous 49152** (au-dessus,
+  Windows réserve des plages à chaque démarrage, `config.cpp:1400`) ; tous les autres en dérivent
   (`network.cpp:190`).
 - **Écoute sur 127.0.0.1 seulement** (nouvelle clé `bind_address`, forcée en mode test) : le client desktop
   est local, l'émulateur Android joint `127.0.0.1` par `10.0.2.2`. Pas d'alerte du pare-feu Windows (qui
@@ -122,8 +123,9 @@ lancé ou non, appli en cours), `apps.json`, `playnite/library.json` + `covers/`
   part (`build/test-x64`), compilé incrémentalement depuis les mêmes sources. Jamais construit par
   `local-release.ps1` ni par la CI.
 - **Isolation** : organisation Qt « LavArtemis Test » (registre, AppData à part) ; découverte mDNS coupée ;
-  vérification de mise à jour coupée ; **tout serveur qui n'annonce pas `LavTestHost` est refusé** au premier
-  `serverinfo` (garde-fou : même une adresse tapée à la main ne mène jamais à un vrai PC). Le refus « ce PC »
+  vérification de mise à jour coupée. **Deux garde-fous** : avant toute requête, seule une adresse de bouclage
+  hors des ports du vrai LavApollo (47984-48010) est acceptée — le client de test ne parle jamais au vrai hôte
+  de ce PC, même pour un `serverinfo` ; puis tout serveur qui n'annonce pas `LavTestHost` est refusé. Le refus « ce PC »
   (`isThisPc`) ne s'applique pas aux hôtes de test, dans ce build seulement.
 - **Canal de commande** : un `QLocalServer` (nom `lavartemis-test`), une commande JSON par ligne :
   - `tree` : les éléments QML visibles (type, `objectName`, texte, rectangle, focus), pour trouver quoi viser ;
