@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "exportedAt": "2026-11-24T09:00:00Z",
+  "games": [
+    {
+      "id": "4DCCF2BC-FD8D-5E93-8467-BBB42C5B8159",
+      "name": "Nebula Drift",
+      "source": "Steam",
+      "platform": "PC (Windows)",
+      "favorite": true,
+      "lastActivity": "2026-11-20T21:00:00Z",
+      "playtime": 3600,
+      "cover": "4DCCF2BC-FD8D-5E93-8467-BBB42C5B8159.png"
+    },
+    {
+      "id": "388A275E-05D7-5706-B8DF-6A612F1EFB79",
+      "name": "Cobalt Quarry",
+      "source": "GOG",
+      "platform": "PC (Windows)",
+      "favorite": false,
+      "lastActivity": "2026-11-18T19:30:00Z",
+      "playtime": 3600,
+      "cover": "388A275E-05D7-5706-B8DF-6A612F1EFB79.png"
+    },
+    {
+      "id": "08488143-797D-5C59-A38A-D5EBBB49F353",
+      "name": "Tidewater Tactics",
+      "source": "Epic",
+      "platform": "PC (Windows)",
+      "favorite": false,
+      "lastActivity": "2026-11-10T08:15:00Z",
+      "playtime": 3600,
+      "cover": "08488143-797D-5C59-A38A-D5EBBB49F353.png"
+    },
+    {
+      "id": "326B3B19-C436-57EC-8FDC-225841229FDA",
+      "name": "Paper Lantern",
+      "source": "Steam",
+      "platform": "PC (Windows)",
+      "favorite": false,
+      "lastActivity": null,
+      "playtime": 3600,
+      "cover": "326B3B19-C436-57EC-8FDC-225841229FDA.png"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "exportedAt": "2026-11-24T09:00:00Z",
+  "games": [
+    {
+      "id": "F2F5EE05-AACB-5A6C-BE5C-3453633ED70F",
+      "name": "Ember Courier",
+      "source": "Steam",
+      "platform": "PC (Windows)",
+      "favorite": false,
+      "lastActivity": "2026-11-22T10:00:00Z",
+      "playtime": 3600,
+      "cover": "F2F5EE05-AACB-5A6C-BE5C-3453633ED70F.png"
+    },
+    {
+      "id": "4171AFBC-5597-5789-9E51-10C7ED5A6CCA",
+      "name": "Glass Orchard",
+      "source": "Xbox",
+      "platform": "PC (Windows)",
+      "favorite": false,
+      "lastActivity": "2026-11-01T12:00:00Z",
+      "playtime": 3600,
+      "cover": "4171AFBC-5597-5789-9E51-10C7ED5A6CCA.png"
+    }
+  ]
+}
