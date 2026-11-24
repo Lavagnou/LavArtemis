@@ -1,4 +1,5 @@
-"""Testbench CLI:  python tools/testbench/testbench.py up [fixtures...] | down | logs <pc> [input|commands|events]"""
+"""Testbench CLI:  python tools/testbench/testbench.py run [--suite desktop] [-k expr] | up [fixtures...] | down |
+logs <pc> [input|commands|events] | client <cmd> [json] | shot <path> | mark-client-built"""
 import argparse
 import json
 import pathlib
@@ -24,9 +25,23 @@ def main(argv=None):
     s = sub.add_parser("shot", help="screenshot of the running test client's main window (absolute PNG path)")
     s.add_argument("path", type=pathlib.Path)
     s.add_argument("--window", default="0", help="Qt window index, or 'stream'")
+    s = sub.add_parser("run", help="run the scenario suite (pytest), report in testbench-reports/<date>_<time>/")
+    s.add_argument("--suite", default="desktop", choices=["desktop"])
+    s.add_argument("-k", dest="keyword", default=None, help="pytest -k expression (a scenario's name)")
+    s.add_argument("--report-dir", default=None)
+    s.add_argument("pytest_args", nargs="*", help="extra pytest arguments (after --)")
     sub.add_parser("mark-client-built", help="record the current sources as the ones the client exe was built "
                                              "from (after checking the newer mtimes are comment-only edits)")
     a = ap.parse_args(argv)
+    if a.cmd == "run":
+        import pytest
+        here = pathlib.Path(__file__).resolve().parent
+        args = [str(here / "scenarios"), "-v", "-p", "no:cacheprovider", "-rxXs"]
+        if a.keyword:
+            args += ["-k", a.keyword]
+        if a.report_dir:
+            args += ["--report-dir", a.report_dir]
+        sys.exit(pytest.main(args + a.pytest_args, plugins=[]))
     if a.cmd == "mark-client-built":
         import client
         client.mark_built()

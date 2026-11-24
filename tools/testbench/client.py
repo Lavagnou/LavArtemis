@@ -282,10 +282,25 @@ class Client:
         self.channel = channel
         self.proc = proc
         self.workdir = pathlib.Path(workdir) if workdir else None
+        self.log_path = None
 
     # -- lifecycle
+    @staticmethod
+    def next_log_path(workdir):
+        n = 1
+        while (pathlib.Path(workdir) / f"client-{n}.log").exists():
+            n += 1
+        return pathlib.Path(workdir) / f"client-{n}.log"
+
+    def log_text(self):
+        """The client's log so far (its stderr)."""
+        p = self.log_path
+        return p.read_text(encoding="utf-8", errors="replace") if p and p.exists() else ""
+
     @classmethod
-    def start(cls, workdir, reset=False, build=True, timeout=40.0):
+    def start(cls, workdir, reset=False, build=True, timeout=40.0, args=None):
+        """Launch the client.  args: extra command-line arguments (an art:// link, `pair host --pin ...`), passed
+        exactly as a shell or the OS link handler would."""
         workdir = pathlib.Path(workdir)
         workdir.mkdir(parents=True, exist_ok=True)
         cls._clear_previous(workdir)  # first: a foreign instance must refuse before any (long) build
@@ -293,12 +308,18 @@ class Client:
             ensure_built()
         elif not exe_path().exists():
             raise ClientError(f"{exe_path()} does not exist")
-        proc = subprocess.Popen([str(exe_path())], cwd=str(exe_path().parent), stdin=subprocess.DEVNULL,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                creationflags=0x08000000 | 0x00000200)  # CREATE_NO_WINDOW | NEW_PROCESS_GROUP
+        # The client logs to stderr when it is given one (main.cpp, LOG_TO_FILE only for an unspecified handle):
+        # its log lands in the workdir, never in %TEMP%\LavArtemis-*.log next to the real app's logs.
+        log = cls.next_log_path(workdir)
+        with open(log, "wb") as logf:
+            argv = [str(exe_path())] + ([] if reset else [str(a) for a in (args or [])])  # args after the reset
+            proc = subprocess.Popen(argv, cwd=str(exe_path().parent),
+                                    stdin=subprocess.DEVNULL, stdout=logf, stderr=logf,
+                                    creationflags=0x08000000 | 0x00000200)  # CREATE_NO_WINDOW | NEW_PROCESS_GROUP
         _PROCS.append(proc)
-        (workdir / "client.json").write_text(json.dumps({"pid": proc.pid, "exe": str(exe_path())}))
+        (workdir / "client.json").write_text(json.dumps({"pid": proc.pid, "exe": str(exe_path()), "log": str(log)}))
         c = cls(None, proc, workdir)
+        c.log_path = log
         c._connect(timeout)
         if reset:
             # `reset` wipes the "LavArtemis Test" org only (the client refuses any other) and quits: relaunch.
@@ -307,7 +328,7 @@ class Client:
             except ClientError:
                 pass
             c._wait_exit(30)
-            return cls.start(workdir, reset=False, build=False, timeout=timeout)
+            return cls.start(workdir, reset=False, build=False, timeout=timeout, args=args)
         return c
 
     @staticmethod
@@ -419,16 +440,17 @@ class Client:
         return self.call("windows")["windows"]
 
     def stream_size(self):
-        """Stream resolution: the requested width/height settings (the hosts of the testbench honour them);
-        falls back to the stream window's own size."""
+        """(width, height, source) of the stream the host encodes.  source "negotiated": state.session's
+        negotiated size (after HostDisplayFit and every other adjustment, test build only); "settings": the
+        requested width/height, used only while no stream runs (a frame read with it may be wrong)."""
+        sess = self.state().get("session") or {}
+        if sess.get("width") and sess.get("height"):
+            return (int(sess["width"]), int(sess["height"]), "negotiated")
         try:
             return (int(self.call("setting", action="get", key="width")["value"]),
-                    int(self.call("setting", action="get", key="height")["value"]))
+                    int(self.call("setting", action="get", key="height")["value"]), "settings")
         except (ClientError, KeyError, ValueError):
-            for w in self.windows():
-                if w.get("kind") == "stream":
-                    return (int(w["w"]), int(w["h"]))
-        raise ClientError("unknown stream size")
+            raise ClientError("unknown stream size")
 
     def screenshot(self, path, window=0, stream_size=None):
         """Qt window (index) by the channel.  window="stream": PrintWindow on the stream window; the reply also
@@ -439,15 +461,31 @@ class Client:
             for w in self.windows():
                 if w.get("kind") == "stream":
                     info = capture_window(int(str(w["hwnd"]), 0), path)
-                    size = tuple(stream_size or self.stream_size())
+                    if stream_size:
+                        size, source = tuple(stream_size), "given"
+                    else:
+                        *size, source = self.stream_size()
+                        size = tuple(size)
                     info["stream_size"] = size
+                    info["stream_size_source"] = source
                     info["content_rect"] = frames.fit_rect(info["width"], info["height"], *size)
                     return info
             raise ClientError("no stream window")
         self.wait_idle()
         return self.call("screenshot", path=path, window=window)
 
-    def frame_number(self, path, stream_size=None):
-        """Strict frame number of the stream window as it is now (capture, then read)."""
-        info = self.screenshot(path, "stream", stream_size)
-        return frames.read_frame_number(info["path"], info["stream_size"], info["content_rect"])
+    def frame_number(self, path, stream_size=None, retries=3):
+        """Strict frame number of the stream window as it is now (capture, then read).  A capture taken while
+        the window repaints can be unreadable: up to `retries` more captures on FrameReadError; the last error
+        names the stream size used and where it came from."""
+        last = None
+        for attempt in range(retries + 1):
+            info = self.screenshot(path, "stream", stream_size)
+            try:
+                return frames.read_frame_number(info["path"], info["stream_size"], info["content_rect"])
+            except frames.FrameReadError as e:
+                last = frames.FrameReadError(f"{e} (stream size {info['stream_size'][0]}x{info['stream_size'][1]} "
+                                             f"from {info['stream_size_source']}, window {info['width']}x"
+                                             f"{info['height']}, attempt {attempt + 1}/{retries + 1})")
+                time.sleep(0.1)
+        raise last

@@ -37,6 +37,9 @@ for fx, pc in PCS.items():
     (d / "playnite").mkdir(parents=True, exist_ok=True)
     (d / "pc.json").write_text(json.dumps(pc, indent=2) + "\n")
     apps = {"env": {}, "apps": [{"name": "Bureau", "cmd": ""}]}
+    if GAMES[fx]:
+        # The user's Playnite front end (LavApollo: playnite-host, recognised by its command); never run in test mode
+        apps["apps"].append({"name": "Playnite Fullscreen", "cmd": "Playnite.FullscreenApp.exe --hidesplashscreen"})
     (d / "apps.json").write_text(json.dumps(apps, indent=2) + "\n")
     lib = {"version": 1, "exportedAt": "2026-11-24T09:00:00Z", "games": GAMES[fx]}
     (d / "playnite" / "library.json").write_text(json.dumps(lib, indent=2, ensure_ascii=False) + "\n")

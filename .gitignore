@@ -54,3 +54,6 @@ app/.externalNativeBuild/
 AGENTS.md
 # Local release builds (scripts/local-release.ps1)
 /dist/
+
+# Testbench reports (local: captures and logs may hold machine names)
+testbench-reports/

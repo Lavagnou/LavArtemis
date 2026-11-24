@@ -268,13 +268,17 @@ def _serverinfo_ok(port):
         return False
 
 
-def up(fixtures, workdir=None):
+def up(fixtures, workdir=None, force_instances=()):
+    """Start the fixtures' fake PCs.  force_instances: fixtures run even though their pc.json says
+    "instance": false (offline-test: started to be paired, then stopped with stop() to go offline)."""
     workdir = pathlib.Path(workdir or default_workdir())
     workdir.mkdir(parents=True, exist_ok=True)
     kill_previous(workdir)
     ensure_built()
     fixtures = list(fixtures) or available_fixtures()
     pcs = {f: load_fixture(f) for f in fixtures}
+    for f in force_instances:
+        pcs[f]["instance"] = True
     for f, pc in pcs.items():
         base = pc["port"]
         if not (PORT_MIN <= base + PORT_SPAN[0] and base + PORT_SPAN[1] <= PORT_MAX):
@@ -326,3 +330,76 @@ def pin(host, pin, name="testbench"):
                                  headers={"Content-Type": "application/json"}, method="POST")
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ctx))
     return json.loads(opener.open(req, timeout=10).read())
+
+
+def stop(host, workdir=None):
+    """Stop one instance of this run (the PC goes offline); the others keep running."""
+    workdir = pathlib.Path(workdir or default_workdir())
+    if host.pid is None:
+        return
+    _kill(host.pid)
+    f = workdir / "pids.json"
+    if f.exists():
+        records = [r for r in json.loads(f.read_text()) if r.get("pid") != host.pid]
+        f.write_text(json.dumps(records))
+    for p in list(_PROCS):
+        if p.pid == host.pid:
+            try:
+                p.wait(timeout=5)
+            except Exception:
+                pass
+            _PROCS.remove(p)
+    host.pid = None
+
+
+def read_log(host, stream):
+    """Events of <appdata>/testhost/<stream>.jsonl (input, commands, events) as dicts, oldest first."""
+    f = pathlib.Path(host.dir) / "testhost" / f"{stream}.jsonl"
+    if not f.exists():
+        return []
+    out = []
+    for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if line:
+            try:
+                out.append(json.loads(line))
+            except ValueError:
+                pass  # a line being written
+    return out
+
+
+def _web_opener():
+    import http.cookiejar
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ctx),
+                                       urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+
+
+def _web_post(opener, host, path, body):
+    req = urllib.request.Request(f"https://127.0.0.1:{host.port + 1}{path}", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with opener.open(req, timeout=10) as r:
+        data = r.read()
+    return json.loads(data) if data.strip() else {}
+
+
+WEB_USER, WEB_PASSWORD = "testbench", "testbench-password"
+
+
+def otp(host, passphrase, device_name="testbench"):
+    """A one-time pairing PIN for `passphrase` (Apollo OTP pairing, what an art://host?pin=&passphrase= link
+    carries), asked the way the web UI does: credentials set on the fresh fake PC (they live in its sandboxed
+    credentials file), login, POST /api/otp.  127.0.0.1 explicitly, like pin()."""
+    opener = _web_opener()
+    try:
+        _web_post(opener, host, "/api/password", {"newUsername": WEB_USER, "newPassword": WEB_PASSWORD,
+                                                  "confirmNewPassword": WEB_PASSWORD})
+    except urllib.error.HTTPError:
+        pass  # already set by an earlier call (then only our own credentials can be there)
+    _web_post(opener, host, "/api/login", {"username": WEB_USER, "password": WEB_PASSWORD})
+    r = _web_post(opener, host, "/api/otp", {"passphrase": passphrase, "deviceName": device_name})
+    if not r.get("status") or not r.get("otp"):
+        raise RuntimeError(f"{host.name}: no OTP ({r})")
+    return str(r["otp"])

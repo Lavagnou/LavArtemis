@@ -4,6 +4,10 @@
     {
       "name": "Bureau",
       "cmd": ""
+    },
+    {
+      "name": "Playnite Fullscreen",
+      "cmd": "Playnite.FullscreenApp.exe --hidesplashscreen"
     }
   ]
 }
