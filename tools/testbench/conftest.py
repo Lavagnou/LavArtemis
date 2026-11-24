@@ -101,29 +101,35 @@ def window_exe(hwnd):
 
 
 class ForegroundWatch:
-    """Samples the foreground window every 50 ms.  Fails the scenario if it ever belongs to the test client or a
-    test host, or if it differs at the end from what it was at the start."""
+    """Samples the foreground window every 50 ms and keeps the timeline of its changes (window, owner exe).  A
+    scenario fails if the foreground ever belongs to the test client or a test host.  The user keeps working while
+    the suite runs: a change to one of the user's own windows is recorded in the report, not counted against the
+    test client (it never had the foreground)."""
 
     def __init__(self):
         self.before = _user32.GetForegroundWindow()
         self.ours = set()
         self.seen_ours = []
+        self.changes = []
         self.stop_flag = False
         self.t = threading.Thread(target=self._loop, daemon=True)
         self.t.start()
 
     def _loop(self):
+        last = self.before
         while not self.stop_flag:
             h = _user32.GetForegroundWindow()
+            if h != last:
+                last = h
+                self.changes.append((time.strftime("%H:%M:%S"), h, window_exe(h) if h else "-"))
             if h and window_pid(h) in self.ours:
-                self.seen_ours.append((time.time(), h, window_exe(h)))
+                self.seen_ours.append((time.strftime("%H:%M:%S"), h, window_exe(h)))
             time.sleep(0.05)
 
     def finish(self):
         self.stop_flag = True
         self.t.join(2)
-        after = _user32.GetForegroundWindow()
-        return self.before, after
+        return self.before, _user32.GetForegroundWindow()
 
 
 # ---------------------------------------------------------------- the bench
@@ -142,8 +148,8 @@ class Bench:
         self.notes = []
 
     # -- hosts
-    def up(self, *fixtures, force_instances=()):
-        for h in hosts.up(list(fixtures), self.workdir, force_instances=force_instances):
+    def up(self, *fixtures, force_instances=(), overrides=None):
+        for h in hosts.up(list(fixtures), self.workdir, force_instances=force_instances, overrides=overrides):
             self.hosts[h.fixture] = h
             if h.pid:
                 self.watch.ours.add(h.pid)
@@ -217,8 +223,12 @@ def bench(request):
     yield b
     errors = b.close()
     before, after = b.watch.finish()
+    fg = [f"before: {before} ({window_exe(before)})"] + [f"{t} -> {h} ({exe})" for t, h, exe in b.watch.changes]
+    fg.append(f"after: {after} ({window_exe(after)})")
+    logs = run.root / "logs" / name
+    logs.mkdir(parents=True, exist_ok=True)
+    (logs / "foreground.txt").write_text(chr(10).join(fg), encoding="utf-8")
     assert not b.watch.seen_ours, f"a test window took the foreground: {b.watch.seen_ours[:3]}"
-    assert before == after, (f"foreground changed during the scenario: {before} ({window_exe(before)}) -> "
-                             f"{after} ({window_exe(after)})")
+    assert not (after and window_pid(after) in b.watch.ours), "the foreground ends on a test window"
     assert not errors, "; ".join(errors)
     assert not clientmod.tasklist_pids(), "a LavArtemisTest.exe is still running"

@@ -268,9 +268,37 @@ def _serverinfo_ok(port):
         return False
 
 
-def up(fixtures, workdir=None, force_instances=()):
+def _spawn(pc, pcdir):
+    """Launch one test sunshine on its sandbox dir; returns the Popen."""
+    # The exe imports only Windows system DLLs (checked with objdump), so the child gets a system-only
+    # PATH: nothing from the user's PATH (the installed LavApollo, msys64...) can be loaded by accident.
+    sysroot = os.environ.get("SystemRoot", "C:" + B + "Windows")
+    env = dict(os.environ, LAVAPOLLO_APPDATA=str(pcdir), ProgramData=str(pcdir / "pd"),
+               PATH=sysroot + B + "System32;" + sysroot)
+    flags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+    p = subprocess.Popen([str(sunshine_exe()), str(pcdir / "sunshine.conf")], cwd=str(lavapollo_root() / "build" / "t"),
+                         env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, creationflags=flags)
+    _PROCS.append(p)
+    return p
+
+
+def _wait_serverinfo(hosts_, workdir):
+    deadline = time.time() + STARTUP_TIMEOUT
+    for h in hosts_:
+        if h.pid is None:
+            continue
+        while not _serverinfo_ok(h.port):
+            if not pid_alive(h.pid) or time.time() > deadline:
+                down(workdir)
+                raise RuntimeError(f"{h.name}: no serverinfo on {h.port} (see {h.dir / 'sunshine.log'})")
+            time.sleep(0.3)
+
+
+def up(fixtures, workdir=None, force_instances=(), overrides=None):
     """Start the fixtures' fake PCs.  force_instances: fixtures run even though their pc.json says
-    "instance": false (offline-test: started to be paired, then stopped with stop() to go offline)."""
+    "instance": false (offline-test: started to be paired, then stopped with stop() to go offline).
+    overrides: {fixture: {pc.json key: value or None to drop it}} for this run only."""
     workdir = pathlib.Path(workdir or default_workdir())
     workdir.mkdir(parents=True, exist_ok=True)
     kill_previous(workdir)
@@ -279,6 +307,12 @@ def up(fixtures, workdir=None, force_instances=()):
     pcs = {f: load_fixture(f) for f in fixtures}
     for f in force_instances:
         pcs[f]["instance"] = True
+    for f, changes in (overrides or {}).items():
+        for k, v in changes.items():
+            if v is None:
+                pcs[f].pop(k, None)
+            else:
+                pcs[f][k] = v
     for f, pc in pcs.items():
         base = pc["port"]
         if not (PORT_MIN <= base + PORT_SPAN[0] and base + PORT_SPAN[1] <= PORT_MAX):
@@ -295,29 +329,43 @@ def up(fixtures, workdir=None, force_instances=()):
             continue
         shutil.rmtree(pcdir, ignore_errors=True)
         write_pc_files(pc, f, pcdir)
-        # The exe imports only Windows system DLLs (checked with objdump), so the child gets a system-only
-        # PATH: nothing from the user's PATH (the installed LavApollo, msys64...) can be loaded by accident.
-        sysroot = os.environ.get("SystemRoot", "C:" + B + "Windows")
-        env = dict(os.environ, LAVAPOLLO_APPDATA=str(pcdir), ProgramData=str(pcdir / "pd"),
-                   PATH=sysroot + B + "System32;" + sysroot)
-        flags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
-        p = subprocess.Popen([str(sunshine_exe()), str(pcdir / "sunshine.conf")], cwd=str(lavapollo_root() / "build" / "t"),
-                             env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL, creationflags=flags)
-        _PROCS.append(p)
+        p = _spawn(pc, pcdir)
         records.append({"name": pc["name"], "pid": p.pid, "exe": str(sunshine_exe())})
         (workdir / "pids.json").write_text(json.dumps(records))  # written at once: a crash leaves it
         result.append(Host(pc["name"], pc["port"], p.pid, pcdir, f))
-    deadline = time.time() + STARTUP_TIMEOUT
-    for h in result:
-        if h.pid is None:
-            continue
-        while not _serverinfo_ok(h.port):
-            if not pid_alive(h.pid) or time.time() > deadline:
-                down(workdir)
-                raise RuntimeError(f"{h.name}: no serverinfo on {h.port} (see {h.dir / 'sunshine.log'})")
-            time.sleep(0.3)
+    _wait_serverinfo(result, workdir)
     return result
+
+
+def restart(host, workdir=None, changes=None):
+    """Restart one PC of this run with some pc.json values changed (e.g. its announced appversion), keeping its
+    sandbox: same identity, same pairings, same logs."""
+    workdir = pathlib.Path(workdir or default_workdir())
+    stop(host, workdir)
+    pc = load_fixture(host.fixture)
+    for k, v in (changes or {}).items():
+        if v is None:
+            pc.pop(k, None)
+        else:
+            pc[k] = v
+    deadline = time.time() + 15
+    while True:  # the killed instance's sockets go away a moment after it
+        try:
+            check_ports_free(pc["port"])
+            break
+        except RuntimeError:
+            if time.time() > deadline:
+                raise
+            time.sleep(0.5)
+    (host.dir / "sunshine.conf").write_text(render_conf(pc, host.dir), encoding="utf-8")
+    p = _spawn(pc, host.dir)
+    f = workdir / "pids.json"
+    records = json.loads(f.read_text()) if f.exists() else []
+    records.append({"name": pc["name"], "pid": p.pid, "exe": str(sunshine_exe())})
+    f.write_text(json.dumps(records))
+    host.pid = p.pid
+    _wait_serverinfo([host], workdir)
+    return host
 
 
 def pin(host, pin, name="testbench"):
