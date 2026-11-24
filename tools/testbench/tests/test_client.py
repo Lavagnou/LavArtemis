@@ -207,8 +207,8 @@ def test_gamepad_attach_waits_for_pad(monkeypatch):
 
 
 @pytest.mark.skip(reason="stream-window capture (PrintWindow on the SDL window, black-capture check, "
-                         "frames.read_frame_number with stream_size/content_rect) is exercised by the C3 stream "
-                         "scenario, which owns a real stream")
+                         "frames.read_frame_number with the negotiated stream size) runs on a real stream in "
+                         "scenarios/test_05_stream.py (testbench run -k stream)")
 def test_stream_window_capture_marker():
     pass
 

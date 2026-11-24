@@ -27,3 +27,10 @@ def xfail_if_toolbar_bug(bench):
     log = "".join(open(p, encoding="utf-8", errors="replace").read() for p in bench.clients_logs if p)
     if toolbar_bug_seen(log):
         pytest.xfail(TOOLBAR)
+
+
+QUIT_SESSION_EXITS_CLIENT = (
+    "PRODUCT BUG (LavArtemis-Qt): « Quitter la session » in the in-game menu closes the whole client instead of "
+    "going back to the home: QuickMenuManager::quit() (quickmenumanager.cpp ~270-287) calls "
+    "Session::setShouldExit(true), which forces the host app to quit (wanted) and also sets m_ShouldExit, so "
+    "DeferredSessionCleanupTask calls QCoreApplication::quit() (session.cpp ~2125). Android goes back to the home")

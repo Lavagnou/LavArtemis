@@ -92,7 +92,10 @@ class Channel:
         rid = self.next_id
         self.next_id += 1
         line = json.dumps(dict(args, id=rid, cmd=cmd), separators=(",", ":")) + "\n"
-        self.t.write(line.encode("utf-8"))
+        try:
+            self.t.write(line.encode("utf-8"))
+        except OSError as e:  # the pipe broke: the client is gone or going
+            raise ClientError(f"the client closed the channel before {cmd!r}: {e}")
         deadline = time.time() + timeout
         while True:
             while b"\n" in self.buf:

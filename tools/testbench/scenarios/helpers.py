@@ -169,3 +169,107 @@ def menu_entry(c, label):
 
 def no_client_left():
     return not clientmod.tasklist_pids()
+
+
+# ---------------------------------------------------------------- settings
+
+SETTINGS_LIST_X_MAX = 330  # the page list is the left column of Réglages
+
+
+def open_settings(c):
+    go_home(c)
+    c.click("Réglages")
+    wait_page(c, "SettingsView2")
+
+
+def _settings_list(c):
+    return next(i for i in c.tree() if i["type"] == "Flickable" and i["x"] < SETTINGS_LIST_X_MAX)
+
+
+def settings_pages_visible(c):
+    fl = _settings_list(c)
+    return [i for i in c.tree(textOnly=True)
+            if i["type"] == "Text" and i["x"] < SETTINGS_LIST_X_MAX and i["w"] > 200 and i["h"] >= 30
+            and fl["y"] <= i["y"] and i["y"] + i["h"] <= fl["y"] + fl["h"] + 1]
+
+
+def scroll_settings_list(c, dy):
+    fl = _settings_list(c)
+    c.call("wheel", dy=dy, x=fl["x"] + fl["w"] // 2, y=fl["y"] + fl["h"] // 2, target="qt")
+    time.sleep(0.6)  # the flick settles
+
+
+def open_settings_page(c, name):
+    scroll_settings_list(c, 20)
+    for _ in range(10):
+        if any(i["text"] == name for i in settings_pages_visible(c)):
+            c.click(name, index=0)
+            wait_any_text(c, [name])
+            time.sleep(0.4)
+            return
+        scroll_settings_list(c, -2)
+    raise AssertionError(f"settings page {name!r} not in the list")
+
+
+def set_switch(c, label, key, value):
+    """Click a switch row of the open settings page (its label) until the setting `key` is `value`."""
+    if c.call("setting", action="get", key=key)["value"] == value:
+        return
+    c.click(label)
+    deadline = time.time() + 5
+    while c.call("setting", action="get", key=key)["value"] != value:
+        assert time.time() < deadline, f"{label!r} did not set {key} to {value}"
+        time.sleep(0.2)
+
+
+# ---------------------------------------------------------------- stream
+
+def launch(c, title, timeout=40.0):
+    """Click a card or a cover of the home, wait for the stream's SDL loop and a first decoded frame.  On the known
+    toolBar bug (stream never starts) the scenario stops as an expected failure."""
+    import bugs
+    c.click(title)
+    deadline = time.time() + timeout
+    while True:
+        st = c.state()
+        sess = st["session"]
+        if sess["streaming"] and sess["decoded"] > 0:
+            return st
+        if time.time() > deadline:
+            if bugs.toolbar_bug_seen(c.log_text()):
+                import pytest
+                pytest.xfail(bugs.TOOLBAR)
+            raise AssertionError(f"no stream after {timeout:.0f}s: page {st['page']}, session {sess}, "
+                                 f"texts {texts(c)[:10] if st['page'] else []}")
+        time.sleep(0.3)
+
+
+def quick_menu_window(c):
+    for w in c.windows():
+        if w.get("kind") == "qt" and w.get("role") == "quickmenu":
+            return w["index"]
+    return None
+
+
+def open_quick_menu(c):
+    """Ctrl+Alt+Shift+Backslash on the stream (the desktop's quick-menu combo); returns the menu's window index."""
+    c.call("key", key="Backslash", modifiers="Ctrl+Alt+Shift", target="stream")
+    c.wait_for(lambda s: s.get("quickMenu"), 10)
+    deadline = time.time() + 10
+    while True:
+        idx = quick_menu_window(c)
+        if idx is not None and find(c, "Menu rapide", window=idx):
+            time.sleep(0.4)  # opening animation
+            return idx
+        assert time.time() < deadline, "the quick menu did not show"
+        time.sleep(0.2)
+
+
+def quick_menu_click(c, text, window):
+    c.call("click", text=text, window=window)
+    time.sleep(0.4)
+
+
+def host_events(host, stream, key=None):
+    events = hosts.read_log(host, stream)
+    return [e for e in events if key is None or key in e]

@@ -4,24 +4,11 @@ import time
 
 import helpers
 
-LIST_X_MAX = 330  # the page list is the left column
-
-
-def list_flickable(c):
-    return next(i for i in c.tree() if i["type"] == "Flickable" and i["x"] < LIST_X_MAX)
-
-
-def visible_pages(c):
-    fl = list_flickable(c)
-    return [i for i in c.tree(textOnly=True)
-            if i["type"] == "Text" and i["x"] < LIST_X_MAX and i["w"] > 200 and i["h"] >= 30
-            and fl["y"] <= i["y"] and i["y"] + i["h"] <= fl["y"] + fl["h"] + 1]
-
-
-def scroll_list(c, dy):
-    fl = list_flickable(c)
-    c.call("wheel", dy=dy, x=fl["x"] + fl["w"] // 2, y=fl["y"] + fl["h"] // 2, target="qt")
-    time.sleep(0.6)  # the flick settles
+LIST_X_MAX = helpers.SETTINGS_LIST_X_MAX
+scroll_list = helpers.scroll_settings_list
+visible_pages = helpers.settings_pages_visible
+open_page = helpers.open_settings_page
+open_settings = helpers.open_settings
 
 
 def all_pages(c):
@@ -36,25 +23,6 @@ def all_pages(c):
         scroll_list(c, -3)
     scroll_list(c, 20)
     return names
-
-
-def open_page(c, name):
-    scroll_list(c, 20)
-    for _ in range(10):
-        if any(i["text"] == name for i in visible_pages(c)):
-            c.click(name, index=0)
-            # the page's own title (right of the list) shows its name
-            helpers.wait_any_text(c, [name])
-            time.sleep(0.4)
-            return
-        scroll_list(c, -2)
-    raise AssertionError(f"page {name!r} not in the list")
-
-
-def open_settings(c):
-    helpers.go_home(c)
-    c.click("Réglages")
-    helpers.wait_page(c, "SettingsView2")
 
 
 def slug(name):
