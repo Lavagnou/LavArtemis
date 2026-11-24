@@ -71,11 +71,14 @@ public final class SettingRowView extends V2Frame {
     private List<Option> options = Collections.emptyList();
     private String value;
     private int intValue;
+    // Top of the slider track for the current settings (SettingDef.maxFor), set by bindSlider
+    private int sliderMax;
     private final float radius;
 
     public SettingRowView(Context context, V2Theme theme, boolean compact, SettingDef def, Listener listener) {
         super(context, theme);
         this.def = def;
+        this.sliderMax = def.max;
         this.theme = theme;
         this.compact = compact;
         this.listener = listener;
@@ -152,7 +155,7 @@ public final class SettingRowView extends V2Frame {
                     if (!rowEnabled) {
                         return;
                     }
-                    int v = def.valueAt(p);
+                    int v = def.valueAt(p, sliderMax);
                     showSliderValue(v);
                     listener.onSlide(def, v, finished);
                 });
@@ -350,9 +353,15 @@ public final class SettingRowView extends V2Frame {
     }
 
     public void bindSlider(int v) {
+        bindSlider(v, sliderMax);
+    }
+
+    /** max: top of the track for the current settings (SettingDef.maxFor) */
+    public void bindSlider(int v, int max) {
+        sliderMax = max;
         intValue = v;
         if (slider != null) {
-            slider.setPosition(def.position(v));
+            slider.setPosition(def.position(v, max));
             showSliderValue(v);
         }
     }
@@ -426,7 +435,7 @@ public final class SettingRowView extends V2Frame {
             return true;
         }
         if (def.type == SettingDef.Type.SLIDER) {
-            int v = def.stepFrom(intValue, delta);
+            int v = def.stepFrom(intValue, delta, sliderMax);
             if (v == intValue) {
                 return false;
             }

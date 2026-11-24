@@ -51,6 +51,11 @@ public final class SettingDef {
         List<Option> options(Context context, SettingsEnv env, Values values, boolean expert);
     }
 
+    /** Top of a slider's range that depends on other settings (bitrate: higher with PyroWave) */
+    public interface MaxSource {
+        int max(Values values);
+    }
+
     /** Text of a slider value */
     public interface Format {
         String format(Context context, int value);
@@ -81,6 +86,7 @@ public final class SettingDef {
 
     // slider
     public int min, max, step = 1, keyStep = 1;
+    MaxSource maxSource;
     /** Exponent of the track: 1 linear, 3 gives the low values room (bitrates up to 800 Mbit/s) */
     public float curve = 1f;
     public Format format;
@@ -149,6 +155,16 @@ public final class SettingDef {
         return this;
     }
 
+    SettingDef maxFrom(MaxSource source) {
+        maxSource = source;
+        return this;
+    }
+
+    /** Top of the range for the current values (the fixed max without a MaxSource) */
+    public int maxFor(Values values) {
+        return maxSource != null && values != null ? maxSource.max(values) : max;
+    }
+
     SettingDef range(int min, int max, int step, int keyStep) {
         this.min = min;
         this.max = max;
@@ -205,6 +221,10 @@ public final class SettingDef {
 
     /** Snapped to the slider's steps and range */
     public int snap(int value) {
+        return snap(value, max);
+    }
+
+    public int snap(int value, int max) {
         int v = Math.max(min, Math.min(max, value));
         if (step > 1) {
             v = min + Math.round((v - min) / (float) step) * step;
@@ -214,6 +234,10 @@ public final class SettingDef {
 
     /** Track position (0..1) of a value */
     public float position(int value) {
+        return position(value, max);
+    }
+
+    public float position(int value, int max) {
         if (max <= min) {
             return 0;
         }
@@ -223,11 +247,15 @@ public final class SettingDef {
 
     /** Value at a track position (0..1), snapped */
     public int valueAt(float position) {
+        return valueAt(position, max);
+    }
+
+    public int valueAt(float position, int max) {
         float p = Math.max(0f, Math.min(1f, position));
         if (curve != 1f) {
             p = (float) Math.pow(p, curve);
         }
-        return snap(Math.round(min + p * (max - min)));
+        return snap(Math.round(min + p * (max - min)), max);
     }
 
     /**
@@ -235,6 +263,10 @@ public final class SettingDef {
      * the value, so that a few presses go from 20 to 200 Mbit/s
      */
     public int stepFrom(int value, int delta) {
+        return stepFrom(value, delta, max);
+    }
+
+    public int stepFrom(int value, int delta, int max) {
         int s = keyStep;
         if (curve != 1f) {
             int span = max - min;
@@ -244,7 +276,7 @@ public final class SettingDef {
                 s = keyStep * 5;
             }
         }
-        return snap(value + delta * s);
+        return snap(value + delta * s, max);
     }
 
     @Override

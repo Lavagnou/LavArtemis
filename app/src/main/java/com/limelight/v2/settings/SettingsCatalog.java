@@ -73,6 +73,9 @@ public final class SettingsCatalog {
     public static final String KEY_PROFILES_MANAGE = "v2_profiles_manage";
     public static final String KEY_BITRATE_DEFAULT = "v2_bitrate_default";
     public static final String KEY_BITRATE = "seekbar_bitrate_kbps";
+    /** Top of the bitrate track, and with PyroWave (the desktop uses the same two values) */
+    public static final int BITRATE_MAX_KBPS = 800000;
+    public static final int BITRATE_MAX_PYROWAVE_KBPS = 3000000;
 
     /**
      * Settings the triage removed that exist on Android, with the value the Dev build forces
@@ -267,7 +270,9 @@ public final class SettingsCatalog {
 
         // ================================= Vidéo ================================
         slider(l, VIDEO, KEY_BITRATE, R.string.v2_set_bitrate, 0).desc(R.string.v2_set_bitrate_d)
-                .range(500, 800000, 500, 1000).curve(3f).format(SettingsCatalog::mbps);
+                .range(500, BITRATE_MAX_KBPS, 500, 1000).curve(3f).format(SettingsCatalog::mbps)
+                // PyroWave needs hundreds of Mbit/s: its track goes much higher (same as the desktop)
+                .maxFrom(v -> "forcepyrowave".equals(v.getString("video_format")) ? BITRATE_MAX_PYROWAVE_KBPS : BITRATE_MAX_KBPS);
         action(l, VIDEO, KEY_BITRATE_DEFAULT, R.string.v2_set_bitrate_default, R.string.v2_set_bitrate_default_button)
                 .desc(R.string.v2_set_bitrate_default_d);
         action(l, VIDEO, "edit_diy_bitrate", R.string.v2_set_bitrate_custom, R.string.v2_set_type_in)

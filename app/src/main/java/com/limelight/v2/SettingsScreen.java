@@ -314,7 +314,7 @@ public final class SettingsScreen {
                 break;
             }
             case SLIDER:
-                row.bindSlider(store.getInt(def.key));
+                row.bindSlider(store.getInt(def.key), def.maxFor(store));
                 break;
             case ACTION:
                 if (SettingsCatalog.KEY_BITRATE_DEFAULT.equals(def.key)) {

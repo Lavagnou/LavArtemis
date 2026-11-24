@@ -517,6 +517,20 @@ public class SettingsCatalogTest {
     }
 
     @Test
+    public void bitrateTrackGoesHigherWithPyroWave() {
+        SettingDef bitrate = SettingsCatalog.find(SettingsCatalog.KEY_BITRATE);
+        SettingsStore store = new SettingsStore(ctx);
+        prefs().edit().putString("video_format", "forceh265").commit();
+        assertEquals(SettingsCatalog.BITRATE_MAX_KBPS, bitrate.maxFor(store));
+        prefs().edit().putString("video_format", "forcepyrowave").commit();
+        assertEquals(SettingsCatalog.BITRATE_MAX_PYROWAVE_KBPS, bitrate.maxFor(store));
+        // The end of the track is the top of the range in use, and a value is snapped to it
+        assertEquals(SettingsCatalog.BITRATE_MAX_PYROWAVE_KBPS, bitrate.valueAt(1f, SettingsCatalog.BITRATE_MAX_PYROWAVE_KBPS));
+        assertEquals(SettingsCatalog.BITRATE_MAX_KBPS, bitrate.valueAt(1f, SettingsCatalog.BITRATE_MAX_KBPS));
+        assertEquals(1f, bitrate.position(2000000, SettingsCatalog.BITRATE_MAX_KBPS), 0.0001f);
+    }
+
+    @Test
     public void joyConFixReadsTheKeyTheScreensWrite() {
         // Regression: the option was written as checkbox_enable_joyconfix and read as
         // checkbox_joycon_fix, so it never did anything.
