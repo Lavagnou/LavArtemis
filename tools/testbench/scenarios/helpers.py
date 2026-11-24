@@ -273,3 +273,61 @@ def quick_menu_click(c, text, window):
 def host_events(host, stream, key=None):
     events = hosts.read_log(host, stream)
     return [e for e in events if key is None or key in e]
+
+
+# ---------------------------------------------------------------- covers
+
+def tiles(c):
+    return [i for i in c.tree() if i["type"] == "CoverTile"]
+
+
+def tile_names(c, shot_path, names, dpr):
+    """Name of each cover tile, recognised by its generated colour (covers.py) sampled in a capture: the tile's
+    picture has no text item in the tree.  Returns (name, colour distance, tree item) in reading order."""
+    import covers
+    from PIL import Image
+    expected = {n: covers._colour(n) for n in names}
+    out = []
+    with Image.open(shot_path) as img:
+        img = img.convert("RGB")
+        for t in sorted(tiles(c), key=lambda i: (i["y"], i["x"])):
+            x = int((t["x"] + t["w"] / 2) * dpr)
+            y = int((t["y"] + t["h"] * 0.15) * dpr)
+            rgb = img.getpixel((x, y))
+            best = min(expected, key=lambda n: sum((a - e) ** 2 for a, e in zip(rgb, expected[n])))
+            dist = sum((a - e) ** 2 for a, e in zip(rgb, expected[best])) ** 0.5
+            out.append((best, round(dist), t))
+    return out
+
+
+def click_item(c, item, button="left"):
+    c.call("click", x=item["x"] + item["w"] // 2, y=item["y"] + item["h"] // 2, button=button)
+
+
+def popup_texts(c):
+    """Texts inside the open popup menu (AppMenu), in tree order; [] when none is open."""
+    items = c.tree()
+    pop = next((i for i in items if i["type"] == "PopupItem" and i.get("objectName") == "AppMenu"), None)
+    if pop is None:
+        return []
+    return [i["text"] for i in items if i.get("text") and i["type"] == "Text"
+            and pop["x"] <= i["x"] < pop["x"] + pop["w"] and pop["y"] <= i["y"] < pop["y"] + pop["h"]]
+
+
+def tile_by_name(c, name):
+    """The cover tile of a game, found by opening each tile's menu (its title is the game's name) and closing it:
+    works whatever the covers look like (dimmed while a session runs)."""
+    for t in sorted(tiles(c), key=lambda i: (i["y"], i["x"])):
+        click_item(c, t, "right")
+        deadline = time.time() + 5
+        shown = []
+        while not shown and time.time() < deadline:
+            time.sleep(0.2)
+            shown = popup_texts(c)
+        c.call("key", key="Escape", target="qt")
+        deadline = time.time() + 5
+        while popup_texts(c) and time.time() < deadline:
+            time.sleep(0.2)
+        if shown and shown[0] == name:
+            return t
+    raise AssertionError(f"no cover tile for {name!r}")

@@ -5,10 +5,7 @@ import json
 import time
 
 import pytest
-from PIL import Image
-
 import bugs
-import covers
 import helpers
 import hosts
 
@@ -20,25 +17,8 @@ def library_order(host):
     return [g["name"] for g in lib["games"]]
 
 
-def tiles(c):
-    return [i for i in c.tree() if i["type"] == "CoverTile"]
-
-
-def tile_names(c, shot_path, names, dpr):
-    """Name of each cover tile, recognised by its generated colour (covers.py) sampled in a capture: the tile's
-    picture has no text item in the tree.  Returns names in reading order and the colour distance of each."""
-    expected = {n: covers._colour(n) for n in names}
-    out = []
-    with Image.open(shot_path) as img:
-        img = img.convert("RGB")
-        for t in sorted(tiles(c), key=lambda i: (i["y"], i["x"])):
-            x = int((t["x"] + t["w"] / 2) * dpr)
-            y = int((t["y"] + t["h"] * 0.15) * dpr)
-            r, g, b = img.getpixel((x, y))
-            best = min(expected, key=lambda n: sum((a - e) ** 2 for a, e in zip((r, g, b), expected[n])))
-            dist = sum((a - e) ** 2 for a, e in zip((r, g, b), expected[best])) ** 0.5
-            out.append((best, round(dist), t))
-    return out
+tiles = helpers.tiles
+tile_names = helpers.tile_names
 
 
 def test_home_cards_library_and_hide(bench):
