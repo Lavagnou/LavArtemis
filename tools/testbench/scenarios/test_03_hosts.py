@@ -50,6 +50,7 @@ def test_hosts_offline_old_version_rename_forget(bench):
     bench.shot("04-menu")
     c.click("Renommer")
     helpers.wait_text(c, "Le nom de ce PC dans LavArtemis. Le PC lui-même garde le sien.")
+    helpers.wait_field_focus(c)
     c.call("key", key="A", modifiers="Ctrl", target="qt")
     c.call("key", key="Delete", target="qt")
     c.call("text", s=NEW_NAME, target="qt")

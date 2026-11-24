@@ -9,6 +9,8 @@ import client as clientmod
 import hosts
 
 PIN_RE = re.compile(r"ce code : ((?:\d ?){4})")
+# What the helpers read and did, for the scenario's notes (conftest writes it into the report)
+TRACE = []
 
 
 def texts(c, window=None):
@@ -72,7 +74,10 @@ def open_hosts(c):
     """Mes PC, from wherever the app is (home: its pill)."""
     st = c.wait_idle()
     if st["page"] != "HostsView":
-        c.click("Mes PC")
+        try:
+            c.click("Mes PC")
+        except clientmod.ClientError as e:
+            raise AssertionError(f"cannot open Mes PC ({e}); page {st['page']}, texts {texts(c)[-12:]}")
         wait_page(c, "HostsView")
 
 
@@ -90,15 +95,21 @@ def open_add_menu(c):
     wait_text(c, "Saisir une adresse…")
 
 
+def wait_field_focus(c, timeout=10.0):
+    """Wait until a text field takes the keys (a dialog's initial focus comes after its opening animation)."""
+    deadline = time.time() + timeout
+    while not any(i["type"] == "TextInput" and i.get("focus") for i in c.tree()):
+        if time.time() > deadline:
+            raise AssertionError(f"no text field takes the keys; texts {texts(c)[-8:]}")
+        time.sleep(0.2)
+    time.sleep(0.3)
+
+
 def add_by_address(c, address):
     """Mes PC › Ajouter un PC › Saisir une adresse… › type it › Ajouter."""
     open_add_menu(c)
     c.click("Saisir une adresse…")
-    deadline = time.time() + 10
-    while not any(i["type"] == "TextInput" and i.get("focus") for i in c.tree()):
-        if time.time() > deadline:
-            raise AssertionError("the address field never took the keys")
-        time.sleep(0.2)
+    wait_field_focus(c)
     c.call("text", s=address, target="qt")
     wait_text(c, address)  # the field shows it
     c.click("Ajouter")
@@ -112,6 +123,7 @@ def read_pin(c, host_name, timeout=10.0):
         for t in texts(c):
             m = PIN_RE.search(t)
             if m and t.startswith(f"Sur {host_name},"):
+                TRACE.append(f"{time.strftime('%H:%M:%S')} PIN read for {host_name}: {t}")
                 return m.group(1).replace(" ", "")
         if time.time() > deadline:
             raise AssertionError(f"no PIN on screen; texts: {texts(c)[:30]}")
@@ -124,9 +136,27 @@ def give_pin(host, pin, timeout=10.0):
     deadline = time.time() + timeout
     while True:
         r = hosts.pin(host, pin)
+        TRACE.append(f"{time.strftime('%H:%M:%S')} PIN {pin} given to {host.name}: {r}")
         if r.get("status") is True or time.time() > deadline:
             return r
         time.sleep(0.3)
+
+
+def _wait_paired(c, host, timeout=12.0):
+    """True once paired; False if the pairing failed (its « Oups » dialog) or did not finish in time."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        comp = computer(c.state(), host.name)
+        if comp and comp["paired"]:
+            return True
+        if find(c, "Oups"):
+            TRACE.append(f"{time.strftime('%H:%M:%S')} pairing {host.name} failed: {texts(c)[-3:]}")
+            c.click("OK")
+            wait_text(c, "Oups", gone=True)
+            return False
+        time.sleep(0.2)
+    TRACE.append(f"{time.strftime('%H:%M:%S')} pairing {host.name} not finished after {timeout:.0f}s")
+    return False
 
 
 def pair_from_add_menu(c, host):
@@ -137,20 +167,37 @@ def pair_from_add_menu(c, host):
     pin = read_pin(c, host.name)
     r = give_pin(host, pin)
     assert r.get("status") is True, f"the host refused the PIN {pin}: {r}"
-    return wait_computer(c, host.name, lambda comp: comp["paired"])
+    return _wait_paired(c, host)
 
 
 def add_and_pair(c, host):
-    """Add a running test host by address and pair it (through the add menu: see scenario 1 for the direct path)."""
+    """Add a running test host by address and pair it (setup of the scenarios; scenario 1 tests pairing itself).
+    Adding opens the pairing dialog by itself, or (known product bug, racy: bugs.ADD_ALREADY_LISTED) shows « Ce PC
+    est déjà dans la liste »; the helper waits for one of the two before going through « Ajouter un PC » › the PC,
+    so it never starts a second pairing over the first.  A pairing that fails with « PIN incorrect » although the
+    displayed PIN was given (seen a few times right after another PC was paired, cause not found: see the C3
+    report) is retried once from the add menu, and recorded in the scenario's notes."""
+    # the previous add's toast must be gone, or it would be taken for this one's
+    if find(c, "Ce PC est déjà dans la liste"):
+        wait_text(c, "Ce PC est déjà dans la liste", gone=True, timeout=15)
     add_by_address(c, f"127.0.0.1:{host.port}")
     wait_computer(c, host.name, lambda comp: comp["online"])
-    c.wait_idle()
-    if any(t.startswith(f"Sur {host.name},") and "ce code :" in t for t in texts(c)):  # the dialog opened by itself
-        pin = read_pin(c, host.name)
-        assert give_pin(host, pin).get("status") is True
-        return wait_computer(c, host.name, lambda comp: comp["paired"])
-    time.sleep(0.5)
-    return pair_from_add_menu(c, host)
+    deadline = time.time() + 8
+    paired = None
+    while paired is None:
+        shown = texts(c)
+        if any(t.startswith(f"Sur {host.name},") and "ce code :" in t for t in shown):
+            pin = read_pin(c, host.name)
+            assert give_pin(host, pin).get("status") is True
+            paired = _wait_paired(c, host)
+        elif "Ce PC est déjà dans la liste" in shown or time.time() > deadline:
+            paired = pair_from_add_menu(c, host)
+        else:
+            time.sleep(0.2)
+    if not paired:
+        TRACE.append(f"{time.strftime('%H:%M:%S')} RETRY: pairing {host.name} again from the add menu")
+        assert pair_from_add_menu(c, host), f"{host.name} could not be paired (twice)"
+    return wait_computer(c, host.name, lambda comp: comp["paired"])
 
 
 def wait_apps(c, name, timeout=20.0):

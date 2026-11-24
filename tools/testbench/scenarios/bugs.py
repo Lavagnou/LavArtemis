@@ -11,7 +11,9 @@ TOOLBAR = ("PRODUCT BUG (LavArtemis-Qt): `toolBar` was deleted with the legacy U
 ADD_ALREADY_LISTED = ("PRODUCT BUG (LavArtemis-Qt): adding a new PC by address shows « Ce PC est déjà dans la liste » "
                       "and never opens the pairing dialog: ComputerManager emits computerAddCompleted before "
                       "computerStateChanged for a new host (computermanager.cpp ~1524-1530), so HostsView.addComplete "
-                      "(HostsView.qml:228-235) looks for the new PC in a model that does not have it yet")
+                      "(HostsView.qml:228-235) looks for the new PC in a model that does not have it yet. Racy: when the new "
+                      "PC's polling thread reports it first, the dialog does open (seen once in about fifteen adds "
+                      "on loopback; a LAN host answers slower, so the bug should show more often)")
 
 LIBRARY_ORDER = ("PRODUCT BUG (LavArtemis-Qt): the Playnite library on the home is sorted by name, not in the host's "
                  "order (most recently played first, NvComputer::sortApps): AppModel::updateAppList inserts every new "

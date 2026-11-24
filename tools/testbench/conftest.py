@@ -205,6 +205,12 @@ class Bench:
         for i, p in enumerate(self.clients_logs, 1):
             if p and pathlib.Path(p).exists():
                 shutil.copyfile(p, logs / f"client-{i}.log")
+        try:
+            import helpers as scenario_helpers  # scenarios/ is on sys.path while scenarios run
+            self.notes += scenario_helpers.TRACE
+            scenario_helpers.TRACE.clear()
+        except ImportError:
+            pass
         if self.notes:
             (logs / "notes.txt").write_text("\n".join(self.notes), encoding="utf-8")
         return errors

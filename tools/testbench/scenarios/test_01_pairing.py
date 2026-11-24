@@ -40,23 +40,31 @@ def test_pairing_add_by_address_opens_pairing(bench):
     bench.shot("01-home")
 
 
-def test_pairing_with_pin_from_add_menu(bench):
-    """The PC answers at 127.0.0.1:40989, so « Ajouter un PC » lists it; choosing it shows the PIN, the host takes
-    it, and the client is paired: state.computers[0].paired, its apps listed, the home on « Sur Test-Atlas »."""
+def test_pairing_with_pin(bench):
+    """The PIN shown by the client, typed on the host, pairs the PC: state.computers[0].paired, its apps listed, the
+    home on « Sur Test-Atlas ».  The PIN comes from the dialog that adding opens, or, when that dialog does not open
+    (bugs.ADD_ALREADY_LISTED), from « Ajouter un PC » › « Test-Atlas · 127.0.0.1:40989 » (the PC answers there)."""
     atlas, = bench.up("atlas-test")
     c = bench.start_client()
-    st = c.state()
-    assert st["computers"] == [], "a reset client knows no PC"
+    assert c.state()["computers"] == [], "a reset client knows no PC"
     helpers.add_by_address(c, ADDRESS)
     helpers.wait_computer(c, atlas.name, lambda x: x["online"])
-    # a pairing dialog opened by itself (scenario above fixed) is closed first: this one goes through the menu
-    if any("ce code :" in t for t in helpers.texts(c)):
-        c.call("key", key="Escape", target="qt")
-    helpers.open_add_menu(c)
-    bench.shot("02-add-menu")
-    entry = f"{atlas.name} · {ADDRESS}"
-    assert helpers.find(c, entry), f"the add menu should list {entry}"
-    c.click(entry)
+    deadline = time.time() + 8
+    via_menu = False
+    while True:
+        shown = helpers.texts(c)
+        if any(t.startswith(f"Sur {atlas.name},") and "ce code :" in t for t in shown):
+            break
+        if "Ce PC est déjà dans la liste" in shown or time.time() > deadline:
+            via_menu = True
+            helpers.open_add_menu(c)
+            bench.shot("02-add-menu")
+            entry = f"{atlas.name} · {ADDRESS}"
+            assert helpers.find(c, entry), f"the add menu should list {entry}"
+            c.click(entry)
+            break
+        time.sleep(0.2)
+    bench.note(f"PIN dialog {'from the add menu' if via_menu else 'opened by the add'}")
     pin = helpers.read_pin(c, atlas.name)
     assert len(pin) == 4 and pin.isdigit()
     bench.shot("02-pin")
