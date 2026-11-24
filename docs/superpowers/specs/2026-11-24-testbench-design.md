@@ -124,7 +124,7 @@ lancé ou non, appli en cours), `apps.json`, `playnite/library.json` + `covers/`
   `local-release.ps1` ni par la CI.
 - **Isolation** : organisation Qt « LavArtemis Test » (registre, AppData à part) ; découverte mDNS coupée ;
   vérification de mise à jour coupée. **Deux garde-fous** : avant toute requête, seule une adresse de bouclage
-  hors des ports du vrai LavApollo (47984-48010) est acceptée — le client de test ne parle jamais au vrai hôte
+  dans la plage des hôtes de test (40000-44999, liste blanche : le vrai LavApollo de ce PC écoute sur la base 45989) est acceptée — le client de test ne parle jamais au vrai hôte
   de ce PC, même pour un `serverinfo` ; puis tout serveur qui n'annonce pas `LavTestHost` est refusé. Le refus « ce PC »
   (`isThisPc`) ne s'applique pas aux hôtes de test, dans ce build seulement.
 - **Canal de commande** : un `QLocalServer` (nom `lavartemis-test`), une commande JSON par ligne :

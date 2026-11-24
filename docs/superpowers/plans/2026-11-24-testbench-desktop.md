@@ -17,7 +17,7 @@
 - L'hôte de test ne capture jamais l'écran réel, ne crée aucun écran virtuel, ne change ni sortie audio ni mode d'affichage, n'injecte rien dans Windows, n'exécute aucune commande, ne touche ni aux réglages NVIDIA/NVCP/RTSS ni à la config du vrai LavApollo (service `ApolloService`, qui reste lancé).
 - Ports des hôtes de test : bases 40989, 41989, 42989… (sous 49152, loin de 47984-48010). Écoute sur 127.0.0.1 seulement.
 - Encodage logiciel (H.264) par défaut dans l'hôte de test ; l'hôte n'annonce que H.264.
-- Client de test : organisation Qt « LavArtemis Test » ; avant toute requête, adresse de bouclage seulement et jamais les ports 47984-48010 ; puis refus de tout serveur sans `LavTestHost`.
+- Client de test : organisation Qt « LavArtemis Test » ; avant toute requête, adresse de bouclage seulement et port dans la plage des hôtes de test, **40000-44999** (liste blanche : le vrai LavApollo de ce PC écoute sur la base 45989, pas 47989, constaté en A9) ; puis refus de tout serveur sans `LavTestHost`.
 - Fenêtres « visibles mais discrètes » : fenêtré, pas de focus volé, pas de capture du pointeur, son coupé, micro factice.
 - Jaquettes des fixtures générées (titre sur couleur), jamais des images de vrais jeux.
 - Build LavApollo : depuis PowerShell/cmd (pas MSYS bash), `C:\msys64\ucrt64\bin;C:\msys64\usr\bin` en tête du PATH, `ninja -C build/t -j 3 <cible>`. 31 tests rouges connus (CLAUDE.md de LavApollo).
@@ -26,7 +26,7 @@
 ## Review Focus
 
 1. **Le vrai LavApollo tourne pendant les tests** : un hôte de test ne doit ni prendre ses ports ni écrire dans ses fichiers. → Tâche C1 : test qui empreinte (hash) `C:\Program Files\LavApollo\config` (ou le dossier du service) avant/après `up`+`down`, et vérifie que le service répond toujours sur 47989.
-2. **Le client de test pointé vers une vraie adresse** (192.168.1.231, 127.0.0.1:47989) : refusé avant toute requête. → Tâche B2 : test unitaire du garde-fou d'adresse ; scénario C3 « ajout d'une vraie adresse refusé » qui vérifie qu'aucune connexion n'est ouverte (journal du client).
+2. **Le client de test pointé vers une vraie adresse** (192.168.1.231, 127.0.0.1:45989 — le vrai hôte de ce PC —, 127.0.0.1:47989) : refusé avant toute requête. → Tâche B2 : test unitaire du garde-fou d'adresse ; scénario C3 « ajout d'une vraie adresse refusé » qui vérifie qu'aucune connexion n'est ouverte (journal du client).
 3. **Processus orphelins après un plantage** (hôtes de test encore lancés, ports pris). → Tâche C1 : `up` tue les instances d'un run précédent (fichiers PID) et vérifie que les ports sont libres ; test qui tue l'orchestrateur en plein run puis relance `up`.
 4. **Codec non disponible en logiciel** (client qui demande HEVC/AV1). → Tâche A7 : l'hôte de test n'annonce que H.264 (`ServerCodecModeSupport`) ; test unitaire sur la valeur annoncée.
 5. **Focus volé pendant que l'utilisateur travaille.** → Tâche C3 : le scénario de stream relève la fenêtre au premier plan avant et après, et échoue si elle a changé.
@@ -173,10 +173,10 @@
 
 **Interfaces:**
 - Produces:
-  - `bool NvHTTP::isAllowedTestAddress(const QString& host, uint16_t port)` (statique, build test seulement) : vrai si bouclage (`127.0.0.1`, `::1`, `localhost`) et port hors 47984-48010.
+  - `bool NvHTTP::isAllowedTestAddress(const QString& host, uint16_t port)` (statique, build test seulement) : vrai si bouclage (`127.0.0.1`, `::1`, `localhost`) et port dans 40000-44999 (liste blanche des hôtes de test ; jamais un port déduit du vrai hôte).
   - `NvComputer::isTestHost` (`LavTestHost`), et dans le build test `isThisPc = testHostThisPc` (balise `LavTestHostThisPc`) au lieu de `isThisMachine()`.
   - Un serveur sans `LavTestHost` est mis hors ligne avec la raison « Pas un hôte de test » dans le journal du client.
-- [ ] Test : `isAllowedTestAddress("127.0.0.1", 40989)` vrai ; `("127.0.0.1", 47989)` faux ; `("192.168.1.231", 40989)` faux ; `("localhost", 41984)` vrai.
+- [ ] Test : `isAllowedTestAddress("127.0.0.1", 40989)` vrai ; `("127.0.0.1", 47989)` faux ; `("127.0.0.1", 45989)` faux (vrai hôte de ce PC) ; `("192.168.1.231", 40989)` faux ; `("localhost", 41984)` vrai ; `("127.0.0.1", 39999)` et `("127.0.0.1", 45000)` faux.
 - [ ] Échec, implémenter, PASS. Commit `Test build: talk to loopback test hosts only`.
 
 ### Task B3: Mode discret
@@ -226,7 +226,7 @@
 - Produces:
   - `pc.json` : `{name, port, mac?, appversion?, playnite_running, running_app?, this_pc?}` ; `offline-test` n'a pas d'instance (port fermé).
   - `hosts.up(fixtures, workdir) -> list[Host]` (`Host`: `name, port, pid, dir`) : construit `sunshine` si l'exe est plus vieux que les sources (`ninja -C build/t -j 3 sunshine`), écrit `sunshine.conf` + `apps.json` + `ProgramData/LavApollo/playnite/` + jaquettes, lance chaque instance (`LAVAPOLLO_APPDATA`, `ProgramData`, cwd `build/t`), attend `/serverinfo`, écrit les PID ; `hosts.down(workdir)` ; au début de `up`, tue les instances d'un run précédent et vérifie les ports libres.
-  - `hosts.pin(host, pin, name)` → `POST /api/test/pin`.
+  - `hosts.pin(host, pin, name)` → `POST https://127.0.0.1:<base+1>/api/test/pin` (certificat non vérifié ; jamais `localhost`/`::1`, refusés).
   - CLI : `testbench up [fixtures…]`, `testbench down`, `testbench logs <pc> [input|commands|events]`.
 - [ ] Tests : `up(["atlas-test"])` → `serverinfo` contient `LavTestHost` et `Test-Atlas` ; empreinte du dossier de config du vrai LavApollo identique avant/après ; `ApolloService` répond sur 47989 ; un `up` après un run tué net réussit.
 - [ ] Échec, implémenter, PASS. Commit `Testbench: fixtures and sandboxed test hosts`.
@@ -261,7 +261,7 @@
   5. Lancer « Bureau » : `session.decoded` croît ; deux captures du stream → numéros d'image croissants ; menu en jeu → « Envoyer des touches » → la combinaison attendue dans `input.jsonl` ; micro activé dans les réglages → `mic_frames` croît dans `events.jsonl` ; quitter la session → `commands.jsonl`/état de l'hôte sans appli ; premier plan inchangé avant/après.
   6. Jeu Playnite pendant que Playnite tourne : `resume`, `events.jsonl` contient `playnite_launch` ; « Quitter le jeu ».
   7. `this-pc-test` (`test_host_this_pc`) : lancer → message « Impossible de streamer … depuis lui-même », aucune session.
-  8. Garde-fous : ajout de `192.168.1.231` et de `127.0.0.1:47989` refusés, aucune connexion dans le journal du client.
+  8. Garde-fous : ajout de `192.168.1.231`, `127.0.0.1:45989` et `127.0.0.1:47989` refusés, aucune connexion dans le journal du client.
 - [ ] Écrire les scénarios un par un, chacun lancé et vert avant le suivant (`testbench run -k <nom>`), en relisant les captures. Commit par scénario ou par paire.
 
 ### Task C4: Porte de release et documentation
