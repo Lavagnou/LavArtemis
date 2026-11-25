@@ -35,7 +35,7 @@ et sortie 4 ; allumé, tamisé ou état inconnu (pas de réponse) : on lance. Le
 **Vérifier la porte sans GUI** : `LAV_TESTBENCH_SELFTEST=pass|fail|flaky`, honoré par `run` seulement : il remplace
 les scénarios par un scénario interne (`selftest/test_gate.py`, hors `scenarios/`), sans hôte ni client ni contrôle de
 l'écran, et donne 0 / 1 / 3 (le rejeu fait passer `flaky`). Exemple :
-`$env:LAV_TESTBENCH_SELFTEST='flaky'; scripts\local-release.ps1 -NotesFile n.md -NoPublish -SkipAndroid -SkipWindows`; Remove-Item Env:LAV_TESTBENCH_SELFTEST`.
+`$env:LAV_TESTBENCH_SELFTEST='flaky'; scripts\local-release.ps1 -NotesFile n.md -NoPublish -SkipAndroid -SkipWindows; Remove-Item Env:LAV_TESTBENCH_SELFTEST`.
 `local-release.ps1` **refuse** (sans `-NoPublish`) tant que la variable est posée, et l'annonce quand elle sert :
 un reste de `pass` dans l'environnement ne doit jamais laisser passer une vraie release.
 
@@ -115,9 +115,10 @@ Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce q
 | 2 | `test_02_home.py` | cartes Bureau puis Playnite Fullscreen, jaquettes, ordre de `library.json`, Masquer / réafficher |
 | 3 | `test_03_hosts.py` | Mes PC : PC éteint, version de LavApollo trop ancienne, renommer, oublier |
 | 4 | `test_04_settings.py` | chaque page des Réglages en normal et en expert, une écriture relue après redémarrage |
-| 5 | `test_05_stream.py` | stream de Bureau : taille négociée, images décodées et numérotées, touches du menu en jeu, micro, quitter |
+| 5 | `test_05_stream.py` | stream de Bureau : taille négociée (règle « résolution calée » appliquée à l'écran annoncé par le faux PC, `display` de `pc.json`, défaut 1920×1080 à 60 Hz), images décodées et numérotées, touches du menu en jeu, micro, quitter |
+| 5b | `test_05b_stream_input.py` | entrées du canal pendant un stream : rien n'atteint l'hôte quand le canal se tait ; déplacement et clic de souris, manette de test (A), touche envoyée au stream : chacun dans `input.jsonl` de l'hôte |
 | 6 | `test_06_playnite.py` | jeu Playnite pendant que Playnite tourne : `resume`, `playnite_launch`, « Quitter <jeu> » |
 | 7 | `test_07_this_pc.py` | « Impossible de streamer … depuis lui-même », aucune session |
-| 8 | `test_08_guards.py` | 192.168.1.231, 127.0.0.1:45989, 127.0.0.1:47989 refusés, aucune requête au journal |
+| 8 | `test_08_guards.py` | 192.0.2.10 (pour un PC du réseau local : adresse TEST-NET-1, qu'aucune machine n'a), 127.0.0.1:45989, 127.0.0.1:47989 refusés, aucune requête au journal |
 
 Les streams restent légers (1280×720 à 30 i/s, H.264 logiciel côté hôte) et courts.

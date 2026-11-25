@@ -10,6 +10,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-24-testbench-design.md` (sections 1, 2, 4). Android (section 3) a son propre plan, plus tard.
 
+> 📋 **Le plan a été dépassé en cours d'exécution** : les décisions du journal d'exécution (« rulings ») l'emportent
+> sur les étapes d'origine quand elles divergent. Les principales : le client de test n'accepte que **127.0.0.1 et les
+> ports 40000-44999** (liste blanche ; le vrai LavApollo de ce PC écoute sur la base **45989**, pas 47989) ; le banc
+> **refuse de tourner écran éteint** (code 4) ; **un scénario qui ne passe qu'au rejeu fait échouer la porte** (code 3,
+> FLAKY) ; le remplaçant d'une appli en mode test est un `ping` **durable pour la commande principale** seulement ;
+> l'hôte de test annonce un **mode d'écran fixe** (`test_host_display`, défaut 1920×1080 à 60 Hz) ; et les **bugs
+> produit trouvés** par les scénarios (stream v2 qui ne démarrait pas, appairage, ordre de la bibliothèque Playnite,
+> « Quitter la session », plantage ncrypt, PIN incorrect…) ont été **corrigés**, pas laissés en `xfail`. Le README du
+> banc (`tools/testbench/README.md`) et les `CLAUDE.md` des trois dépôts décrivent l'état réel.
+
 ## Global Constraints
 
 - Branches : `dev` dans LavApollo et LavArtemis-Qt ; LavArtemis `dev`. Commits atomiques, messages en anglais, docs en français.
@@ -25,8 +35,8 @@
 
 ## Review Focus
 
-1. **Le vrai LavApollo tourne pendant les tests** : un hôte de test ne doit ni prendre ses ports ni écrire dans ses fichiers. → Tâche C1 : test qui empreinte (hash) `C:\Program Files\LavApollo\config` (ou le dossier du service) avant/après `up`+`down`, et vérifie que le service répond toujours sur 47989.
-2. **Le client de test pointé vers une vraie adresse** (192.168.1.231, 127.0.0.1:45989 — le vrai hôte de ce PC —, 127.0.0.1:47989) : refusé avant toute requête. → Tâche B2 : test unitaire du garde-fou d'adresse ; scénario C3 « ajout d'une vraie adresse refusé » qui vérifie qu'aucune connexion n'est ouverte (journal du client).
+1. **Le vrai LavApollo tourne pendant les tests** : un hôte de test ne doit ni prendre ses ports ni écrire dans ses fichiers. → Tâche C1 : test qui empreinte (hash) `C:\Program Files\LavApollo\config` (ou le dossier du service) avant/après `up`+`down`, et vérifie que le service répond toujours sur 45989 (sa base sur ce PC).
+2. **Le client de test pointé vers une vraie adresse** (une adresse du réseau local — `192.0.2.10`, TEST-NET-1, dans le scénario, pour ne viser aucune vraie machine —, 127.0.0.1:45989 — le vrai hôte de ce PC —, 127.0.0.1:47989) : refusé avant toute requête. → Tâche B2 : test unitaire du garde-fou d'adresse ; scénario C3 « ajout d'une vraie adresse refusé » qui vérifie qu'aucune connexion n'est ouverte (journal du client).
 3. **Processus orphelins après un plantage** (hôtes de test encore lancés, ports pris). → Tâche C1 : `up` tue les instances d'un run précédent (fichiers PID) et vérifie que les ports sont libres ; test qui tue l'orchestrateur en plein run puis relance `up`.
 4. **Codec non disponible en logiciel** (client qui demande HEVC/AV1). → Tâche A7 : l'hôte de test n'annonce que H.264 (`ServerCodecModeSupport`) ; test unitaire sur la valeur annoncée.
 5. **Focus volé pendant que l'utilisateur travaille.** → Tâche C3 : le scénario de stream relève la fenêtre au premier plan avant et après, et échoue si elle a changé.
@@ -83,7 +93,7 @@
 
 **Interfaces:**
 - Produces:
-  - `run_command` en mode test : `test_host::log("commands", {cmd, elevated, interactive, working_dir})` puis lance `cmd.exe /d /c exit 0` (ni élevé ni interactif) — l'appli reste « en cours » par le détachement automatique existant.
+  - `run_command` en mode test : `test_host::log("commands", {cmd, elevated, interactive, working_dir})` puis, pour la **commande principale d'une appli** (appel avec groupe de processus), lance un remplaçant durable `ping` (ni élevé ni interactif) que la fin du groupe arrête : l'appli reste « en cours » sans dépendre du détachement automatique ; préparation, annulation, détachées, d'état et de serveur reçoivent un `exit 0` immédiat (elles sont attendues).
   - Presse-papiers : écriture → `log("events", {"clipboard_set": texte})` + mémoire de l'instance ; lecture → la mémoire.
   - Playnite : lancer un jeu → `log("events", {"playnite_launch": id})` et écriture du `state.json` « jeu lancé » de la bibliothèque factice ; demande d'arrêt → `state.json` « aucun jeu ».
 - [ ] Tests : `TEST(TestHost, RunCommandIsLoggedNotRun)` (commande `cmd /c echo x > fichier` → fichier absent, ligne dans `commands.jsonl`) ; `TEST(Playnite, TestHostLaunchWritesRunningState)`.
@@ -147,7 +157,7 @@
 **Files:**
 - Modify: `CLAUDE.md` de LavApollo (section « Hôte de test » : clés, ce qui est coupé, journaux, ports, `LAVAPOLLO_APPDATA`, `ProgramData`, comment le lancer à la main)
 
-- [ ] Lancer une instance à la main depuis PowerShell : `$env:LAVAPOLLO_APPDATA=<tmp>\pc1; $env:ProgramData=<tmp>\pc1\pd; cd build\t; .\sunshine.exe <tmp>\pc1\sunshine.conf` (config : `test_host=enabled`, `port=40989`, `sunshine_name=Test-PC-1`) ; vérifier `curl http://127.0.0.1:40989/serverinfo` (contient `LavTestHost`), `netstat -ano` (écoute sur 127.0.0.1 seulement), journal (aucun SudoVDA), et que `ApolloService` répond toujours sur 47989.
+- [ ] Lancer une instance à la main depuis PowerShell : `$env:LAVAPOLLO_APPDATA=<tmp>\pc1; $env:ProgramData=<tmp>\pc1\pd; cd build\t; .\sunshine.exe <tmp>\pc1\sunshine.conf` (config : `test_host=enabled`, `port=40989`, `sunshine_name=Test-PC-1`) ; vérifier `curl http://127.0.0.1:40989/serverinfo` (contient `LavTestHost`), `netstat -ano` (écoute sur 127.0.0.1 seulement), journal (aucun SudoVDA), et que `ApolloService` répond toujours sur 45989.
 - [ ] Écrire la section, commit `Docs: test host mode`.
 
 ---
@@ -228,7 +238,7 @@
   - `hosts.up(fixtures, workdir) -> list[Host]` (`Host`: `name, port, pid, dir`) : construit `sunshine` si l'exe est plus vieux que les sources (`ninja -C build/t -j 3 sunshine`), écrit `sunshine.conf` + `apps.json` + `ProgramData/LavApollo/playnite/` + jaquettes, lance chaque instance (`LAVAPOLLO_APPDATA`, `ProgramData`, cwd `build/t`), attend `/serverinfo`, écrit les PID ; `hosts.down(workdir)` ; au début de `up`, tue les instances d'un run précédent et vérifie les ports libres.
   - `hosts.pin(host, pin, name)` → `POST https://127.0.0.1:<base+1>/api/test/pin` (certificat non vérifié ; jamais `localhost`/`::1`, refusés).
   - CLI : `testbench up [fixtures…]`, `testbench down`, `testbench logs <pc> [input|commands|events]`.
-- [ ] Tests : `up(["atlas-test"])` → `serverinfo` contient `LavTestHost` et `Test-Atlas` ; empreinte du dossier de config du vrai LavApollo identique avant/après ; `ApolloService` répond sur 47989 ; un `up` après un run tué net réussit.
+- [ ] Tests : `up(["atlas-test"])` → `serverinfo` contient `LavTestHost` et `Test-Atlas` ; empreinte du dossier de config du vrai LavApollo identique avant/après ; `ApolloService` répond sur 45989 ; un `up` après un run tué net réussit.
 - [ ] Échec, implémenter, PASS. Commit `Testbench: fixtures and sandboxed test hosts`.
 
 ### Task C2: Client, canal et captures
@@ -261,7 +271,7 @@
   5. Lancer « Bureau » : `session.decoded` croît ; deux captures du stream → numéros d'image croissants ; menu en jeu → « Envoyer des touches » → la combinaison attendue dans `input.jsonl` ; micro activé dans les réglages → `mic_frames` croît dans `events.jsonl` ; quitter la session → `commands.jsonl`/état de l'hôte sans appli ; premier plan inchangé avant/après.
   6. Jeu Playnite pendant que Playnite tourne : `resume`, `events.jsonl` contient `playnite_launch` ; « Quitter le jeu ».
   7. `this-pc-test` (`test_host_this_pc`) : lancer → message « Impossible de streamer … depuis lui-même », aucune session.
-  8. Garde-fous : ajout de `192.168.1.231`, `127.0.0.1:45989` et `127.0.0.1:47989` refusés, aucune connexion dans le journal du client.
+  8. Garde-fous : ajout de `192.0.2.10` (TEST-NET-1, pour un PC du réseau local), `127.0.0.1:45989` et `127.0.0.1:47989` refusés, aucune connexion dans le journal du client.
 - [ ] Écrire les scénarios un par un, chacun lancé et vert avant le suivant (`testbench run -k <nom>`), en relisant les captures. Commit par scénario ou par paire.
 
 ### Task C4: Porte de release et documentation

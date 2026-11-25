@@ -1022,6 +1022,9 @@ Mode d'emploi complet, scénarios et codes de sortie : `tools/testbench/README.m
   réglages de LavArtemis / Dev), fenêtres **sans prise de focus**, **entrées injectées seulement** (ni vrai pointeur,
   ni vrai clavier, ni son, ni micro), ni installation ni gestionnaire `art://` ; seuls les processus lancés par le banc
   sont arrêtés.
+- **Écran du faux PC fixe** : l'hôte de test annonce dans `serverinfo` le mode de `display` (`pc.json`, défaut
+  1920×1080 à 60 Hz, clé `test_host_display`), jamais le moniteur de ce PC. Un scénario déduit la taille négociée de
+  ce mode et du réglage du client par la règle « résolution calée » (`helpers.host_display_fit`), sans la coder en dur.
 - ⚠️ **Écran allumé obligatoire.** Écran éteint, Qt Quick ne met plus les fenêtres en page et la moitié des scénarios
   échouent sans que l'appli y soit pour rien. `run` le détecte (`display.py` : `GUID_CONSOLE_DISPLAY_STATE`, lu sans
   jamais allumer l'écran) et sort en **code 4** avant de lancer quoi que ce soit.
@@ -1180,6 +1183,10 @@ Le rebrand vers LavArtemis est partiel. Restes connus à finaliser :
 | `desktop/moonlight-common-c/moonlight-common-c.pro` | LTO du cœur natif (release) |
 | `desktop/scripts/build-arch.bat` | Build Windows par architecture |
 | `desktop/wix/LavArtemis{,Setup}/` | Installeur WiX (⚠️ `UpgradeCode` propre à LavArtemis ; table Upgrade explicite et versions < 20.0.0, voir « Numérotation propre ») |
+| `tools/testbench/` | Banc de test desktop : runner (`testbench.py`), faux PC (`hosts.py`, `fixtures/`), client de test (`client.py`), scénarios (`scenarios/`), `README.md` (voir « Banc de test ») |
+| `LavApollo/src/test_host.{h,cpp}` (dépôt LavApollo) | Mode « hôte de test » : faux PC isolé, journaux `testhost/*.jsonl`, `skip()` des chemins qui touchent le système (voir « Hôte de test » de `LavApollo/CLAUDE.md`) |
+| `desktop/app/testctl/` | Build de test (`CONFIG+=lav_test`) : canal de commande du client de test (`testcontrol`, `testprotocol`, `uiprobe`) |
+| `desktop/tests/testguard/` | Tests du garde-fou d'adresse du client de test (127.0.0.1, ports 40000-44999) et du protocole du canal |
 
 ---
 
