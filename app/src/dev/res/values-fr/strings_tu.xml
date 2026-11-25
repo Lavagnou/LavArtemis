@@ -32,7 +32,7 @@
     <string name="video_decoder_init_failed">Le décodeur vidéo n\'a pas pu démarrer. Vérifie que ton appareil prend en charge la résolution ou la fréquence d\'images choisie.</string>
     <string name="no_frame_received_error">Ta connexion réseau ne marche pas bien. Baisse le débit ou passe sur une connexion plus rapide.</string>
     <string name="early_termination_error">Quelque chose s\'est mal passé sur ton PC hôte au démarrage du stream.\n\nVérifie qu\'aucune application protégée par DRM n\'est ouverte sur le PC. Tu peux aussi essayer de redémarrer le PC.</string>
-    <string name="frame_conversion_error">Le PC hôte a signalé une erreur d\'encodage fatale.\n\nEssaie de désactiver le HDR, de changer la résolution du stream ou celle de ton PC hôte.</string>
+    <string name="frame_conversion_error">Le PC hôte a signalé une erreur d\'encodage fatale.\n\nEssaie de changer la résolution du stream ou celle de ton PC hôte.</string>
     <string name="check_ports_msg">Vérifie les règles de ton pare-feu pour ces ports :</string>
     <string name="conn_metered">Attention : ta connexion réseau est limitée !</string>
     <string name="delete_pc_msg">Tu veux vraiment supprimer ce PC ?</string>

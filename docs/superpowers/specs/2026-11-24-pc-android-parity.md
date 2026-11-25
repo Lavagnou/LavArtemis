@@ -58,11 +58,20 @@ s'ajoute ici comme écart.
   plus, « Vérifier » dans les réglages si.
 - **Menu en jeu**, entrées communes dans cet ordre : Quitter <jeu Playnite>, Déconnecter, Quitter la
   session (confirmée : « Tu veux vraiment quitter ? » ; ferme l'appli sur le PC distant et revient à l'accueil
-  du client, qui reste ouvert), Commandes du PC hôte (« Aucune commande » expliqué
-  si l'hôte n'en donne pas), Envoyer des touches (les **15** mêmes raccourcis, mêmes libellés ; plus de
+  du client, qui reste ouvert), Commandes du PC hôte (la liste `ServerCommand` de l'hôte ; vide : « Aucune
+  commande de serveur » et le même texte d'explication qu'Android), Envoyer des touches (les **15** mêmes raccourcis, mêmes libellés ; plus de
   raccourci HDR), Envoyer / Récupérer le presse-papiers, Statistiques de performance, Couper / Réactiver le
   micro (seulement quand le micro est envoyé), Passer en trackpad / multitouch (pour ce stream, retenu
   avec « Retenir le mode tactile choisi en jeu »).
+- **Stream** (vague 2 de la vérification, 2026-11-25) : nom des étapes de connexion traduits comme
+  `utils/StreamStages` (« Démarrage : négociation RTSP », « Échec au démarrage : … (erreur n) ») ; « Connexion
+  lente au PC / Baisse le débit », « Mauvaise connexion au PC » ; statistiques à l'écran avec les formulations
+  des `perf_overlay_*` ; erreur d'encodage fatale sans le conseil HDR (le HDR est retiré des deux Dev, texte
+  Android Dev mis à jour) ; changement d'écran du PC : une reconnexion qui reprend la session, « Écran du PC
+  modifié : reconnexion… », jamais l'appli quittée ; suivi actif dès que l'hôte annonce son écran (comme Android).
+- **Presse-papiers** : envoyé au début du stream, récupéré sur « Déconnecter », envoyé / récupéré à la demande
+  depuis le menu ; mêmes messages (« Presse-papiers envoyé avec succès », « Échec de la récupération du
+  presse-papiers : … »).
 - **Toucher en mode Trackpad** : le doigt déplace le curseur, tap = clic gauche, appui à deux doigts = clic
   droit, appui long (un doigt) = glisser, **deux doigts qui bougent = défilement** (même vitesse : 5 unités
   par pixel d'un écran de référence de 720 lignes). L'appui long à deux doigts ne fait rien, des deux côtés.
@@ -206,7 +215,7 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
 
 | Écart | Recommandation |
 |---|---|
-| Presse-papiers : le PC synchronise en continu (taille max, notification) ; Android envoie au début et récupère en quittant | 1 jour et plus ; les descriptions disent ce que chacun fait. |
+| Presse-papiers : aux mêmes moments des deux côtés depuis la vague 2 (début, « Déconnecter », menu) ; le PC envoie en plus une copie faite pendant le stream (Alt+Tab, copie, retour), garde « Taille maximale », et notifie toujours une demande du menu (Android : seulement avec la notification activée) | Garder : sur PC on copie dans une autre fenêtre pendant le stream ; le reste est commun. |
 | Tampon audio par défaut : 30 ms (PC, valeur de moonlight-qt) / 40 ms (Android, valeur de moonlight-android) | Garder : chaque défaut vient de la pile audio de sa plateforme. |
 | Accueil Android : rangée « Récents » + « Tout voir » ; PC : bibliothèque entière sur l'accueil | Garder : choix d'écran validés (téléphone / PC). |
 

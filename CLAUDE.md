@@ -456,6 +456,9 @@ d'un texte ou d'un réglage commun). Repères Android :
   « Quitter la session », sinon seulement si le stream a fini normalement (`unexpectedTermination` posé par
   `connectionTerminated` / `stageFailed`), jamais pendant un benchmark ni pour la reconnexion qui suit un
   changement d'écran du PC (`restartRequested`).
+- **Presse-papiers** (`smartClipboardSync` / « Synchroniser le presse-papiers ») : envoyé au début du stream, récupéré
+  sur « Déconnecter », à la demande dans le menu en jeu, mêmes messages ; le desktop envoie en plus une copie faite
+  pendant le stream (détails : `desktop/CLAUDE.md`, « Session et menu en jeu »).
 - **Micro hors profils** (voir « Passthrough du micro »). **« Envoyer des touches »** : 15 raccourcis, les
   mêmes que le desktop (sans le raccourci HDR Win+Alt+B).
 - « Version du logiciel hôte non prise en charge » : règle `v2/HostSupport` reprise telle quelle par le
