@@ -4,9 +4,6 @@ from the in-game menu reaching the host as keys, the microphone (enabled in Rég
 « Quitter la session » quitting the app on the host.  The test client never takes the foreground (conftest)."""
 import time
 
-import pytest
-
-import bugs
 import client as clientmod
 import frames
 import helpers
@@ -64,9 +61,12 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     # In-game menu › Envoyer des touches › Alt+Entrée: the host gets Alt down, Enter down/up, Alt up
     qm = helpers.open_quick_menu(c)
     bench.shot("04-quick-menu", window=qm)
+    helpers.assert_quick_menu_footer_clear(c, qm)
     helpers.quick_menu_click(c, "Envoyer des touches", qm)
     helpers.wait_any_text(c, ["Alt+Entrée"])
     bench.shot("05-send-keys", window=qm)
+    # 15 shortcuts: the list overflows and scrolls above « ← Retour », never under it
+    helpers.assert_quick_menu_footer_clear(c, qm)
     before = len(helpers.host_events(atlas, "input"))
     helpers.quick_menu_click(c, "Alt+Entrée", qm)
     c.wait_for(lambda s: not s.get("quickMenu"), 10)
@@ -105,13 +105,12 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     else:
         raise AssertionError(f"the session did not end; state {st}")
 
-    if exited:
-        # The host side first: the app is no longer running there (seen by a fresh client over HTTPS)
-        bench.note(f"the client exited (code {c.proc.returncode}) after « Quitter la session »")
-        c = bench.start_client(reset=False)
-        comp = helpers.wait_computer(c, atlas.name, lambda x: x["online"], timeout=20)
-        assert comp["currentGameId"] == 0, comp
-        pytest.xfail(bugs.QUIT_SESSION_EXITS_CLIENT)
-    comp = helpers.wait_computer(c, atlas.name, lambda x: x["online"], timeout=20)
+    # Back on the client's home, not closed (Android does the same)
+    assert not exited, f"« Quitter la session » closed the client (code {c.proc.returncode})"
+    comp = helpers.wait_computer(c, atlas.name, lambda x: x["online"] and x["currentGameId"] == 0, timeout=20)
     assert comp["currentGameId"] == 0, comp
+    # The home shows it: no session left on screen (no « Reprendre », « En ligne » in the header). The UI follows
+    # the host's state a moment after state.computers (signal queued to the GUI thread), not a poll later.
+    helpers.wait_text(c, "Reprendre", gone=True, timeout=3)
+    helpers.wait_text(c, "En ligne", timeout=3)
     bench.shot("07-home-after-quit")
