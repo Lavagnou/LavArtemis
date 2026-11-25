@@ -166,6 +166,34 @@ Les textes qui nomment l'appareil restent différents exprès : « suit le mode 
   environ (hérité de moonlight-qt ; Android n'a pas ce défaut) ; plantage `ncrypt.dll` pendant des rafales
   de requêtes HTTPS ; pied du menu en jeu par-dessus la dernière ligne.
 
+## 3 ter. Aligné le 2026-11-25 (PC : vie d'un PC et appairage, banc de test scénario 9)
+
+- **Appairage retiré sur l'hôte** : le PC restait « Hors ligne » pour toujours ; il est désormais en ligne et
+  pas appairé (repli HTTP sur un 401, comme Android), quitte l'accueil et les cartes, apparaît dans « Ajouter
+  un PC », et l'ajouter de nouveau l'appaire.
+- **Oublier le PC affiché** : l'accueil passe à un autre PC ou à « Aucun PC appairé » (il gardait le PC oublié).
+  **PC éteint** : ses cartes quittent l'accueil (elles restaient à côté de « hors ligne »). **2ᵉ PC appairé** :
+  l'accueil le montre, comme Android.
+- **Appairage** : messages d'Android (`v2_pair_wrong_pin`, `_failed`, `_in_game`, `_busy`, `_unknown_host`,
+  `_not_found`, `_network`), qui nomment le PC (le PC disait « sur le PC » et montrait parfois le XML de l'hôte
+  ou une exception anglaise) ; un seul appairage à la fois, « C'est fait » ne fait que fermer le dialogue (le
+  redemander rouvre le même) ; polling du PC arrêté pendant l'appairage ; « %1 est hors ligne : allume-le, puis
+  appaire-le. » ; après le succès, PC ouvert seulement si son LavApollo est pris en charge.
+- **Ajout par adresse** : « « %1 » n'est pas une adresse valide… » et « %1 n'est pas sur le réseau de cet
+  appareil… » (`v2_add_invalid`, `v2_add_wrong_subnet`) au lieu de « Impossible de joindre ».
+- **Réveil** : le toast dit si les paquets sont partis (« Réveil envoyé à %1 » / « Le réveil de %1 n'a pas pu
+  être envoyé. »), il disait toujours « envoyé ».
+- **Lien `art://` d'appairage** (et `lavartemis pair`) : textes de Mes PC / Android (`v2_pair_link_text` pour un
+  lien avec code : plus de « Saisis » ; « %1 est appairé ») ; un PC déjà appairé est un succès ; au succès le PC
+  s'ouvre sur l'accueil (le PC quittait, ou disait « déjà couplé »).
+- Le PC s'annonce à l'hôte sous son nom (celui de `serverinfo`), plus « roth » / « Legacy Moonlight Client ».
+
+Écarts gardés, PC seulement : la première requête d'appairage attend le code **3 minutes au plus** (« %1 n'a
+pas reçu le code à temps… » ; Android attend sans limite, mais un appairage abandonné bloquerait ici tous les
+autres) ; un code de lien expiré a son message (« Le code du lien n'est plus valable sur %1… » ; Android
+affiche l'erreur réseau brute de l'hôte, à aligner). Un PC non appairé ne peut pas être oublié, des deux
+côtés (Android ne le propose que dans « Ajouter un PC »).
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)
