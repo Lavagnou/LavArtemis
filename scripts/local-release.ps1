@@ -78,10 +78,19 @@ if ($SkipTests) {
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     } catch { $prevEncoding = $null }
     $env:PYTHONIOENCODING = "utf-8"
+    $null = Get-Command python -CommandType Application  # missing python: stop here (still under "Stop")
+    $prevEap = $ErrorActionPreference
     try {
+        # python writes to stderr (pytest, warnings). Windows PowerShell 5.1 turns a native command's stderr into
+        # error records when this script's output is redirected (a log file, a caller capturing it), and under
+        # "Stop" the first such line would end the script with a NativeCommandError instead of the gate's verdict.
+        # The exit code alone decides; -1 stays if python never ran.
+        $ErrorActionPreference = "Continue"
+        $global:LASTEXITCODE = -1
         python tools\testbench\testbench.py run --suite desktop --rerun-failed-once
         $testCode = $LASTEXITCODE
     } finally {
+        $ErrorActionPreference = $prevEap
         if ($prevEncoding) { try { [Console]::OutputEncoding = $prevEncoding } catch { } }
         Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue
     }
