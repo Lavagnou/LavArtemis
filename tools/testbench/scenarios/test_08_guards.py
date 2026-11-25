@@ -1,4 +1,5 @@
-"""Scenario 8: the test client never talks to a real host.  Adding 192.168.1.231 (a real PC of the LAN),
+"""Scenario 8: the test client never talks to a real host.  Adding 192.0.2.10 (standing for a PC of the LAN:
+a TEST-NET-1 address, reserved for documentation, that no real machine answers even if a guard failed),
 127.0.0.1:45989 (the real LavApollo service of this PC) and 127.0.0.1:47989 (the default GameStream port) is refused
 before any request, with the test build's message; an art:// pairing link to a real address (command line, the
 CLI pairing path) is refused too, at once and with the same message.  The client's log shows the refusals and not a
@@ -7,7 +8,7 @@ import time
 
 import helpers
 
-REFUSED = ["192.168.1.231", "127.0.0.1:45989", "127.0.0.1:47989"]
+REFUSED = ["192.0.2.10", "127.0.0.1:45989", "127.0.0.1:47989"]
 MESSAGE = "Le client de test ne parle qu'aux hôtes de test (127.0.0.1, ports 40000-44999)."
 
 
@@ -34,7 +35,7 @@ def test_guards_real_addresses_refused(bench):
     assert not request_lines(log), request_lines(log)
 
     # A link handled by the command line (CliPair: ComputerManager::addNewHostManually, then NvHTTP)
-    link = "art://192.168.1.231:47989?pin=1234&passphrase=testbench"
+    link = "art://192.0.2.10:47989?pin=1234&passphrase=testbench"
     # restart_client stops the first client before the second starts (never two on the command pipe)
     c = bench.restart_client(args=[link])
     # The refusal ends the CLI pairing with its message, well before the 10 s search timeout (it used to spin on
@@ -47,5 +48,5 @@ def test_guards_real_addresses_refused(bench):
     log = c.log_text()
     assert not request_lines(log), request_lines(log)
     # Refused at the first layer: the pairing command adds the PC through the same guard as Mes PC
-    assert 'manual add of "192.168.1.231:47989" refused' in log, "no manual-add refusal logged for the link"
+    assert 'manual add of "192.0.2.10:47989" refused' in log, "no manual-add refusal logged for the link"
     assert c.state()["computers"] == []
