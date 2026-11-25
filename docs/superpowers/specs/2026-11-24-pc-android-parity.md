@@ -203,6 +203,21 @@ autres) ; un code de lien expiré a son message (« Le code du lien n'est plus v
 affiche l'erreur réseau brute de l'hôte, à aligner). Un PC non appairé ne peut pas être oublié, des deux
 côtés (Android ne le propose que dans « Ajouter un PC »).
 
+## 3 quater. Aligné le 2026-11-25 (Réglages, logique, banc de test scénario 11)
+
+- **Nouveau profil** : il part du profil en cours sur PC aussi (il partait des réglages globaux : créé sous
+  « Maison », il en perdait les valeurs). Android le faisait déjà (instantané).
+- **Débit qui suit la résolution et les images/s** : une seule règle, celle du texte choisi « Suit la résolution
+  et les images/s tant que tu ne le changes pas » : il suit tant qu'il est le débit recommandé, bougé à la main il
+  reste, « Revenir au débit recommandé » le fait suivre de nouveau. Le PC le faisait déjà (`autoAdjustBitrate`) ;
+  **Android le remettait toujours au défaut**, il suit maintenant la même règle (`SettingsStore.bitrateIsRecommended()`).
+- **Quitter PyroWave** pour un autre codec ramène un débit au-delà de 800 Mbit/s au bout de la piste, des deux
+  côtés (le PC gardait 1,5 Gbit/s en HEVC).
+- PC seulement : la liste des langues couvre toutes les langues que l'appli peut enregistrer (7 manquaient), chaque
+  nom dans sa langue ; échecs de la recherche de mise à jour en français (« GitHub est injoignable… », « …erreur
+  HTTP 403… ») et jamais sans fin (délai de 15 s) ; page Raccourcis : **Ctrl+Alt+Maj+Q = « Déconnecter »**,
+  **Ctrl+Alt+Maj+E = « Quitter la session »** (E fermait aussi tout le client).
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)

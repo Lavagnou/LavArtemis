@@ -320,7 +320,11 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     `keyboard_axi_list` par le chargeur des touches) — sinon l'écriture partirait dans le profil et ne serait
     jamais lue. Un nouveau profil est un **instantané complet** (toutes les lignes, défauts compris), langue et
     apparence exclues.
-  - **Effets de bord repris** de `StreamSettings` : nouvelle résolution / fréquence → débit remis au défaut ;
+  - **Effets de bord repris** de `StreamSettings` : nouvelle résolution / fréquence → débit remis au défaut **tant
+    qu'il est le débit recommandé** (`SettingsStore.bitrateIsRecommended()` : jamais écrit, ou égal au défaut ; bougé
+    à la main, il reste ; « Revenir au débit recommandé » le fait suivre de nouveau — la règle du desktop,
+    `autoAdjustBitrate`, et du texte choisi « Suit la résolution et les images/s tant que tu ne le changes pas ») ;
+    quitter PyroWave ramène un débit au-delà de 800 Mbit/s au bout de la piste (comme le desktop) ;
     entrée native → avertissement ; « Personnalisée… » / « Autre… » (`edit_diy_w_h`, `custom_refresh_rate`,
     fréquence formatée en `Locale.US`, pas dans la langue de l'appareil) ; résolution ou fréquence que l'écran
     ne prend plus → réécrite à l'ouverture ; PyroWave absent → codec Auto ; micro → permission, refus = décoché ;
@@ -329,7 +333,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     `preferences/SettingsFileActions`, partagé avec `StreamSettings`.
   - Clavier / manette : la ligne a le focus ; A / Entrée bascule ou ouvre la liste, Gauche / Droite font
     défiler un choix ou un curseur, Gauche en bout de course revient à la liste des pages ; B : lignes → pages →
-    accueil. Le curseur du débit est **courbé** (`curve(3)` : 20 Mbit/s au premier tiers, 800 au bout ; avec le codec
+    accueil. Le curseur du débit est **courbé** (`curve(3)` : 20 Mbit/s vers 29 % de la course, 800 au bout ; avec le codec
     PyroWave il va à 3 Gbit/s — `SettingDef.maxFrom()` / `maxFor()`, `SettingsCatalog.BITRATE_MAX_KBPS` /
     `BITRATE_MAX_PYROWAVE_KBPS`, mêmes valeurs que `bitrateMax` du desktop) et ses
     pas grandissent avec la valeur. Toute écriture est immédiate, pas de bouton « Enregistrer ».
