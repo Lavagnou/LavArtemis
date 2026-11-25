@@ -171,3 +171,51 @@ def test_kill_reports_an_unidentified_live_pid(monkeypatch):
     hosts._kill(1234)
     assert not killed and hosts.PROBLEMS and "1234" in hosts.PROBLEMS[0]
     hosts.PROBLEMS.clear()
+
+
+# ---------------------------------------------------------------- in-game menu footer check
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scenarios"))
+import helpers  # noqa: E402
+
+
+def _menu_tree(last_row_y):
+    """The in-game menu as `tree` reports it: title, a ListView ending at y=321, rows every 60 px, the footer
+    button at y=336.  last_row_y places the last row (visible part, as the tree clips it)."""
+    def item(type_, text, x, y, w, h):
+        return {"window": 0, "type": type_, "objectName": "", "text": text, "x": x, "y": y, "w": w, "h": h,
+                "focus": False, "enabled": True}
+    items = [item("Text", "Envoyer des touches", 89, 20, 323, 41),
+             item("ListView", "", 30, 80, 440, 241)]
+    for n, y in enumerate([91, 151, 211, 271, last_row_y]):
+        items.append(item("Text", f"Raccourci {n}", 162, y, 120, 23))
+        items.append(item("Text", "Raccourci intégré", 162, y + 25, 108, 16))
+    items += [item("Button", "← Retour", 210, 336, 80, 44), item("IconLabel", "← Retour", 222, 346, 56, 24)]
+    return items
+
+
+class _TreeOnly:
+    def __init__(self, items):
+        self.items = items
+
+    def tree(self, **args):
+        return self.items
+
+
+def test_footer_check_fails_on_the_unclipped_menu():
+    # Before LavArtemis-Qt 09dfbbb8: the ListView ended above the footer but did not clip, so its last row was
+    # drawn under « ← Retour » (seen at y=331 in the C3 capture 05-send-keys)
+    with pytest.raises(AssertionError, match="rows drawn under the footer"):
+        helpers.assert_quick_menu_footer_clear(_TreeOnly(_menu_tree(331)), 0)
+
+
+def test_footer_check_passes_on_the_clipped_menu():
+    # After 09dfbbb8: the list clips, the last visible row ends above the footer (the rest scrolls)
+    helpers.assert_quick_menu_footer_clear(_TreeOnly(_menu_tree(291)), 0)
+
+
+def test_footer_check_fails_when_the_list_reaches_under_the_footer():
+    items = _menu_tree(271)
+    next(i for i in items if i["type"] == "ListView")["h"] = 300  # ends at 380, under the footer at 336
+    with pytest.raises(AssertionError, match="reaches under the footer"):
+        helpers.assert_quick_menu_footer_clear(_TreeOnly(items), 0)
