@@ -137,6 +137,9 @@ def render_conf(pc, pcdir):
         lines.append("test_host_this_pc = enabled")
     # Always written: the scenarios derive the negotiated stream size from the same value
     lines.append("test_host_display = {}x{}x{}".format(*display_mode(pc)))
+    if pc.get("benchmark_app") is False:
+        # The hidden Benchmark app is on by default (serverinfo BenchmarkAppId): a PC without it
+        lines.append("benchmark_app = disabled")
     if pc.get("server_cmd"):
         # Commands of the host PC (in-game menu); run in test mode as logged no-ops (commands.jsonl)
         lines.append("server_cmd = " + json.dumps(pc["server_cmd"], separators=(",", ":")))

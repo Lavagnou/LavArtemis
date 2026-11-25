@@ -264,6 +264,23 @@ class Bench:
         """Quit and relaunch the client, settings kept (no reset); args: command-line arguments (an art:// link)."""
         return self.start_client(reset=False, args=args, env=env)
 
+    def expect_client_exit(self, timeout=30.0):
+        """The client is expected to quit by itself (a command-line launch that ends): wait for it and return its
+        exit code; it then no longer counts as having died during the scenario."""
+        c = self.client
+        assert c is not None and c.proc is not None, "no client running"
+        assert c._wait_exit(timeout), f"the client did not quit within {timeout:.0f}s"
+        code = c.proc.returncode
+        if c.channel:
+            c.channel.t.close()
+            c.channel = None
+        if c.proc in clientmod._PROCS:
+            clientmod._PROCS.remove(c.proc)
+        if c.workdir and (c.workdir / "client.json").exists():
+            (c.workdir / "client.json").unlink()
+        c.proc = None
+        return code
+
     # -- captures
     def shot(self, label, window=0):
         """Capture into captures/<scenario>/<label>.png.  Qt windows: after the page settled and a popup's
