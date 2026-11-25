@@ -346,7 +346,8 @@ def assert_quick_menu_footer_clear(c, window):
     footer = max((i for i in items if i.get("text") in ("Fermer (Échap)", "← Retour")),
                  key=lambda i: i["w"] * i["h"], default=None)
     assert footer is not None, f"no footer button in the menu: {[i.get('text') for i in items if i.get('text')]}"
-    lv = next(i for i in items if i["type"] == "ListView")
+    lv = next((i for i in items if i["type"] == "ListView"), None)
+    assert lv is not None, f"no ListView in the menu's tree: {sorted({i['type'] for i in items})}"
     assert lv["y"] + lv["h"] <= footer["y"] + 1, f"the list {lv} reaches under the footer {footer}"
     rows = [i for i in items if i.get("text") and i["type"] == "Text" and i is not footer
             and i["text"] not in ("Fermer (Échap)", "← Retour")

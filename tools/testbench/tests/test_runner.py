@@ -50,21 +50,43 @@ def test_report_md_shows_both_attempts_flake_and_flags(tmp_path, monkeypatch):
 
 # ---------------------------------------------------------------- rerun
 
-def test_rerun_failed_once_reruns_only_failed_and_returns_rerun_code(tmp_path, monkeypatch):
-    calls = []
-
+def _fake_runs(tmp_path, calls, second_status):
     def fake_pytest(args, attempt):
         calls.append((list(args), attempt))
-        if attempt == 1:
-            (tmp_path / "report.json").write_text(json.dumps({"started": "s", "results": [
-                res("a", "failed"), res("b", "passed"), res("c", "xfail")]}), encoding="utf-8")
-            return 1
-        return 0
-    monkeypatch.setattr(testbench, "_pytest", fake_pytest)
-    assert testbench.run_suite(report_dir=tmp_path, rerun_failed_once=True) == 0
+        first = [res("a", "failed", error="E boom"), res("b", "passed"), res("c", "xfail")]
+        rows = first if attempt == 1 else first + [res("a", second_status, 2, error="E boom")]
+        (tmp_path / "report.json").write_text(json.dumps({"started": "s", "results": rows}), encoding="utf-8")
+        return 1 if attempt == 1 or second_status != "passed" else 0
+    return fake_pytest
+
+
+def test_rerun_failed_once_reruns_only_failed_a_pass_on_rerun_is_flaky(tmp_path, monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(testbench, "_pytest", _fake_runs(tmp_path, calls, "passed"))
+    assert testbench.run_suite(report_dir=tmp_path, rerun_failed_once=True) == testbench.EXIT_FLAKY == 3
+    out = capsys.readouterr().out
+    assert "FLAKE: scenarios/test_x.py::a" in out and "RESULT: FLAKY (exit 3)" in out and "FAIL:" not in out
     assert [a for _args, a in calls] == [1, 2]
     assert calls[1][0][0] == "scenarios/test_x.py::a" and len([x for x in calls[1][0] if "::" in x]) == 1
     assert "--report-dir" in calls[1][0] and str(tmp_path) in calls[1][0]
+
+
+def test_rerun_failing_again_fails(tmp_path, monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(testbench, "_pytest", _fake_runs(tmp_path, calls, "failed"))
+    assert testbench.run_suite(report_dir=tmp_path, rerun_failed_once=True) == 1
+    out = capsys.readouterr().out
+    assert "FAIL: scenarios/test_x.py::a" in out and "RESULT: FAILED (exit 1)" in out
+
+
+def test_verdict_codes():
+    ok = [res("a", "passed"), res("b", "xfail")]
+    assert testbench.verdict(ok, 0) == (0, [])
+    assert testbench.verdict([res("a", "failed")], 1)[0] == 1
+    assert testbench.verdict([res("a", "error")], 1)[0] == 1
+    assert testbench.verdict([res("a", "failed"), res("a", "passed", 2)], 0) == (3, ["FLAKE: scenarios/test_x.py::a"])
+    assert testbench.verdict([], 1)[0] == 1  # pytest failed with no scenario result (collection error)
+    assert testbench.verdict([], 2)[0] == 1  # interrupted
 
 
 def test_no_rerun_without_the_option_or_on_success(tmp_path, monkeypatch):
@@ -218,4 +240,74 @@ def test_footer_check_fails_when_the_list_reaches_under_the_footer():
     items = _menu_tree(271)
     next(i for i in items if i["type"] == "ListView")["h"] = 300  # ends at 380, under the footer at 336
     with pytest.raises(AssertionError, match="reaches under the footer"):
+        helpers.assert_quick_menu_footer_clear(_TreeOnly(items), 0)
+
+
+# ---------------------------------------------------------------- the report hook (conftest.record)
+
+class _Rep:
+    def __init__(self, when, outcome, longrepr="", wasxfail=None):
+        self.when, self.outcome, self.duration, self.longrepr = when, outcome, 0.5, longrepr
+        self.failed, self.skipped, self.passed = outcome == "failed", outcome == "skipped", outcome == "passed"
+        if wasxfail is not None:
+            self.wasxfail = wasxfail
+
+
+def _run_reports(monkeypatch, *reps):
+    run = types.SimpleNamespace(current={}, results=[], flags={"n": ["RETRY x1: something"]})
+    monkeypatch.setattr(tbconf, "ATTEMPT", 1)
+    for r in reps:
+        tbconf.record(run, "n", "test_n", "", r)
+    return run
+
+
+def test_record_setup_failure_is_one_error_row(monkeypatch):
+    run = _run_reports(monkeypatch, _Rep("setup", "failed", "E host did not start"), _Rep("teardown", "passed"))
+    assert len(run.results) == 1 and not run.current
+    r = run.results[0]
+    assert (r["status"], r["phase"]) == ("error", "setup") and "host did not start" in r["error"]
+    assert r["flags"] == ["RETRY x1: something"]
+
+
+def test_record_call_failure_then_clean_teardown(monkeypatch):
+    run = _run_reports(monkeypatch, _Rep("setup", "passed"), _Rep("call", "failed", "E assert 1 == 2"),
+                       _Rep("teardown", "passed"))
+    assert [(r["status"], r["phase"]) for r in run.results] == [("failed", "call")]
+    assert run.results[0]["duration"] == 1.5
+
+
+def test_record_teardown_failure_after_a_pass_is_an_error(monkeypatch):
+    run = _run_reports(monkeypatch, _Rep("setup", "passed"), _Rep("call", "passed"),
+                       _Rep("teardown", "failed", "E leftover test host killed"))
+    assert [(r["status"], r["phase"]) for r in run.results] == [("error", "teardown")]
+    assert "leftover" in run.results[0]["error"]
+
+
+def test_record_call_failure_keeps_its_error_over_a_teardown_failure(monkeypatch):
+    run = _run_reports(monkeypatch, _Rep("setup", "passed"), _Rep("call", "failed", "E first"),
+                       _Rep("teardown", "failed", "E second"))
+    assert [(r["status"], r["phase"]) for r in run.results] == [("failed", "call")]
+    assert "first" in run.results[0]["error"]
+
+
+def test_record_pass_and_xfail(monkeypatch):
+    run = _run_reports(monkeypatch, _Rep("setup", "passed"), _Rep("call", "passed"), _Rep("teardown", "passed"))
+    assert run.results[0]["status"] == "passed"
+    run = _run_reports(monkeypatch, _Rep("setup", "passed"), _Rep("call", "skipped", wasxfail="PRODUCT BUG: x"),
+                       _Rep("teardown", "passed"))
+    assert (run.results[0]["status"], run.results[0]["reason"]) == ("xfail", "PRODUCT BUG: x")
+
+
+# ---------------------------------------------------------------- sandbox matching, footer without a list
+
+def test_sandbox_match_needs_a_separator(tmp_path):
+    wd = tmp_path / "test_x"
+    assert hosts._is_in_sandbox(f'sunshine.exe "{wd / "atlas-test" / "sunshine.conf"}"', wd)
+    assert not hosts._is_in_sandbox(f'sunshine.exe "{tmp_path / "test_x-rerun" / "a" / "sunshine.conf"}"', wd)
+    assert not hosts._is_in_sandbox(None, wd)
+
+
+def test_footer_check_without_a_list_fails_clearly():
+    items = [i for i in _menu_tree(271) if i["type"] != "ListView"]
+    with pytest.raises(AssertionError, match="no ListView"):
         helpers.assert_quick_menu_footer_clear(_TreeOnly(items), 0)

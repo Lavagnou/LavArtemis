@@ -3,7 +3,6 @@
 before any request, with the test build's message; an art:// pairing link to a real address (command line, the
 CLI pairing path) is refused too, at once and with the same message.  The client's log shows the refusals and not a
 single request (no test host runs here: no request may leave at all)."""
-import re
 import time
 
 import helpers
@@ -47,9 +46,6 @@ def test_guards_real_addresses_refused(bench):
     assert elapsed < 8, elapsed
     log = c.log_text()
     assert not request_lines(log), request_lines(log)
-    # Refused at the first layer (the pairing command adds the PC through the same guard) or, failing that, by
-    # NvHTTP before any request
-    assert ('manual add of "192.168.1.231:47989" refused' in log or
-            re.search(r'Test build: request "\w+" to "192\.168\.1\.231:47989" refused', log)), \
-        "no refusal logged for the link"
+    # Refused at the first layer: the pairing command adds the PC through the same guard as Mes PC
+    assert 'manual add of "192.168.1.231:47989" refused' in log, "no manual-add refusal logged for the link"
     assert c.state()["computers"] == []

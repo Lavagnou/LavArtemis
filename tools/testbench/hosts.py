@@ -143,6 +143,9 @@ def write_pc_files(pc, fixture, pcdir):
 # ------------------------------------------------------------------ processes
 
 _k32 = ctypes.windll.kernel32 if os.name == "nt" else None
+# A kernel32 whose errors ctypes keeps (ctypes.get_last_error): GetLastError() read after a ctypes call is not
+# reliable
+_k32e = ctypes.WinDLL("kernel32", use_last_error=True) if os.name == "nt" else None
 _PROCESS_QUERY_LIMITED = 0x1000
 
 
@@ -177,14 +180,17 @@ def pid_alive(pid):
         return False
     if _image_path(pid) is not None:
         return True
-    _k32.OpenProcess.restype = ctypes.c_void_p
-    h = _k32.OpenProcess(0x00100000, False, int(pid))  # SYNCHRONIZE
+    _k32e.OpenProcess.restype = ctypes.c_void_p
+    _k32e.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
+    _k32e.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    _k32e.CloseHandle.argtypes = [ctypes.c_void_p]
+    h = _k32e.OpenProcess(0x00100000, False, int(pid))  # SYNCHRONIZE
     if h:
         try:
-            return _k32.WaitForSingleObject(ctypes.c_void_p(h), 0) == 0x102  # WAIT_TIMEOUT: still running
+            return _k32e.WaitForSingleObject(h, 0) == 0x102  # WAIT_TIMEOUT: still running
         finally:
-            _k32.CloseHandle(ctypes.c_void_p(h))
-    return ctypes.get_last_error() == 5 or _k32.GetLastError() == 5  # ERROR_ACCESS_DENIED: it exists
+            _k32e.CloseHandle(h)
+    return ctypes.get_last_error() == 5  # ERROR_ACCESS_DENIED: it exists
 
 
 def _is_test_sunshine(pid):
@@ -209,9 +215,7 @@ def _kill(pid):
         PROBLEMS.append(f"recorded pid {pid} is alive but is not {sunshine_exe()} ({_image_path(pid)}): not killed")
 
 
-def leftover_instances(workdir):
-    """Test sunshine processes still running on this workdir's sandbox, found by their command line (the sandbox
-    conf path), whatever the PID file says.  [(pid, command line)]"""
+def _cim_sunshine():
     script = ("Get-CimInstance Win32_Process -Filter \"Name='sunshine.exe'\" | "
               "Select-Object ProcessId,ExecutablePath,CommandLine | ConvertTo-Json -Compress")
     r = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True, timeout=60)
@@ -219,14 +223,25 @@ def leftover_instances(workdir):
         rows = json.loads(r.stdout or "[]")
     except ValueError:
         return []
-    if isinstance(rows, dict):
-        rows = [rows]
-    marker = os.path.normcase(str(pathlib.Path(workdir)))
+    return [rows] if isinstance(rows, dict) else rows
+
+
+def _is_in_sandbox(cmd, workdir):
+    """The command line names a file inside this workdir: the workdir path followed by a separator (a bare prefix
+    would also match a sibling such as <workdir>-rerun)."""
+    marker = os.path.normcase(str(pathlib.Path(workdir))).rstrip(B + "/")
+    low = os.path.normcase(cmd or "")
+    return (marker + B) in low or (marker + "/") in low
+
+
+def leftover_instances(workdir):
+    """Test sunshine processes still running on this workdir's sandbox, found by their command line (the sandbox
+    conf path), whatever the PID file says.  [(pid, command line)]"""
     out = []
-    for row in rows:
+    for row in _cim_sunshine():
         exe, cmd = row.get("ExecutablePath"), row.get("CommandLine") or ""
         # the sandbox's conf path in the command line is ours alone; the exe path must match when readable
-        if (exe is None or _same_exe(exe, sunshine_exe())) and marker in os.path.normcase(cmd):
+        if (exe is None or _same_exe(exe, sunshine_exe())) and _is_in_sandbox(cmd, workdir):
             out.append((row["ProcessId"], cmd))
     return out
 
@@ -238,8 +253,14 @@ def sweep(workdir):
     for pid, _cmd in found:
         if _is_test_sunshine(pid):
             _kill(pid)
-        else:  # image path unreadable: the command line (this run's sandbox) identifies it
-            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+            continue
+        # image path unreadable: only its command line identifies it, so read it again right before the kill (the
+        # PID may have been reused since), and kill that process alone (no /T: its tree is not identified)
+        again = next((r for r in _cim_sunshine() if r.get("ProcessId") == pid), None)
+        if again and _is_in_sandbox(again.get("CommandLine"), workdir):
+            subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
+        else:
+            PROBLEMS.append(f"pid {pid} no longer runs this sandbox's sunshine: not killed")
     return found
 
 

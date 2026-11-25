@@ -19,9 +19,32 @@ def _pytest(args, attempt):
     return subprocess.run(cmd, cwd=str(here), env=env).returncode
 
 
+EXIT_OK, EXIT_FAILED, EXIT_FLAKY = 0, 1, 3
+
+
+def verdict(results, pytest_code):
+    """(exit code, summary lines) of a run.  0: every scenario passed on its first attempt (xfail counts as
+    expected); 1: a scenario still fails (after its rerun, if any), or pytest failed without a scenario result
+    (collection error, interruption); 3 (FLAKY): nothing fails any more but a scenario passed only on its rerun.
+    A flake fails the release gate too: it must be looked at, never shipped over."""
+    import report
+    final = report.outcome(results)
+    failed = sorted(rid for rid, (status, _f) in final.items() if status in report.BAD)
+    flaky = sorted(rid for rid, (_s, flake) in final.items() if flake)
+    lines = [f"FAIL: {rid}" for rid in failed] + [f"FLAKE: {rid}" for rid in flaky]
+    if failed:
+        return EXIT_FAILED, lines
+    if pytest_code not in (0, 1) or (pytest_code == 1 and not results):
+        return EXIT_FAILED, lines + [f"FAIL: pytest exit code {pytest_code} without a failed scenario"]
+    if flaky:
+        return EXIT_FLAKY, lines
+    return EXIT_OK, lines
+
+
 def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
     """The desktop suite; with rerun_failed_once, the failed scenarios run once more into the same report (attempt
-    2): the exit status is the rerun's, and a scenario that passes only on the rerun is reported as a FLAKE."""
+    2).  Exit code: see verdict() (0 all passed first time, 1 failure, 3 flaky).  A summary block (FAIL / FLAKE
+    lines) is printed at the end, besides report.md."""
     import datetime
     import report
     here = pathlib.Path(__file__).resolve().parent
@@ -29,14 +52,18 @@ def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
     report_dir = pathlib.Path(report_dir) if report_dir else here / "testbench-reports" / stamp
     args = [str(here / "scenarios"), "--report-dir", str(report_dir)] + (["-k", keyword] if keyword else [])
     code = _pytest(args + list(extra), 1)
-    if code == 0 or not rerun_failed_once:
-        return code
     results, _started = report.load(report_dir)
-    failed = report.failed_ids(results)
-    if not failed:
-        return code  # nothing to rerun (collection error, interrupted run...): keep the failure
-    print(f"testbench: rerunning {len(failed)} failed scenario(s) once: {failed}", flush=True)
-    return _pytest(failed + ["--report-dir", str(report_dir)] + list(extra), 2)
+    if code != 0 and rerun_failed_once:
+        failed = report.failed_ids(results)
+        if failed:
+            print(f"testbench: rerunning {len(failed)} failed scenario(s) once: {failed}", flush=True)
+            code = _pytest(failed + ["--report-dir", str(report_dir)] + list(extra), 2)
+            results, _started = report.load(report_dir)
+    exit_code, lines = verdict(results, code)
+    name = {EXIT_OK: "PASSED", EXIT_FAILED: "FAILED", EXIT_FLAKY: "FLAKY"}[exit_code]
+    print("", "=== testbench summary ===", *lines, f"RESULT: {name} (exit {exit_code}), report {report_dir}",
+          sep="\n", flush=True)
+    return exit_code
 
 
 def main(argv=None):

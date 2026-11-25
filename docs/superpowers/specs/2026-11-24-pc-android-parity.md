@@ -88,6 +88,7 @@ s'ajoute ici comme écart.
 | Avertissements de configuration | Retenir le zoom |
 | Mise à jour : pastille « Mise à jour » dans l'en-tête (pas de dialogue au démarrage) | Mise à jour : dialogue au démarrage |
 | Pas de stream vers son propre PC (« Impossible de streamer %1 depuis lui-même… », `NvComputer::isThisPc`, depuis 0.7.0-dev.7) : un appareil Android n'est jamais son propre hôte | — |
+| Mes PC, ajout par adresse : toast « %1 a été oublié pendant l'ajout : ajoute-le à nouveau » quand le PC qui a répondu n'est plus dans la liste (oublié pendant l'ajout, `HostsView.addComplete`, 2026-11-25) | — : `HostsActivity.onAdded()` reçoit le PC de l'ajout bloquant lui-même, ce cas n'existe pas |
 
 Les textes qui nomment l'appareil restent différents exprès : « suit le mode clair ou sombre de Windows » /
 « de l'appareil », « Ctrl+Alt+Maj+U le coupe en jeu » / « le menu en jeu le coupe ».

@@ -61,37 +61,44 @@ def _run(config):
     return _RUN["run"]
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item, call):
-    """One result per scenario and attempt: the call's outcome, made worse by a failing setup or teardown (a
-    teardown failure after a pass is an "error"), with the bench's flags."""
-    outcome = yield
-    rep = outcome.get_result()
-    if not _is_scenario(item):
-        return
-    run = _run(item.config)
-    r = run.current.get(item.nodeid)
+def record(run, nodeid, name, doc, rep):
+    """Fold one pytest report (setup, call, teardown) into the scenario's row for this attempt.  The row is opened
+    by the first report and closed only by the teardown report, which pytest always sends: a setup failure is the
+    row's outcome ("error", phase setup), a teardown failure after a pass makes it an "error", and a test never
+    gets a second row."""
+    r = run.current.get(nodeid)
     if r is None:
-        r = run.current[item.nodeid] = {
-            "id": item.nodeid, "name": item.name, "attempt": ATTEMPT, "status": "passed", "phase": "call",
-            "duration": 0.0, "reason": "", "error": "", "flags": [], "captures": f"captures/{_bench_name(item.name)}",
-            "doc": (item.function.__doc__ or "").strip() if hasattr(item, "function") else ""}
+        r = run.current[nodeid] = {
+            "id": nodeid, "name": name, "attempt": ATTEMPT, "status": "passed", "phase": "call", "duration": 0.0,
+            "reason": "", "error": "", "flags": [], "captures": f"captures/{_bench_name(name)}", "doc": doc}
     r["duration"] = round(r["duration"] + rep.duration, 1)
     xfail = getattr(rep, "wasxfail", None)
-    if rep.when == "call" or rep.failed or rep.skipped:
-        if rep.failed and rep.when == "teardown" and r["status"] in ("passed", "xfail"):
-            r["status"], r["phase"] = "error", "teardown"
+    if rep.when == "setup":
+        if rep.failed:
+            r["status"], r["phase"], r["error"] = "error", "setup", str(rep.longrepr)[-3000:]
+        elif rep.skipped:
+            r["status"] = "xfail" if xfail is not None else "skipped"
+            r["phase"], r["reason"] = "setup", xfail or str(rep.longrepr)[-300:]
+    elif rep.when == "call":
+        r["status"] = ("xfail" if xfail is not None and rep.skipped else
+                       "xpass" if xfail is not None else rep.outcome)
+        r["phase"], r["reason"] = "call", xfail or ""
+        if rep.failed:
             r["error"] = str(rep.longrepr)[-3000:]
-        elif rep.when != "teardown":
-            r["status"] = "xfail" if xfail is not None and rep.skipped else \
-                          "xpass" if xfail is not None else rep.outcome
-            r["phase"] = rep.when
-            r["reason"] = xfail or ""
-            if rep.failed:
-                r["error"] = str(rep.longrepr)[-3000:]
-    if rep.when == "teardown" or (rep.when == "setup" and (rep.failed or rep.skipped)):
-        r["flags"] = run.flags.pop(item.nodeid, [])
-        run.results.append(run.current.pop(item.nodeid))
+    else:  # teardown: always sent, closes the row
+        if rep.failed and r["status"] in ("passed", "xfail", "skipped"):
+            r["status"], r["phase"], r["error"] = "error", "teardown", str(rep.longrepr)[-3000:]
+        r["flags"] = run.flags.pop(nodeid, [])
+        run.results.append(run.current.pop(nodeid))
+    return r
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    if _is_scenario(item):
+        doc = (item.function.__doc__ or "").strip() if hasattr(item, "function") else ""
+        record(_run(item.config), item.nodeid, item.name, doc, outcome.get_result())
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -293,6 +300,9 @@ class Bench:
             if clientmod._is_our_exe(pid):
                 clientmod.subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
                 errors.append(f"leftover test client killed: pid {pid}")
+            else:  # another build's, or unreadable: never killed, but the run is not clean
+                errors.append(f"a {clientmod.EXE_NAME} that is not this test build (or unreadable) runs: pid {pid} "
+                              f"({clientmod._image_path(pid)})")
         errors += hosts.PROBLEMS
         hosts.PROBLEMS.clear()
         logs = self.run.root / "logs" / self.name
@@ -348,6 +358,7 @@ def bench(request):
         logs = run.root / "logs" / name
         logs.mkdir(parents=True, exist_ok=True)
         (logs / "foreground.txt").write_text(chr(10).join(fg), encoding="utf-8")
-        run.flags[request.node.nodeid] = b.flags + b.watch.flags()
+        end_flags = [] if after else ["FOREGROUND end of scenario: no window (hwnd 0)"]
+        run.flags[request.node.nodeid] = b.flags + b.watch.flags() + end_flags
     assert not b.watch.ours(), f"a test window took the foreground: {b.watch.ours()[:3]}"
     assert not errors, "; ".join(errors)

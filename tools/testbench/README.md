@@ -32,8 +32,19 @@ l'organisation, `client-N-args.log` pour un lancement avec un lien —, notes et
 La colonne *Note* de `report.md` signale toute **reprise** (`RETRY` : une lecture d'image refaite, un clic qui attendait
 la fermeture d'une popup, un PIN redonné à l'hôte qui ne l'attendait pas encore) et tout passage du premier plan à
 **aucune fenêtre** ou à une **boîte de plantage** (WerFault). `--rerun-failed-once` rejoue une fois chaque scénario
-en échec, dans le même rapport (tentative 2, `captures/` et `logs/<scénario>-rerun`) : le code de sortie est celui du
-rejeu, et un scénario qui ne passe qu'au rejeu est marqué **FLAKE**, jamais masqué.
+en échec, dans le même rapport (tentative 2, `captures/` et `logs/<scénario>-rerun`) ; un scénario qui ne passe
+qu'au rejeu est marqué **FLAKE**, jamais masqué.
+
+**Code de sortie de `run`** (la porte de release s'arrête sur tout code non nul et dit lequel) :
+
+| Code | Sens |
+|---|---|
+| 0 | chaque scénario a passé **du premier coup** (un `xfail` attendu compte comme passé) |
+| 1 | un scénario échoue (après son rejeu s'il y en a eu un), ou pytest a échoué sans résultat de scénario (collecte, interruption) |
+| 3 | **FLAKY** : plus rien n'échoue, mais un scénario n'a passé qu'au rejeu : une instabilité à regarder, pas à livrer |
+
+En fin de run, un bloc récapitulatif sur la sortie standard liste `FAIL: <scénario>` / `FLAKE: <scénario>` et
+`RESULT: PASSED|FAILED|FLAKY (exit n)`, en plus de `report.md`.
 
 Aucun bug produit connu n'est ouvert : chaque scénario doit passer. Un bug connu non corrigé passerait son scénario
 en *expected failure* (`pytest.xfail`) sur sa **signature exacte** seulement, avec sa cause ; corrigé, le `xfail` part.
@@ -58,14 +69,17 @@ Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce q
 - **Processus** : seuls ceux que le banc a lancés sont arrêtés (chemin de l'exe vérifié), à la fin de chaque
   scénario, échec compris ; un run interrompu est nettoyé au suivant (fichiers de PID).
 - **Premier plan** : les fenêtres sont visibles mais ne prennent jamais le focus. Un crochet
-  `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` (hors contexte, sur un thread avec sa boucle de messages) voit **chaque**
-  changement de premier plan : un scénario échoue si l'un d'eux va à une fenêtre du client ou d'un hôte de test
-  (reconnue au chemin de l'exe, quel que soit le lancement). On peut continuer à travailler pendant un run ; un
-  changement vers une de ses propres fenêtres est noté dans `logs/<scénario>/foreground.txt`, pas compté contre le
-  client ; un passage à aucune fenêtre ou à WerFault est signalé dans `report.md`.
+  `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` (hors contexte, sur un thread avec sa boucle de messages) reçoit les
+  changements de premier plan que Windows annonce (un passage à « aucune fenêtre » n'en produit pas toujours un : le
+  premier plan est donc aussi relu à la fin du scénario) : un scénario échoue si l'un d'eux va à une fenêtre du client
+  ou d'un hôte de test (reconnue au chemin de l'exe, quel que soit le lancement). On peut continuer à travailler
+  pendant un run ; un changement vers une de ses propres fenêtres est noté dans `logs/<scénario>/foreground.txt`, pas
+  compté contre le client ; aucune fenêtre au premier plan (pendant ou à la fin) ou WerFault est signalé dans
+  `report.md`.
 - **Restes** : à la fin de chaque scénario, tout `sunshine.exe` de test dont la ligne de commande vise le dossier du
-  scénario et tout `LavArtemisTest.exe` encore lancés sont tués **et** font échouer le scénario (cause à chercher) ;
-  un PID enregistré vivant mais méconnaissable n'est jamais tué et fait aussi échouer. Le client meurt pendant le
+  scénario et tout `LavArtemisTest.exe` de ce build encore lancés sont tués **et** font échouer le scénario (cause à
+  chercher) ; un `LavArtemisTest.exe` d'un autre build ou illisible, ou un PID enregistré vivant mais méconnaissable,
+  n'est jamais tué et fait aussi échouer. Le client meurt pendant le
   scénario : échec, avec son code de sortie. Deux clients à la fois : refusé au lancement.
 
 ## Scénarios (`scenarios/`)
