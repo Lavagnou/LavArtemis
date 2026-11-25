@@ -23,9 +23,9 @@
 
 .PARAMETER SkipTests
     Skip the desktop testbench that normally runs before any build (a visible warning is printed). The
-    gate (python tools	estbench	estbench.py run --suite desktop --rerun-failed-once) stops the release on
+    gate (python tools\testbench\testbench.py run --suite desktop --rerun-failed-once) stops the release on
     exit 1 (a scenario fails), 3 (FLAKY: one passed only on its rerun), 4 (display off: it needs the display
-    on, the script does not turn it on) or any other code (runner error). Report: tools	estbench	estbench-reports\.
+    on, the script does not turn it on) or any other code (runner error). Report: tools\testbench\testbench-reports\.
 
 .PARAMETER NoPublish
     Build and collect the files in dist\, but do not tag or publish.
@@ -63,13 +63,13 @@ if (git status --porcelain --untracked-files=no) { throw "LavArtemis has uncommi
 if ($SkipTests) {
     Write-Host "WARNING: -SkipTests: the desktop testbench did NOT run for this release." -ForegroundColor Yellow
 } else {
-    Write-Host "Testbench: python tools	estbench	estbench.py run --suite desktop --rerun-failed-once" -ForegroundColor Cyan
-    $reports = Join-Path $repo "tools	estbench	estbench-reports"
+    Write-Host "Testbench: python tools\testbench\testbench.py run --suite desktop --rerun-failed-once" -ForegroundColor Cyan
+    $reports = Join-Path $repo "tools\testbench\testbench-reports"
     $prevEncoding = [Console]::OutputEncoding
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     $env:PYTHONIOENCODING = "utf-8"
     try {
-        python tools	estbench	estbench.py run --suite desktop --rerun-failed-once
+        python tools\testbench\testbench.py run --suite desktop --rerun-failed-once
         $testCode = $LASTEXITCODE
     } finally {
         [Console]::OutputEncoding = $prevEncoding
