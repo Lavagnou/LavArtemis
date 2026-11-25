@@ -27,6 +27,7 @@ import report  # noqa: E402
 
 DEFAULT_REPORTS = HERE / "testbench-reports"
 SCENARIOS = HERE / "scenarios"
+SELFTEST = HERE / "selftest"  # LAV_TESTBENCH_SELFTEST: the release gate's own check (testbench.py)
 ATTEMPT = int(os.environ.get("LAV_TESTBENCH_ATTEMPT", "1"))
 
 
@@ -35,7 +36,8 @@ def pytest_addoption(parser):
 
 
 def _is_scenario(item):
-    return SCENARIOS in pathlib.Path(str(item.fspath)).resolve().parents
+    parents = pathlib.Path(str(item.fspath)).resolve().parents
+    return SCENARIOS in parents or SELFTEST in parents
 
 
 class Run:

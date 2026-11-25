@@ -21,6 +21,12 @@
 .PARAMETER SkipAndroid / SkipWindows
     Reuse what an earlier run built.
 
+.PARAMETER SkipTests
+    Skip the desktop testbench that normally runs before any build (a visible warning is printed). The
+    gate (python tools	estbench	estbench.py run --suite desktop --rerun-failed-once) stops the release on
+    exit 1 (a scenario fails), 3 (FLAKY: one passed only on its rerun), 4 (display off: it needs the display
+    on, the script does not turn it on) or any other code (runner error). Report: tools	estbench	estbench-reports\.
+
 .PARAMETER NoPublish
     Build and collect the files in dist\, but do not tag or publish.
 #>
@@ -28,6 +34,7 @@ param(
     [Parameter(Mandatory = $true)][string]$NotesFile,
     [switch]$SkipAndroid,
     [switch]$SkipWindows,
+    [switch]$SkipTests,
     [switch]$NoPublish
 )
 $ErrorActionPreference = "Stop"
@@ -50,6 +57,35 @@ if ($pinned -ne $qtHead) {
     throw "LavArtemis-Qt is on $qtHead but desktop/ pins ${pinned}: check out the pinned commit first."
 }
 if (git status --porcelain --untracked-files=no) { throw "LavArtemis has uncommitted changes." }
+
+# --- Tests: the desktop testbench, before anything is built -------------------------------------
+# It builds the test client from the pinned LavArtemis-Qt clone (checked above) if it is stale.
+if ($SkipTests) {
+    Write-Host "WARNING: -SkipTests: the desktop testbench did NOT run for this release." -ForegroundColor Yellow
+} else {
+    Write-Host "Testbench: python tools	estbench	estbench.py run --suite desktop --rerun-failed-once" -ForegroundColor Cyan
+    $reports = Join-Path $repo "tools	estbench	estbench-reports"
+    $prevEncoding = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $env:PYTHONIOENCODING = "utf-8"
+    try {
+        python tools	estbench	estbench.py run --suite desktop --rerun-failed-once
+        $testCode = $LASTEXITCODE
+    } finally {
+        [Console]::OutputEncoding = $prevEncoding
+        Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue
+    }
+    if ($testCode -ne 0) {
+        $why = switch ($testCode) {
+            1 { "a scenario fails" }
+            3 { "FLAKY: a scenario passed only on its rerun" }
+            4 { "display off: the testbench needs the display on" }
+            default { "runner error (exit code $testCode)" }
+        }
+        throw "Testbench stopped the release (exit $testCode, $why). Report: $reports (newest folder). -SkipTests skips the gate."
+    }
+    Write-Host "Testbench: all scenarios passed." -ForegroundColor Green
+}
 
 # --- Android ---------------------------------------------------------------------------------
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"

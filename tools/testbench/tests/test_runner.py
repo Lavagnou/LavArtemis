@@ -17,6 +17,13 @@ import report  # noqa: E402
 import testbench  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _display_on(monkeypatch):
+    """run_suite refuses with the display off (exit 4): these tests must not depend on the real display."""
+    import display
+    monkeypatch.setattr(display, "display_is_off", lambda: False)
+
+
 def res(name, status, attempt=1, flags=(), error=""):
     return {"id": f"scenarios/test_x.py::{name}", "name": name, "attempt": attempt, "status": status,
             "phase": "call", "duration": 1.0, "reason": "", "error": error, "flags": list(flags), "captures": ""}
@@ -311,3 +318,46 @@ def test_footer_check_without_a_list_fails_clearly():
     items = [i for i in _menu_tree(271) if i["type"] != "ListView"]
     with pytest.raises(AssertionError, match="no ListView"):
         helpers.assert_quick_menu_footer_clear(_TreeOnly(items), 0)
+
+
+# ---------------------------------------------------------------- gate: exit codes, display, selftest
+
+def test_verdict_skipped_scenario_fails_the_gate():
+    code, lines = testbench.verdict([res("a", "passed"), res("b", "skipped")], 0)
+    assert code == 1 and lines == ["FAIL: scenarios/test_x.py::b"]
+
+
+def test_verdict_nonzero_pytest_code_without_failed_row_is_1():
+    for pytest_code in (1, 2, 3, 4, 5):
+        code, lines = testbench.verdict([res("a", "passed")], pytest_code)
+        assert code == 1 and "pytest exit code" in lines[-1]
+    assert testbench.verdict([res("a", "xfail")], 0)[0] == 0
+
+
+def test_display_off_refuses_before_anything_runs(monkeypatch, tmp_path, capsys):
+    import display
+    monkeypatch.delenv("LAV_TESTBENCH_SELFTEST", raising=False)
+    monkeypatch.setattr(display, "display_is_off", lambda: True)
+    monkeypatch.setattr(testbench, "_pytest", lambda *a: pytest.fail("pytest must not start"))
+    assert testbench.run_suite(report_dir=tmp_path) == testbench.EXIT_DISPLAY_OFF == 4
+    assert "écran éteint" in capsys.readouterr().err
+    assert not (tmp_path / "report.json").exists()
+
+
+def test_display_unknown_or_on_is_not_refused():
+    import display
+    assert display.OFF == 0 and display.ON == 1
+
+
+@pytest.mark.parametrize("mode,code", [("pass", 0), ("fail", 1), ("flaky", 3)])
+def test_selftest_hook_drives_the_gate_without_gui(mode, code, monkeypatch, tmp_path, capsys):
+    import display
+    monkeypatch.setenv("LAV_TESTBENCH_SELFTEST", mode)
+    monkeypatch.setattr(display, "display_is_off", lambda: pytest.fail("selftest must not check the display"))
+    assert testbench.run_suite(report_dir=tmp_path / "r", rerun_failed_once=True) == code
+    assert f"(exit {code})" in capsys.readouterr().out
+
+
+def test_selftest_rejects_unknown_mode(monkeypatch, tmp_path):
+    monkeypatch.setenv("LAV_TESTBENCH_SELFTEST", "bogus")
+    assert testbench.run_suite(report_dir=tmp_path) == 1

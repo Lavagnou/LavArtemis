@@ -19,22 +19,25 @@ def _pytest(args, attempt):
     return subprocess.run(cmd, cwd=str(here), env=env).returncode
 
 
-EXIT_OK, EXIT_FAILED, EXIT_FLAKY = 0, 1, 3
+EXIT_OK, EXIT_FAILED, EXIT_FLAKY, EXIT_DISPLAY_OFF = 0, 1, 3, 4
+SELFTEST_MODES = ("pass", "fail", "flaky")
 
 
 def verdict(results, pytest_code):
     """(exit code, summary lines) of a run.  0: every scenario passed on its first attempt (xfail counts as
-    expected); 1: a scenario still fails (after its rerun, if any), or pytest failed without a scenario result
-    (collection error, interruption); 3 (FLAKY): nothing fails any more but a scenario passed only on its rerun.
+    expected); 1: a scenario still fails or was skipped (after its rerun, if any), or pytest ended with a code
+    other than 0 / 1 or with 1 and no scenario result (collection error, interruption, usage error), or with a
+    non-zero code while no scenario failed (nothing explains it); 3 (FLAKY): nothing fails any more but a scenario passed only on its rerun.
     A flake fails the release gate too: it must be looked at, never shipped over."""
     import report
     final = report.outcome(results)
-    failed = sorted(rid for rid, (status, _f) in final.items() if status in report.BAD)
+    # a skipped scenario proved nothing: it fails the gate like a failed one
+    failed = sorted(rid for rid, (status, _f) in final.items() if status in report.BAD + ("skipped",))
     flaky = sorted(rid for rid, (_s, flake) in final.items() if flake)
     lines = [f"FAIL: {rid}" for rid in failed] + [f"FLAKE: {rid}" for rid in flaky]
     if failed:
         return EXIT_FAILED, lines
-    if pytest_code not in (0, 1) or (pytest_code == 1 and not results):
+    if pytest_code != 0:
         return EXIT_FAILED, lines + [f"FAIL: pytest exit code {pytest_code} without a failed scenario"]
     if flaky:
         return EXIT_FLAKY, lines
@@ -43,14 +46,27 @@ def verdict(results, pytest_code):
 
 def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
     """The desktop suite; with rerun_failed_once, the failed scenarios run once more into the same report (attempt
-    2).  Exit code: see verdict() (0 all passed first time, 1 failure, 3 flaky).  A summary block (FAIL / FLAKE
+    2).  Exit code: see verdict() (0 all passed first time, 1 failure, 3 flaky), 4 = display off (nothing ran).  A summary block (FAIL / FLAKE
     lines) is printed at the end, besides report.md."""
     import datetime
     import report
     here = pathlib.Path(__file__).resolve().parent
+    selftest = os.environ.get("LAV_TESTBENCH_SELFTEST")
+    if selftest and selftest not in SELFTEST_MODES:
+        print(f"testbench: LAV_TESTBENCH_SELFTEST must be one of {SELFTEST_MODES}, not {selftest!r}", file=sys.stderr)
+        return EXIT_FAILED
+    if selftest:
+        print(f"testbench: SELFTEST {selftest} (built-in scenario, no host, no client, no display check)", flush=True)
+    else:
+        import display
+        if display.display_is_off():
+            print("testbench: écran éteint : le banc de test a besoin de l'écran allumé "
+                  "(Qt ne met plus les fenêtres en page écran éteint). Rallumer l'écran et relancer.",
+                  file=sys.stderr, flush=True)
+            return EXIT_DISPLAY_OFF
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     report_dir = pathlib.Path(report_dir) if report_dir else here / "testbench-reports" / stamp
-    args = [str(here / "scenarios"), "--report-dir", str(report_dir)] + (["-k", keyword] if keyword else [])
+    args = [str(here / ("selftest" if selftest else "scenarios")), "--report-dir", str(report_dir)] + (["-k", keyword] if keyword else [])
     code = _pytest(args + list(extra), 1)
     results, _started = report.load(report_dir)
     if code != 0 and rerun_failed_once:
