@@ -251,18 +251,18 @@ class Bench:
         hosts.stop(self.hosts[fixture], self.workdir)
 
     # -- client
-    def start_client(self, reset=True, args=None):
+    def start_client(self, reset=True, args=None, env=None):
         """The client, from a wiped organisation unless reset=False.  A client still running is stopped first:
-        never two clients on the command pipe."""
+        never two clients on the command pipe.  env: extra environment (LAV_TEST_TOUCHSCREEN=1)."""
         if self.client is not None and self.client.proc is not None:
             self.client.stop()
-        self.client = clientmod.Client.start(self.workdir, reset=reset, build=True, args=args)
+        self.client = clientmod.Client.start(self.workdir, reset=reset, build=True, args=args, env=env)
         self.client.wait_idle(timeout=30)
         return self.client
 
-    def restart_client(self, args=None):
+    def restart_client(self, args=None, env=None):
         """Quit and relaunch the client, settings kept (no reset); args: command-line arguments (an art:// link)."""
-        return self.start_client(reset=False, args=args)
+        return self.start_client(reset=False, args=args, env=env)
 
     # -- captures
     def shot(self, label, window=0):

@@ -14,6 +14,10 @@ S7 server commands: none on the host -> « Aucune commande de serveur » and no 
    run on the host.
 S8 shortcuts in the stream: performance overlay in French, microphone mute, zoom.
 S9 the zoom of a stream does not leak into the next one.
+S10 « Retenir le mode tactile choisi en jeu » (fake touchscreen, LAV_TEST_TOUCHSCREEN=1) on a stream launched from the
+   command line: the touch mode chosen in the menu is kept, the command line's own overrides (--bitrate) are not.
+S11 the shortcuts that end a stream: Ctrl+Alt+Shift+Q = « Déconnecter » (the app keeps running on the PC, the client
+   goes home), Ctrl+Alt+Shift+E = « Quitter la session » (the app is quit on the PC, the client goes home, alive).
 
 Fake PC capabilities used (LavApollo test host mode): `request` events (launch / resume / cancel and their
 parameters), /api/test/display, /api/test/fail, /api/test/terminate, /api/test/clipboard, server_cmd in pc.json."""
@@ -494,3 +498,63 @@ def test_s9_zoom_does_not_leak_into_the_next_stream(bench):
     helpers.launch(c, "Reprendre")  # the app still runs on the PC: join it again
     zoom = c.state()["session"]["zoom"]
     assert abs(zoom - 1.0) < 0.01, f"the new stream starts zoomed in ({zoom}x)"
+
+
+# ---------------------------------------------------------------- S10: touch mode kept, command line not saved
+
+TOUCH = {"LAV_TEST_TOUCHSCREEN": "1"}
+
+
+def test_s10_touch_mode_kept_command_line_not_saved(bench):
+    atlas, = bench.up("atlas-test")
+    c = bench.start_client(env=TOUCH)
+    helpers.add_and_pair(c, atlas)
+    helpers.wait_apps(c, atlas.name)
+    for key, value in [("width", SIZE[0]), ("height", SIZE[1]), ("fps", FPS),
+                       ("rememberTouchMode", True), ("absoluteTouchMode", True)]:
+        c.call("setting", action="set", key=key, value=value)
+    bitrate = c.call("setting", action="get", key="bitrateKbps")["value"]
+    assert bitrate != 4321
+
+    # A stream from the command line, with an override of its own
+    c = bench.restart_client(args=["stream", atlas.name, "Bureau", "--bitrate", "4321"], env=TOUCH)
+    wait_stream(c, what="the command-line stream")
+    qm = menu_entry(c, "Passer en trackpad")
+    deadline = time.time() + 5
+    while c.call("setting", action="get", key="absoluteTouchMode")["value"] is not False:
+        assert time.time() < deadline, "« Passer en trackpad » with « Retenir » on was not kept"
+        time.sleep(0.2)
+    # Ctrl+Alt+Shift+Q ends it; a command-line stream then exits the client
+    c.wait_for(lambda s: not s.get("quickMenu"), 10)
+    c.call("key", key="Q", modifiers="Ctrl+Alt+Shift", target="stream")
+    deadline = time.time() + 30
+    while c.proc.poll() is None:
+        assert time.time() < deadline, "the command-line client did not exit after its stream"
+        time.sleep(0.3)
+
+    c = bench.restart_client(env=TOUCH)
+    assert c.call("setting", action="get", key="absoluteTouchMode")["value"] is False, "the trackpad mode was lost"
+    kept = c.call("setting", action="get", key="bitrateKbps")["value"]
+    assert kept == bitrate, f"the command line's --bitrate 4321 was saved: {kept} (was {bitrate})"
+
+
+# ---------------------------------------------------------------- S11: Ctrl+Alt+Shift+Q / E
+
+def test_s11_quit_shortcuts(bench):
+    atlas, c = setup(bench)
+
+    # Q: « Déconnecter »: home, the app still runs on the PC (« Reprendre »), nothing quit
+    helpers.launch(c, "Bureau")
+    c.call("key", key="Q", modifiers="Ctrl+Alt+Shift", target="stream")
+    wait_home(c, "after Ctrl+Alt+Shift+Q")
+    assert not requests(atlas, "cancel"), [r["request"] for r in requests(atlas)]
+    helpers.wait_text(c, "Reprendre", timeout=15)
+
+    # E: « Quitter la session »: the app quit on the PC, the client back home and alive (it used to exit)
+    helpers.launch(c, "Reprendre")
+    c.call("key", key="E", modifiers="Ctrl+Alt+Shift", target="stream")
+    wait_home(c, "after Ctrl+Alt+Shift+E")
+    time.sleep(2)
+    alive(c, "after Ctrl+Alt+Shift+E")
+    assert len(requests(atlas, "cancel")) == 1, [r["request"] for r in requests(atlas)]
+    helpers.wait_text(c, "Reprendre", gone=True, timeout=20)

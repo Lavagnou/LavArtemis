@@ -305,9 +305,10 @@ class Client:
         return p.read_text(encoding="utf-8", errors="replace") if p and p.exists() else ""
 
     @classmethod
-    def start(cls, workdir, reset=False, build=True, timeout=40.0, args=None):
+    def start(cls, workdir, reset=False, build=True, timeout=40.0, args=None, env=None):
         """Launch the client.  args: extra command-line arguments (an art:// link, `pair host --pin ...`), passed
-        exactly as a shell or the OS link handler would."""
+        exactly as a shell or the OS link handler would.  env: variables added to the client's environment
+        (LAV_TEST_TOUCHSCREEN=1: a fake touchscreen, see LavArtemis-Qt's systemproperties.cpp)."""
         workdir = pathlib.Path(workdir)
         workdir.mkdir(parents=True, exist_ok=True)
         cls._clear_previous(workdir)  # first: a foreign instance must refuse before any (long) build
@@ -321,7 +322,11 @@ class Client:
         started_at = time.time()
         with open(log, "wb") as logf:
             argv = [str(exe_path())] + ([] if reset else [str(a) for a in (args or [])])  # args after the reset
-            proc = subprocess.Popen(argv, cwd=str(exe_path().parent),
+            child_env = None
+            if env:
+                child_env = dict(os.environ)
+                child_env.update({k: str(v) for k, v in env.items()})
+            proc = subprocess.Popen(argv, cwd=str(exe_path().parent), env=child_env,
                                     stdin=subprocess.DEVNULL, stdout=logf, stderr=logf,
                                     creationflags=0x08000000 | 0x00000200)  # CREATE_NO_WINDOW | NEW_PROCESS_GROUP
         _PROCS.append(proc)
@@ -341,7 +346,7 @@ class Client:
             except ClientError:
                 pass
             c._wait_exit(30)
-            return cls.start(workdir, reset=False, build=False, timeout=timeout, args=args)
+            return cls.start(workdir, reset=False, build=False, timeout=timeout, args=args, env=env)
         return c
 
     @staticmethod
