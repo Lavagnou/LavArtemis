@@ -10,6 +10,7 @@ Windows seulement. Spec : `docs/superpowers/specs/2026-11-24-testbench-design.md
 pip install -r tools\testbench\requirements.txt          # pytest, Pillow (une fois)
 python tools\testbench\testbench.py run                    # toute la suite desktop
 python tools\testbench\testbench.py run -k stream          # un scénario (nom ou mot du nom)
+python tools\testbench\testbench.py run --rerun-failed-once  # porte de release : un échec est rejoué une fois
 python -m pytest tools\testbench\tests -q                  # tests du banc lui-même
 ```
 
@@ -24,10 +25,18 @@ Un build tué faute de mémoire n'est pas relancé : libérer de la mémoire et 
 machine) : `report.md` / `report.json` (résultat de chaque scénario, durée, raison d'un échec attendu, commits de
 LavArtemis, LavApollo et LavArtemis-Qt utilisés, modifications non commitées signalées), `captures/<scénario>/`
 (PNG des fenêtres, celles du stream par PrintWindow), `logs/<scénario>/` (`sunshine.log` et `testhost/*.jsonl`
-de chaque hôte, journal du client, chronologie du premier plan). `--report-dir` choisit un autre dossier.
+de chaque hôte, le journal de **chaque** lancement du client — `client-1-reset.log` pour celui qui efface
+l'organisation, `client-N-args.log` pour un lancement avec un lien —, notes et chronologie du premier plan).
+`--report-dir` choisit un autre dossier.
 
-Un **bug produit connu** fait passer son scénario en *expected failure* (`XFAIL`), reconnu à sa signature et avec
-la cause (`scenarios/bugs.py`) ; une fois corrigé, son entrée et son `xfail` sont retirés : le scénario doit passer.
+La colonne *Note* de `report.md` signale toute **reprise** (`RETRY` : une lecture d'image refaite, un clic qui attendait
+la fermeture d'une popup, un PIN redonné à l'hôte qui ne l'attendait pas encore) et tout passage du premier plan à
+**aucune fenêtre** ou à une **boîte de plantage** (WerFault). `--rerun-failed-once` rejoue une fois chaque scénario
+en échec, dans le même rapport (tentative 2, `captures/` et `logs/<scénario>-rerun`) : le code de sortie est celui du
+rejeu, et un scénario qui ne passe qu'au rejeu est marqué **FLAKE**, jamais masqué.
+
+Aucun bug produit connu n'est ouvert : chaque scénario doit passer. Un bug connu non corrigé passerait son scénario
+en *expected failure* (`pytest.xfail`) sur sa **signature exacte** seulement, avec sa cause ; corrigé, le `xfail` part.
 
 ⚠️ **Écran allumé.** Quand Windows éteint l'écran (inactivité, 15 min ici), Qt Quick ne dessine plus la fenêtre du
 client de test : plus de mise en page (`polish`) : les cartes de l'accueil restent toutes au même coin (vérifié pendant
@@ -48,10 +57,16 @@ Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce q
   pointeur ou le vrai clavier (seules les entrées injectées par le canal atteignent l'hôte), le son, le vrai micro.
 - **Processus** : seuls ceux que le banc a lancés sont arrêtés (chemin de l'exe vérifié), à la fin de chaque
   scénario, échec compris ; un run interrompu est nettoyé au suivant (fichiers de PID).
-- **Premier plan** : les fenêtres sont visibles mais ne prennent jamais le focus. Un chien de garde relève la
-  fenêtre au premier plan toutes les 50 ms : un scénario échoue si elle appartient un instant au client ou à un hôte
-  de test. On peut continuer à travailler pendant un run ; un changement de premier plan vers une de ses propres
-  fenêtres est noté dans `logs/<scénario>/foreground.txt`, pas compté contre le client.
+- **Premier plan** : les fenêtres sont visibles mais ne prennent jamais le focus. Un crochet
+  `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` (hors contexte, sur un thread avec sa boucle de messages) voit **chaque**
+  changement de premier plan : un scénario échoue si l'un d'eux va à une fenêtre du client ou d'un hôte de test
+  (reconnue au chemin de l'exe, quel que soit le lancement). On peut continuer à travailler pendant un run ; un
+  changement vers une de ses propres fenêtres est noté dans `logs/<scénario>/foreground.txt`, pas compté contre le
+  client ; un passage à aucune fenêtre ou à WerFault est signalé dans `report.md`.
+- **Restes** : à la fin de chaque scénario, tout `sunshine.exe` de test dont la ligne de commande vise le dossier du
+  scénario et tout `LavArtemisTest.exe` encore lancés sont tués **et** font échouer le scénario (cause à chercher) ;
+  un PID enregistré vivant mais méconnaissable n'est jamais tué et fait aussi échouer. Le client meurt pendant le
+  scénario : échec, avec son code de sortie. Deux clients à la fois : refusé au lancement.
 
 ## Scénarios (`scenarios/`)
 

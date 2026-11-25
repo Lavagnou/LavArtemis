@@ -89,24 +89,22 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     helpers.wait_any_text(c, ["Tu veux vraiment quitter ?"])
     bench.shot("06-confirm-quit", window=qm)
     helpers.quick_menu_click(c, "Quitter la session", qm)
+    # The client must stay alive all along: an exit or a crash is a failure with its exit code, never a pass
     deadline = time.time() + 30
-    exited = False
-    while time.time() < deadline:
-        if c.proc.poll() is not None:
-            exited = True
-            break
+    st = None
+    while True:
+        code = c.proc.poll()
+        assert code is None, f"the client exited after « Quitter la session » (exit code {code}): it must go home"
         try:
             st = c.state()
-        except clientmod.ClientError:
-            continue
+        except clientmod.ClientError as e:
+            raise AssertionError(f"the command channel broke after « Quitter la session » ({e}); client exit code "
+                                 f"{c.proc.poll()}")
         if not st["session"]["active"] and st["page"] == "HomeView":
             break
+        assert time.time() < deadline, f"the session did not end; state {st}"
         time.sleep(0.3)
-    else:
-        raise AssertionError(f"the session did not end; state {st}")
 
-    # Back on the client's home, not closed (Android does the same)
-    assert not exited, f"« Quitter la session » closed the client (code {c.proc.returncode})"
     comp = helpers.wait_computer(c, atlas.name, lambda x: x["online"] and x["currentGameId"] == 0, timeout=20)
     assert comp["currentGameId"] == 0, comp
     # The home shows it: no session left on screen (no « Reprendre », « En ligne » in the header). The UI follows
@@ -114,3 +112,4 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     helpers.wait_text(c, "Reprendre", gone=True, timeout=3)
     helpers.wait_text(c, "En ligne", timeout=3)
     bench.shot("07-home-after-quit")
+    assert c.proc.poll() is None, f"the client exited at the end (exit code {c.proc.returncode})"

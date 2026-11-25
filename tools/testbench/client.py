@@ -21,6 +21,8 @@ EXE_NAME = "LavArtemisTest.exe"
 QT_SOURCE_SUFFIXES = (".cpp", ".h", ".qml", ".qrc", ".pro", ".pri", ".ui", ".js", ".c", ".hpp")
 
 _PROCS = []  # Popen objects of clients started by this process
+# Retries done by this module (a frame read again after an unreadable capture): the scenario report shows them
+RETRIES = []
 
 try:  # physical pixels for every window rect and capture of this process, set once
     ctypes.windll.user32.SetProcessDPIAware()
@@ -286,14 +288,16 @@ class Client:
         self.proc = proc
         self.workdir = pathlib.Path(workdir) if workdir else None
         self.log_path = None
+        self.started_at = None
 
     # -- lifecycle
     @staticmethod
-    def next_log_path(workdir):
-        n = 1
-        while (pathlib.Path(workdir) / f"client-{n}.log").exists():
-            n += 1
-        return pathlib.Path(workdir) / f"client-{n}.log"
+    def next_log_path(workdir, label=""):
+        """client-<n>[-<label>].log: one file per launch, numbered in launch order (the reset launch is labelled
+        "reset", a launch with arguments "args")."""
+        workdir = pathlib.Path(workdir)
+        n = len(list(workdir.glob("client-*.log"))) + 1
+        return workdir / (f"client-{n}-{label}.log" if label else f"client-{n}.log")
 
     def log_text(self):
         """The client's log so far (its stderr)."""
@@ -313,7 +317,8 @@ class Client:
             raise ClientError(f"{exe_path()} does not exist")
         # The client logs to stderr when it is given one (main.cpp, LOG_TO_FILE only for an unspecified handle):
         # its log lands in the workdir, never in %TEMP%\LavArtemis-*.log next to the real app's logs.
-        log = cls.next_log_path(workdir)
+        log = cls.next_log_path(workdir, "reset" if reset else ("args" if args else ""))
+        started_at = time.time()
         with open(log, "wb") as logf:
             argv = [str(exe_path())] + ([] if reset else [str(a) for a in (args or [])])  # args after the reset
             proc = subprocess.Popen(argv, cwd=str(exe_path().parent),
@@ -323,7 +328,12 @@ class Client:
         (workdir / "client.json").write_text(json.dumps({"pid": proc.pid, "exe": str(exe_path()), "log": str(log)}))
         c = cls(None, proc, workdir)
         c.log_path = log
+        c.started_at = started_at
         c._connect(timeout)
+        others = [pid for pid in tasklist_pids() if pid != proc.pid]
+        if others:  # two clients would both serve the command pipe: never carry on with that
+            c.stop()
+            raise ClientError(f"another {EXE_NAME} is running next to the one just started: {others}")
         if reset:
             # `reset` wipes the "LavArtemis Test" org only (the client refuses any other) and quits: relaunch.
             try:
@@ -445,10 +455,15 @@ class Client:
     def stream_size(self):
         """(width, height, source) of the stream the host encodes.  source "negotiated": state.session's
         negotiated size (after HostDisplayFit and every other adjustment, test build only); "settings": the
-        requested width/height, used only while no stream runs (a frame read with it may be wrong)."""
+        requested width/height, only while no stream runs.  During a stream the negotiated size is the only
+        truth: a stream without it is an error, never a guess from the settings."""
         sess = self.state().get("session") or {}
         if sess.get("width") and sess.get("height"):
             return (int(sess["width"]), int(sess["height"]), "negotiated")
+        if sess.get("streaming"):
+            raise ClientError(f"the stream runs but state.session has no negotiated size ({sess}): a test client "
+                              "built before 1182cfa5 (LavArtemis-Qt)? Frame numbers are never read with the "
+                              "settings' size during a stream")
         try:
             return (int(self.call("setting", action="get", key="width")["value"]),
                     int(self.call("setting", action="get", key="height")["value"]), "settings")
@@ -484,11 +499,14 @@ class Client:
         last = None
         for attempt in range(retries + 1):
             info = self.screenshot(path, "stream", stream_size)
+            if info["stream_size_source"] == "settings":
+                raise ClientError("frame number read with the settings' size: only the negotiated size is trusted")
             try:
                 return frames.read_frame_number(info["path"], info["stream_size"], info["content_rect"])
             except frames.FrameReadError as e:
                 last = frames.FrameReadError(f"{e} (stream size {info['stream_size'][0]}x{info['stream_size'][1]} "
                                              f"from {info['stream_size_source']}, window {info['width']}x"
                                              f"{info['height']}, attempt {attempt + 1}/{retries + 1})")
+                RETRIES.append(f"RETRY frame read: {last}")
                 time.sleep(0.1)
         raise last

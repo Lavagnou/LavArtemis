@@ -2,11 +2,41 @@
 logs <pc> [input|commands|events] | client <cmd> [json] | shot <path> | mark-client-built"""
 import argparse
 import json
+import os
 import pathlib
+import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import hosts  # noqa: E402
+
+
+def _pytest(args, attempt):
+    """pytest in a child process (a second session in the same process would keep the first one's modules)."""
+    here = pathlib.Path(__file__).resolve().parent
+    env = dict(os.environ, LAV_TESTBENCH_ATTEMPT=str(attempt))
+    cmd = [sys.executable, "-m", "pytest", "-v", "-p", "no:cacheprovider", "-rxXs"] + args
+    return subprocess.run(cmd, cwd=str(here), env=env).returncode
+
+
+def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
+    """The desktop suite; with rerun_failed_once, the failed scenarios run once more into the same report (attempt
+    2): the exit status is the rerun's, and a scenario that passes only on the rerun is reported as a FLAKE."""
+    import datetime
+    import report
+    here = pathlib.Path(__file__).resolve().parent
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    report_dir = pathlib.Path(report_dir) if report_dir else here / "testbench-reports" / stamp
+    args = [str(here / "scenarios"), "--report-dir", str(report_dir)] + (["-k", keyword] if keyword else [])
+    code = _pytest(args + list(extra), 1)
+    if code == 0 or not rerun_failed_once:
+        return code
+    results, _started = report.load(report_dir)
+    failed = report.failed_ids(results)
+    if not failed:
+        return code  # nothing to rerun (collection error, interrupted run...): keep the failure
+    print(f"testbench: rerunning {len(failed)} failed scenario(s) once: {failed}", flush=True)
+    return _pytest(failed + ["--report-dir", str(report_dir)] + list(extra), 2)
 
 
 def main(argv=None):
@@ -29,19 +59,15 @@ def main(argv=None):
     s.add_argument("--suite", default="desktop", choices=["desktop"])
     s.add_argument("-k", dest="keyword", default=None, help="pytest -k expression (a scenario's name)")
     s.add_argument("--report-dir", default=None)
+    s.add_argument("--rerun-failed-once", action="store_true",
+                   help="rerun each failed scenario once (the release gate uses it); both results stay in the "
+                        "report, a pass on the rerun is shown as a FLAKE")
     s.add_argument("pytest_args", nargs="*", help="extra pytest arguments (after --)")
     sub.add_parser("mark-client-built", help="record the current sources as the ones the client exe was built "
                                              "from (after checking the newer mtimes are comment-only edits)")
     a = ap.parse_args(argv)
     if a.cmd == "run":
-        import pytest
-        here = pathlib.Path(__file__).resolve().parent
-        args = [str(here / "scenarios"), "-v", "-p", "no:cacheprovider", "-rxXs"]
-        if a.keyword:
-            args += ["-k", a.keyword]
-        if a.report_dir:
-            args += ["--report-dir", a.report_dir]
-        sys.exit(pytest.main(args + a.pytest_args, plugins=[]))
+        sys.exit(run_suite(a.keyword, a.report_dir, a.rerun_failed_once, a.pytest_args))
     if a.cmd == "mark-client-built":
         import client
         client.mark_built()

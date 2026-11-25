@@ -63,6 +63,7 @@ def click(c, text, timeout=5.0, **args):
         except clientmod.ClientError as e:
             if "modal popup is open" not in str(e) or time.time() > deadline:
                 raise
+            TRACE.append(f"{time.strftime('%H:%M:%S')} RETRY click {text!r}: a closing popup still covered it")
             time.sleep(0.2)
 
 
@@ -146,9 +147,12 @@ def give_pin(host, pin, timeout=10.0):
     """Type the PIN on the host, as the user does in LavApollo's web UI after reading it: the client shows the PIN
     before its pairing request reaches the host, so the host may have nothing pending for a moment."""
     deadline = time.time() + timeout
+    attempt = 0
     while True:
+        attempt += 1
         r = hosts.pin(host, pin)
-        TRACE.append(f"{time.strftime('%H:%M:%S')} PIN {pin} given to {host.name}: {r}")
+        TRACE.append(f"{time.strftime('%H:%M:%S')} {'RETRY ' if attempt > 1 else ''}PIN {pin} given to {host.name} "
+                     f"(attempt {attempt}): {r}")
         if r.get("status") is True or time.time() > deadline:
             return r
         time.sleep(0.3)
@@ -205,14 +209,6 @@ def host_card_menu(c, name):
     wait_text(c, "Renommer")
 
 
-def menu_entry(c, label):
-    c.click(label)
-
-
-def no_client_left():
-    return not clientmod.tasklist_pids()
-
-
 # ---------------------------------------------------------------- settings
 
 SETTINGS_LIST_X_MAX = 330  # the page list is the left column of Réglages
@@ -241,12 +237,34 @@ def scroll_settings_list(c, dy):
     time.sleep(0.6)  # the flick settles
 
 
+# A row that only that page shows, at its top (normal mode): the proof that the page really opened
+# (LavArtemis-Qt app/gui/v2/SettingsView2.qml)
+SETTINGS_PAGE_ROW = {
+    "Profil": "Profil actif",
+    "Affichage": "Résolution",
+    "Vidéo": "Débit vidéo",
+    "Audio": "Canaux audio",
+    "Entrées": "Souris pour le bureau à distance",
+    "Manettes": "Configurer une manette",
+    "Apparence": "Thème",
+    "PC": "Quitter l'appli sur le PC distant à la fin",
+    "Raccourcis clavier": "Menu en jeu",
+    "Avancé": "Chercher les mises à jour au démarrage",
+}
+
+
 def open_settings_page(c, name):
+    """Click the page in the list, then wait for the row that only this page shows (right of the list)."""
+    row = SETTINGS_PAGE_ROW.get(name)
+    assert row, f"no row known to prove that settings page {name!r} opened: add it to SETTINGS_PAGE_ROW"
     scroll_settings_list(c, 20)
     for _ in range(10):
         if any(i["text"] == name for i in settings_pages_visible(c)):
             c.click(name, index=0)
-            wait_any_text(c, [name])
+            deadline = time.time() + 10
+            while not any(i["x"] > SETTINGS_LIST_X_MAX for i in find(c, row)):
+                assert time.time() < deadline, f"page {name!r} did not open: no {row!r}; texts {texts(c)[-15:]}"
+                time.sleep(0.2)
             time.sleep(0.4)
             return
         scroll_settings_list(c, -2)

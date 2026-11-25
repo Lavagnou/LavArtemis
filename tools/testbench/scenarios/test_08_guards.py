@@ -2,7 +2,7 @@
 127.0.0.1:45989 (the real LavApollo service of this PC) and 127.0.0.1:47989 (the default GameStream port) is refused
 before any request, with the test build's message; an art:// pairing link to a real address (command line, the
 CLI pairing path) is refused too, at once and with the same message.  The client's log shows the refusals and not a
-single request to those addresses."""
+single request (no test host runs here: no request may leave at all)."""
 import re
 import time
 
@@ -12,16 +12,10 @@ REFUSED = ["192.168.1.231", "127.0.0.1:45989", "127.0.0.1:47989"]
 MESSAGE = "Le client de test ne parle qu'aux hôtes de test (127.0.0.1, ports 40000-44999)."
 
 
-def requests_to(log, address):
-    """Log lines of a request that left (or would have left) for this address."""
-    host = address.split(":")[0]
-    port = address.split(":")[1] if ":" in address else None
-    out = []
-    for line in log.splitlines():
-        if ("Executing request" in line or "openConnection - URL" in line) and host in line:
-            if port is None or re.search(rf"{re.escape(host)}:{port}\b", line):
-                out.append(line)
-    return out
+def request_lines(log):
+    """Every request the client started (NvHTTP logs each one).  No test host runs in this scenario, so there must
+    be none at all, to any address or port."""
+    return [line for line in log.splitlines() if "Executing request" in line or "openConnection - URL" in line]
 
 
 def test_guards_real_addresses_refused(bench):
@@ -38,24 +32,21 @@ def test_guards_real_addresses_refused(bench):
     log = c.log_text()
     for address in REFUSED:
         assert f'manual add of "{address}" refused' in log, f"no refusal line for {address}"
-        assert not requests_to(log, address), requests_to(log, address)
+    assert not request_lines(log), request_lines(log)
 
     # A link handled by the command line (CliPair: ComputerManager::addNewHostManually, then NvHTTP)
     link = "art://192.168.1.231:47989?pin=1234&passphrase=testbench"
-    # The first client quits first: two clients would both serve the command pipe, and the channel could reach
-    # the wrong one (« another client is already connected »)
-    c.stop()
-    started = time.time()
-    c = bench.start_client(reset=False, args=[link])
+    # restart_client stops the first client before the second starts (never two on the command pipe)
+    c = bench.restart_client(args=[link])
     # The refusal ends the CLI pairing with its message, well before the 10 s search timeout (it used to spin on
     # « Connexion au PC... » until then, and end on a generic « Failed to connect »)
     helpers.wait_text(c, MESSAGE, timeout=8)
-    elapsed = time.time() - started
+    elapsed = time.time() - c.started_at
     bench.shot("04-art-link-refused")
     bench.note(f"art:// link refused after {elapsed:.1f}s (client start included)")
     assert elapsed < 8, elapsed
     log = c.log_text()
-    assert not requests_to(log, "192.168.1.231"), requests_to(log, "192.168.1.231")
+    assert not request_lines(log), request_lines(log)
     # Refused at the first layer (the pairing command adds the PC through the same guard) or, failing that, by
     # NvHTTP before any request
     assert ('manual add of "192.168.1.231:47989" refused' in log or

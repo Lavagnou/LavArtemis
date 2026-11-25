@@ -171,11 +171,29 @@ def _same_exe(a, b):
 
 
 def pid_alive(pid):
-    return _image_path(pid) is not None
+    """True while the process runs, also when its image path cannot be read (access denied): an unreadable
+    process is not a dead one."""
+    if _k32 is None or not pid:
+        return False
+    if _image_path(pid) is not None:
+        return True
+    _k32.OpenProcess.restype = ctypes.c_void_p
+    h = _k32.OpenProcess(0x00100000, False, int(pid))  # SYNCHRONIZE
+    if h:
+        try:
+            return _k32.WaitForSingleObject(ctypes.c_void_p(h), 0) == 0x102  # WAIT_TIMEOUT: still running
+        finally:
+            _k32.CloseHandle(ctypes.c_void_p(h))
+    return ctypes.get_last_error() == 5 or _k32.GetLastError() == 5  # ERROR_ACCESS_DENIED: it exists
 
 
 def _is_test_sunshine(pid):
     return _same_exe(_image_path(pid), sunshine_exe())
+
+
+# Problems met while stopping instances (a recorded PID that is alive but not identifiable, an instance that
+# survives taskkill): the scenario teardown reports them instead of carrying on silently.
+PROBLEMS = []
 
 
 def _kill(pid):
@@ -185,6 +203,44 @@ def _kill(pid):
             if not pid_alive(pid):
                 break
             time.sleep(0.1)
+        if pid_alive(pid):
+            PROBLEMS.append(f"test host pid {pid} still alive 5 s after taskkill")
+    elif pid_alive(pid):
+        PROBLEMS.append(f"recorded pid {pid} is alive but is not {sunshine_exe()} ({_image_path(pid)}): not killed")
+
+
+def leftover_instances(workdir):
+    """Test sunshine processes still running on this workdir's sandbox, found by their command line (the sandbox
+    conf path), whatever the PID file says.  [(pid, command line)]"""
+    script = ("Get-CimInstance Win32_Process -Filter \"Name='sunshine.exe'\" | "
+              "Select-Object ProcessId,ExecutablePath,CommandLine | ConvertTo-Json -Compress")
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True, timeout=60)
+    try:
+        rows = json.loads(r.stdout or "[]")
+    except ValueError:
+        return []
+    if isinstance(rows, dict):
+        rows = [rows]
+    marker = os.path.normcase(str(pathlib.Path(workdir)))
+    out = []
+    for row in rows:
+        exe, cmd = row.get("ExecutablePath"), row.get("CommandLine") or ""
+        # the sandbox's conf path in the command line is ours alone; the exe path must match when readable
+        if (exe is None or _same_exe(exe, sunshine_exe())) and marker in os.path.normcase(cmd):
+            out.append((row["ProcessId"], cmd))
+    return out
+
+
+def sweep(workdir):
+    """Kill the test hosts of this workdir that outlived down() (identified by exe path and sandbox command line);
+    returns what was found, for the report."""
+    found = leftover_instances(workdir)
+    for pid, _cmd in found:
+        if _is_test_sunshine(pid):
+            _kill(pid)
+        else:  # image path unreadable: the command line (this run's sandbox) identifies it
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+    return found
 
 
 def kill_previous(workdir):

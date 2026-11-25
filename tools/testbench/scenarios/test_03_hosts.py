@@ -3,7 +3,6 @@ says so when opened (« La version du logiciel hôte … (2.1.0.0) »); renaming
 import time
 
 import helpers
-import hosts
 
 NEW_NAME = "Atlas du salon"
 
@@ -17,8 +16,7 @@ def test_hosts_offline_old_version_rename_forget(bench):
     c = bench.start_client()
     for h in (atlas, old, off):
         helpers.add_and_pair(c, h)
-    hosts.restart(old, bench.workdir, {})  # pc.json again: appversion 2.1.0.0
-    bench.watch.ours.add(old.pid)
+    bench.restart_host("old-version-test")  # pc.json again: appversion 2.1.0.0
     helpers.wait_computer(c, old.name, lambda x: x["online"], timeout=30)
     helpers.open_hosts(c)
     for h in (atlas, old, off):
@@ -26,7 +24,7 @@ def test_hosts_offline_old_version_rename_forget(bench):
     bench.shot("01-three-paired")
 
     # The PC is switched off: its card says so
-    hosts.stop(off, bench.workdir)
+    bench.stop_host("offline-test")
     helpers.wait_computer(c, off.name, lambda x: not x["online"], timeout=40)
     helpers.open_hosts(c)
     helpers.wait_text(c, "Hors ligne")
