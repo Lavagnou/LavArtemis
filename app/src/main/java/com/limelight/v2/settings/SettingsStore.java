@@ -21,11 +21,14 @@ import java.util.UUID;
  * so the next read always sees the value just written. Global rows ({@link SettingDef#global}: the
  * appearance, the microphone (ProfilesManager.APP_WIDE_KEYS, which every reader takes from the
  * base preferences), and the two keys their readers take from the base preferences, the automatic update
- * check and the on-screen key layout) are read from and written to the base preferences. Every write applies at once; the only side effect handled here is
- * the legacy screen's: a new resolution or frame rate resets the bitrate to its default.
+ * check and the on-screen key layout) are read from and written to the base preferences. Every write applies at once; the only side effects handled
+ * here are the bitrate's: it follows a new resolution or frame rate while it is still the recommended one (« Suit la
+ * résolution et les images/s tant que tu ne le changes pas », the desktop's autoAdjustBitrate), and leaving PyroWave
+ * brings a bitrate past the other codecs' track back to its end.
  */
 public final class SettingsStore implements SettingDef.Values {
     private static final String TOUCH_MODE = "mouse_mode_list";
+    private static final String PYROWAVE = "forcepyrowave";
 
     private final Context context;
 
@@ -128,7 +131,7 @@ public final class SettingsStore implements SettingDef.Values {
         }
     }
 
-    /** A choice written, with the bitrate reset of the legacy screen for resolution and frame rate */
+    /** A choice written, with its effect on the bitrate (resolution, frame rate, codec) */
     public void setChoice(SettingDef d, String value) {
         if (d.global) {
             if (d.kind == SettingDef.Kind.INT) {
@@ -138,14 +141,31 @@ public final class SettingsStore implements SettingDef.Values {
             }
             return;
         }
+        // Decided before the write: the bitrate follows only while it is the recommended one for the old values
+        boolean bitrateFollows = bitrateIsRecommended();
+        boolean leavesPyroWave = "video_format".equals(d.key) && PYROWAVE.equals(getString("video_format"))
+                && !PYROWAVE.equals(value);
         if (d.kind == SettingDef.Kind.INT) {
             putInt(d.key, Integer.parseInt(value));
         } else {
             putString(d.key, value);
         }
-        if ("list_resolution".equals(d.key) || "list_fps".equals(d.key)) {
+        if (("list_resolution".equals(d.key) || "list_fps".equals(d.key)) && bitrateFollows) {
             resetBitrate();
         }
+        if (leavesPyroWave && getInt(SettingsCatalog.KEY_BITRATE) > SettingsCatalog.BITRATE_MAX_KBPS) {
+            // A bitrate chosen for PyroWave (1,5 Gbit/s) is no use to the other codecs: back onto their track
+            putInt(SettingsCatalog.KEY_BITRATE, SettingsCatalog.BITRATE_MAX_KBPS);
+        }
+    }
+
+    /**
+     * The bitrate is still the recommended one (never set, or equal to the default of the resolution and frame rate):
+     * it follows them. Moved by hand, it stays; « Revenir au débit recommandé » makes it follow again.
+     */
+    public boolean bitrateIsRecommended() {
+        int stored = prefs().getInt(SettingsCatalog.KEY_BITRATE, 0);
+        return stored == 0 || stored == defaultBitrate();
     }
 
     public void resetBitrate() {

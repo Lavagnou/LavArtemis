@@ -268,11 +268,38 @@ public class SettingsCatalogTest {
         SettingsStore store = new SettingsStore(ctx);
         assertEquals(PreferenceConfiguration.getDefaultBitrate("1280x720", "60"), store.getInt(SettingsCatalog.KEY_BITRATE));
         store.setChoice(SettingsCatalog.find("list_resolution"), "1920x1080");
-        // A new resolution resets the bitrate to its default, as the legacy screen did
+        // Never moved: the bitrate follows a new resolution (« Suit la résolution et les images/s tant que tu ne le
+        // changes pas », the desktop's autoAdjustBitrate)
         assertEquals(PreferenceConfiguration.getDefaultBitrate("1920x1080", "60"), prefs().getInt(SettingsCatalog.KEY_BITRATE, 0));
-        store.putInt(SettingsCatalog.KEY_BITRATE, 50000);
         store.setChoice(SettingsCatalog.find("list_fps"), "120");
         assertEquals(PreferenceConfiguration.getDefaultBitrate("1920x1080", "120"), prefs().getInt(SettingsCatalog.KEY_BITRATE, 0));
+        // Moved by hand: it stays when the frame rate changes
+        store.putInt(SettingsCatalog.KEY_BITRATE, 50000);
+        assertFalse(store.bitrateIsRecommended());
+        store.setChoice(SettingsCatalog.find("list_fps"), "60");
+        assertEquals(50000, prefs().getInt(SettingsCatalog.KEY_BITRATE, 0));
+        // « Revenir au débit recommandé »: it follows again
+        store.resetBitrate();
+        assertTrue(store.bitrateIsRecommended());
+        store.setChoice(SettingsCatalog.find("list_resolution"), "1280x720");
+        assertEquals(PreferenceConfiguration.getDefaultBitrate("1280x720", "60"), prefs().getInt(SettingsCatalog.KEY_BITRATE, 0));
+    }
+
+    @Test
+    public void leavingPyroWaveBringsTheBitrateBackOntoTheTrack() {
+        SettingsStore store = new SettingsStore(ctx);
+        SettingDef codec = SettingsCatalog.find("video_format");
+        store.setChoice(codec, "forcepyrowave");
+        store.putInt(SettingsCatalog.KEY_BITRATE, 1500000);
+        store.setChoice(codec, "forceh265");
+        assertEquals(SettingsCatalog.BITRATE_MAX_KBPS, prefs().getInt(SettingsCatalog.KEY_BITRATE, 0));
+        // A value on the track is kept, and only leaving PyroWave clamps
+        store.putInt(SettingsCatalog.KEY_BITRATE, 300000);
+        store.setChoice(codec, "auto");
+        assertEquals(300000, prefs().getInt(SettingsCatalog.KEY_BITRATE, 0));
+        store.putInt(SettingsCatalog.KEY_BITRATE, 1200000);
+        store.setChoice(codec, "neverh265");
+        assertEquals(1200000, prefs().getInt(SettingsCatalog.KEY_BITRATE, 0));
     }
 
     // ---- classification -------------------------------------------------------------------------
