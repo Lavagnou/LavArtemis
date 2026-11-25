@@ -1,8 +1,9 @@
-"""Scenario 5b: input sent through the command channel during a stream reaches the host, and nothing else does.
-First a quiet window, the channel sending nothing: no mouse, key or gamepad event may reach the host (the test build
-forwards only events injected with its marker; the real pointer and keyboard of this PC never are, even when someone
-works on it during the run).  Then, each one checked in the host's input.jsonl: a mouse move and a left click on the
-stream, the test pad attached and its A button pressed and released, a key sent to the stream."""
+"""Scenario 5b: input sent through the command channel during a stream reaches the host.
+First a quiet window, the channel sending nothing: no mouse, key or gamepad event may reach the host. This only shows
+that nothing spontaneous arrives; it does not prove the injected-input filter (the channel cannot push an unmarked
+event, and nobody is expected to touch the stream window meanwhile). The filter itself (testinput.h) is proven by
+review only for now.  Then, each one checked in the host's input.jsonl: a mouse move and a left click on the stream,
+the test pad attached and its A button pressed and released, a key sent to the stream."""
 import time
 
 import helpers

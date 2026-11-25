@@ -466,9 +466,9 @@ def restart(host, workdir=None, changes=None):
 
 
 def pin(host, pin, name="testbench"):
-    """Enter a pairing PIN as the web UI does, at 127.0.0.1 explicitly.  LavApollo refuses only ::1 (it checks the
-    peer address, so after name resolution): `localhost` would work when it resolves to 127.0.0.1 and be refused
-    when it resolves to ::1 first."""
+    """Enter a pairing PIN as the web UI does, at 127.0.0.1 explicitly.  LavApollo accepts only the peer 127.0.0.1
+    (it checks the peer address after name resolution; ::1, 127.0.0.2 and anything else get a 403), so never
+    `localhost`, which may resolve to ::1 first."""
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE

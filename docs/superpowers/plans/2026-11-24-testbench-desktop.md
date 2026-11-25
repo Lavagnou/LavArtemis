@@ -186,7 +186,7 @@
   - `bool NvHTTP::isAllowedTestAddress(const QString& host, uint16_t port)` (statique, build test seulement) : vrai si bouclage (`127.0.0.1`, `::1`, `localhost`) et port dans 40000-44999 (liste blanche des hôtes de test ; jamais un port déduit du vrai hôte).
   - `NvComputer::isTestHost` (`LavTestHost`), et dans le build test `isThisPc = testHostThisPc` (balise `LavTestHostThisPc`) au lieu de `isThisMachine()`.
   - Un serveur sans `LavTestHost` est mis hors ligne avec la raison « Pas un hôte de test » dans le journal du client.
-- [ ] Test : `isAllowedTestAddress("127.0.0.1", 40989)` vrai ; `("127.0.0.1", 47989)` faux ; `("127.0.0.1", 45989)` faux (vrai hôte de ce PC) ; `("192.168.1.231", 40989)` faux ; `("localhost", 41984)` vrai ; `("127.0.0.1", 39999)` et `("127.0.0.1", 45000)` faux.
+- [ ] Test : `isAllowedTestAddress("127.0.0.1", 40989)` vrai ; `("127.0.0.1", 47989)` faux ; `("127.0.0.1", 45989)` faux (vrai hôte de ce PC) ; `("192.168.0.10", 40989)` faux ; `("localhost", 41984)` vrai ; `("127.0.0.1", 39999)` et `("127.0.0.1", 45000)` faux.
 - [ ] Échec, implémenter, PASS. Commit `Test build: talk to loopback test hosts only`.
 
 ### Task B3: Mode discret

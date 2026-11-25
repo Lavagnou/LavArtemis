@@ -31,6 +31,9 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     helpers.go_home(c)
     helpers.wait_text(c, "Bureau")
 
+    # HostDisplayFit applies only without a virtual display (or on a resume): the expectation below relies on it
+    vd = c.call("setting", action="get", key="virtualdisplay")["value"]
+    assert str(vd).lower() in ("false", "0", "none", ""), f"virtual display on ({vd!r}): the fit below doesn't apply"
     st = helpers.launch(c, "Bureau")
     sess = st["session"]
     # Negotiated: no virtual display is asked, so the client fits its setting to the display the fake PC announces
