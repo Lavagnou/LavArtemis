@@ -21,7 +21,7 @@ import testbench  # noqa: E402
 def _display_on(monkeypatch):
     """run_suite refuses with the display off (exit 4): these tests must not depend on the real display."""
     import display
-    monkeypatch.setattr(display, "display_is_off", lambda: False)
+    monkeypatch.setattr(display, "display_state", lambda *a: display.ON)
 
 
 def res(name, status, attempt=1, flags=(), error=""):
@@ -337,7 +337,7 @@ def test_verdict_nonzero_pytest_code_without_failed_row_is_1():
 def test_display_off_refuses_before_anything_runs(monkeypatch, tmp_path, capsys):
     import display
     monkeypatch.delenv("LAV_TESTBENCH_SELFTEST", raising=False)
-    monkeypatch.setattr(display, "display_is_off", lambda: True)
+    monkeypatch.setattr(display, "display_state", lambda *a: display.OFF)
     monkeypatch.setattr(testbench, "_pytest", lambda *a: pytest.fail("pytest must not start"))
     assert testbench.run_suite(report_dir=tmp_path) == testbench.EXIT_DISPLAY_OFF == 4
     assert "écran éteint" in capsys.readouterr().err
@@ -353,7 +353,7 @@ def test_display_unknown_or_on_is_not_refused():
 def test_selftest_hook_drives_the_gate_without_gui(mode, code, monkeypatch, tmp_path, capsys):
     import display
     monkeypatch.setenv("LAV_TESTBENCH_SELFTEST", mode)
-    monkeypatch.setattr(display, "display_is_off", lambda: pytest.fail("selftest must not check the display"))
+    monkeypatch.setattr(display, "display_state", lambda *a: pytest.fail("selftest must not check the display"))
     assert testbench.run_suite(report_dir=tmp_path / "r", rerun_failed_once=True) == code
     assert f"(exit {code})" in capsys.readouterr().out
 
@@ -361,3 +361,12 @@ def test_selftest_hook_drives_the_gate_without_gui(mode, code, monkeypatch, tmp_
 def test_selftest_rejects_unknown_mode(monkeypatch, tmp_path):
     monkeypatch.setenv("LAV_TESTBENCH_SELFTEST", "bogus")
     assert testbench.run_suite(report_dir=tmp_path) == 1
+
+
+def test_display_unknown_runs_with_a_stderr_line(monkeypatch, tmp_path, capsys):
+    import display
+    monkeypatch.delenv("LAV_TESTBENCH_SELFTEST", raising=False)
+    monkeypatch.setattr(display, "display_state", lambda *a: None)
+    monkeypatch.setattr(testbench, "_pytest", lambda args, attempt: 0)
+    assert testbench.run_suite(report_dir=tmp_path) == 0
+    assert "display state unknown" in capsys.readouterr().err

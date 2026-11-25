@@ -35,7 +35,13 @@ et sortie 4 ; allumé, tamisé ou état inconnu (pas de réponse) : on lance. Le
 **Vérifier la porte sans GUI** : `LAV_TESTBENCH_SELFTEST=pass|fail|flaky`, honoré par `run` seulement : il remplace
 les scénarios par un scénario interne (`selftest/test_gate.py`, hors `scenarios/`), sans hôte ni client ni contrôle de
 l'écran, et donne 0 / 1 / 3 (le rejeu fait passer `flaky`). Exemple :
-`$env:LAV_TESTBENCH_SELFTEST='flaky'; scripts\local-release.ps1 -NotesFile n.md -NoPublish -SkipAndroid -SkipWindows`.
+`$env:LAV_TESTBENCH_SELFTEST='flaky'; scripts\local-release.ps1 -NotesFile n.md -NoPublish -SkipAndroid -SkipWindows`; Remove-Item Env:LAV_TESTBENCH_SELFTEST`.
+`local-release.ps1` **refuse** (sans `-NoPublish`) tant que la variable est posée, et l'annonce quand elle sert :
+un reste de `pass` dans l'environnement ne doit jamais laisser passer une vraie release.
+
+Limites de la lecture de l'écran : « tamisé » compte comme allumé, et l'écran peut s'éteindre juste après le
+contrôle ; le run apparaît alors en échec ou FLAKY (à relancer écran allumé). État inconnu (Windows ne répond pas) :
+une ligne sur la sortie d'erreur, et le run part.
 
 ## Rapport
 

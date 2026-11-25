@@ -59,7 +59,11 @@ def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
         print(f"testbench: SELFTEST {selftest} (built-in scenario, no host, no client, no display check)", flush=True)
     else:
         import display
-        if display.display_is_off():
+        state = display.display_state()
+        if state is None:
+            print("testbench: display state unknown (no answer from Windows): running anyway, "
+                  "a display that is off would show as failures", file=sys.stderr, flush=True)
+        if state == display.OFF:
             print("testbench: écran éteint : le banc de test a besoin de l'écran allumé "
                   "(Qt ne met plus les fenêtres en page écran éteint). Rallumer l'écran et relancer.",
                   file=sys.stderr, flush=True)

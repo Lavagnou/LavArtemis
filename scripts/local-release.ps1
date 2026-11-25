@@ -60,19 +60,29 @@ if (git status --porcelain --untracked-files=no) { throw "LavArtemis has uncommi
 
 # --- Tests: the desktop testbench, before anything is built -------------------------------------
 # It builds the test client from the pinned LavArtemis-Qt clone (checked above) if it is stale.
+# LAV_TESTBENCH_SELFTEST swaps the real scenarios for a built-in one: it may verify the gate, never ship a release.
+if ($env:LAV_TESTBENCH_SELFTEST) {
+    if (-not $NoPublish) {
+        throw "LAV_TESTBENCH_SELFTEST est defini : une vraie release exige le vrai banc (Remove-Item Env:LAV_TESTBENCH_SELFTEST)."
+    }
+    Write-Host "WARNING: LAV_TESTBENCH_SELFTEST=$($env:LAV_TESTBENCH_SELFTEST): the built-in selftest replaces the real scenarios (-NoPublish only)." -ForegroundColor Yellow
+}
 if ($SkipTests) {
     Write-Host "WARNING: -SkipTests: the desktop testbench did NOT run for this release." -ForegroundColor Yellow
 } else {
     Write-Host "Testbench: python tools\testbench\testbench.py run --suite desktop --rerun-failed-once" -ForegroundColor Cyan
     $reports = Join-Path $repo "tools\testbench\testbench-reports"
-    $prevEncoding = [Console]::OutputEncoding
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $prevEncoding = $null
+    try {
+        $prevEncoding = [Console]::OutputEncoding
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    } catch { $prevEncoding = $null }
     $env:PYTHONIOENCODING = "utf-8"
     try {
         python tools\testbench\testbench.py run --suite desktop --rerun-failed-once
         $testCode = $LASTEXITCODE
     } finally {
-        [Console]::OutputEncoding = $prevEncoding
+        if ($prevEncoding) { try { [Console]::OutputEncoding = $prevEncoding } catch { } }
         Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue
     }
     if ($testCode -ne 0) {
@@ -82,7 +92,9 @@ if ($SkipTests) {
             4 { "display off: the testbench needs the display on" }
             default { "runner error (exit code $testCode)" }
         }
-        throw "Testbench stopped the release (exit $testCode, $why). Report: $reports (newest folder). -SkipTests skips the gate."
+        $newest = Get-ChildItem $reports -Directory -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        $where = if ($newest) { $newest.FullName } else { $reports }
+        throw "Testbench stopped the release (exit $testCode, $why). Report: $where. -SkipTests skips the gate."
     }
     Write-Host "Testbench: all scenarios passed." -ForegroundColor Green
 }
