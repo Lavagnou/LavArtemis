@@ -25,6 +25,10 @@ public class BenchmarkNotesTest {
         assertEquals("AV1 n'est pas disponible : l'appareil est revenu à HEVC",
                 BenchmarkNotes.localize(ctx, "AV1 is not available: the device fell back to HEVC"));
         assertEquals("La connexion s'est coupée (erreur -1).", BenchmarkNotes.localize(ctx, "The connection ended (error -1)."));
+        // The desktop's forms (Benchmark::Notes): its reports open here too
+        assertEquals("Le stream n'a pas démarré.", BenchmarkNotes.localize(ctx, "The stream did not start."));
+        assertEquals("Le stream n'a pas pu démarrer.", BenchmarkNotes.localize(ctx, "The stream could not start."));
+        assertEquals("Le débit a été plafonné à 12.5 Mbit/s.", BenchmarkNotes.localize(ctx, "The bitrate was capped at 12.5 Mbps."));
     }
 
     @Test

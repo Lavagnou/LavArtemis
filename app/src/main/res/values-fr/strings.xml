@@ -807,4 +807,7 @@
     <string name="bench_note_ran_as">Passé en %1$s, %2$s à la place.</string>
     <string name="bench_note_start_failed">Échec au démarrage (%1$s) : erreur %2$d.</string>
     <string name="bench_note_connection_ended">La connexion s\'est coupée (erreur %1$d).</string>
+    <string name="bench_note_stream_did_not_start">Le stream n\'a pas démarré.</string>
+    <string name="bench_note_stream_could_not_start">Le stream n\'a pas pu démarrer.</string>
+    <string name="bench_note_bitrate_capped">Le débit a été plafonné à %1$s Mbit/s.</string>
 </resources>

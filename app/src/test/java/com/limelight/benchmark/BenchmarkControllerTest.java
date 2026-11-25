@@ -40,12 +40,33 @@ public class BenchmarkControllerTest {
         assertEquals(Role.BASELINE, first.role);
         assertTrue(first.userSettings);
         c.complete(ok(first, new RunConfig(Codec.AV1, 20000, "default")));
-        assertEquals(guess, c.report.runs.get(0).requested);
+        // The baseline records what it streamed, not the guess
+        assertEquals(new RunConfig(Codec.AV1, 20000, "default"), c.report.runs.get(0).requested);
 
         BenchmarkController.Run second = c.next();
         assertNotNull(second);
         assertFalse(second.userSettings);
         assertTrue("other codecs are compared with the one really used", second.config.codec != Codec.AV1);
+    }
+
+    @Test
+    public void adaptiveClimbsOnTheCodecTheBaselineStreamed() {
+        // Auto guessed as HEVC, the stream ran H.264 (a host without HEVC): every later run is H.264
+        RunConfig guess = new RunConfig(Codec.HEVC, 20000, "default");
+        BenchmarkController c = new BenchmarkController(new BenchmarkReport(),
+                BenchmarkController.plannerInput(Mode.ADAPTIVE, Goal.BALANCED, guess, 0, 20000));
+        BenchmarkController.Run run = c.next();
+        assertEquals(Role.BASELINE, run.role);
+        c.complete(ok(run, new RunConfig(Codec.H264, 20000, "default")));
+        int runs = 1;
+        while ((run = c.next()) != null) {
+            assertEquals("run " + runs + " " + run.role, Codec.H264, run.config.codec);
+            c.complete(ok(run, run.config));
+            assertTrue("the plan must end", ++runs < 40);
+        }
+        for (RunResult r : c.report.runs) {
+            assertEquals(r.effective, r.requested);
+        }
     }
 
     @Test

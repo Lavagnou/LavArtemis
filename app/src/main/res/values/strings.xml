@@ -920,4 +920,7 @@
     <string name="bench_note_ran_as">Ran as %1$s, %2$s instead.</string>
     <string name="bench_note_start_failed">Starting %1$s failed: error %2$d.</string>
     <string name="bench_note_connection_ended">The connection ended (error %1$d).</string>
+    <string name="bench_note_stream_did_not_start">The stream did not start.</string>
+    <string name="bench_note_stream_could_not_start">The stream could not start.</string>
+    <string name="bench_note_bitrate_capped">The bitrate was capped at %1$s Mbps.</string>
 </resources>

@@ -179,7 +179,10 @@ public final class BenchmarkController {
         if (run != null) {
             result.role = run.role;
             if (run.userSettings) {
-                result.requested = requestedBaseline.copy();
+                // The reference records what it streamed: Auto has no codec name, and the planner
+                // (its climb, its confirmation) works on the requested configurations. Requesting
+                // the guess (HEVC for Auto) made it climb on a codec the baseline never streamed.
+                result.requested = result.effective.copy();
             }
         }
         report.runs.add(result);

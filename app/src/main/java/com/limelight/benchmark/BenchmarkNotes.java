@@ -19,6 +19,8 @@ public final class BenchmarkNotes {
     private static final Pattern RAN_AS = Pattern.compile("^Ran as (.+), (.+) instead\\.$");
     private static final Pattern START_FAILED = Pattern.compile("^Starting (.+) failed: error (-?\\d+)\\.?$");
     private static final Pattern CONNECTION_ENDED = Pattern.compile("^The connection ended \\(error (-?\\d+)\\)\\.$");
+    // Written by the desktop client (Benchmark::Notes): its reports open here too
+    private static final Pattern BITRATE_CAPPED = Pattern.compile("^The bitrate was capped at ([0-9.]+) Mbps\\.$");
 
     public static String localize(Context context, String note) {
         if (note == null || note.isEmpty()) {
@@ -31,6 +33,10 @@ public final class BenchmarkNotes {
                 return context.getString(R.string.bench_note_cut_short);
             case "No frames were shown.":
                 return context.getString(R.string.bench_note_no_frames_shown);
+            case "The stream did not start.":
+                return context.getString(R.string.bench_note_stream_did_not_start);
+            case "The stream could not start.":
+                return context.getString(R.string.bench_note_stream_could_not_start);
             case "VRR pacing is not available":
             case "VRR is not available on this display":
                 return context.getString(R.string.bench_note_no_vrr);
@@ -53,6 +59,10 @@ public final class BenchmarkNotes {
         m = CONNECTION_ENDED.matcher(note);
         if (m.matches()) {
             return context.getString(R.string.bench_note_connection_ended, Integer.parseInt(m.group(1)));
+        }
+        m = BITRATE_CAPPED.matcher(note);
+        if (m.matches()) {
+            return context.getString(R.string.bench_note_bitrate_capped, m.group(1));
         }
         return note;
     }
