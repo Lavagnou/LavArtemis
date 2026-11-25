@@ -27,7 +27,13 @@ LavArtemis, LavApollo et LavArtemis-Qt utilisés, modifications non commitées s
 de chaque hôte, journal du client, chronologie du premier plan). `--report-dir` choisit un autre dossier.
 
 Un **bug produit connu** fait passer son scénario en *expected failure* (`XFAIL`), reconnu à sa signature et avec
-la cause (`scenarios/bugs.py`) ; corrigé, le scénario va jusqu'au bout tout seul.
+la cause (`scenarios/bugs.py`) ; une fois corrigé, son entrée et son `xfail` sont retirés : le scénario doit passer.
+
+⚠️ **Écran allumé.** Quand Windows éteint l'écran (inactivité, 15 min ici), Qt Quick ne dessine plus la fenêtre du
+client de test : plus de mise en page (`polish`) : les cartes de l'accueil restent toutes au même coin (vérifié pendant
+plusieurs secondes), et les scénarios qui cliquent échouent (« covered », « no stream », ordre des
+cartes) sans que l'appli y soit pour rien (vu le 2026-11-25 : la suite passe écran allumé ; écran éteint, la moitié des scénarios échouent ainsi).
+Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce qui peut masquer le problème.
 
 ## Ce que le banc touche, et ce qu'il ne touche jamais
 

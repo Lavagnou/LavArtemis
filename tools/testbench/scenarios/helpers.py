@@ -171,30 +171,13 @@ def _wait_paired(c, host, timeout=12.0):
     return False
 
 
-def pair_from_add_menu(c, host):
-    """Mes PC › Ajouter un PC › <name · address> (an online PC not paired yet) › the PIN shown goes to the host,
-    as the user types it in LavApollo's web UI."""
-    open_add_menu(c)
-    c.click(f"{host.name} · 127.0.0.1:{host.port}")
-    pin = read_pin(c, host.name)
-    r = give_pin(host, pin)
-    assert r.get("status") is True, f"the host refused the PIN {pin}: {r}"
-    return _wait_paired(c, host)
-
-
 def add_and_pair(c, host):
-    """Add a running test host by address and pair it (setup of the scenarios; scenario 1 tests pairing itself).
-    Adding opens the pairing dialog by itself, or (known product bug, racy: bugs.ADD_ALREADY_LISTED) shows « Ce PC
-    est déjà dans la liste »; the helper waits for one of the two before going through « Ajouter un PC » › the PC,
-    so it never starts a second pairing over the first.  A pairing that fails with « PIN incorrect » although the
-    displayed PIN was given (seen a few times right after another PC was paired, cause not found: see the C3
-    report) is retried once from the add menu, and recorded in the scenario's notes."""
-    # the previous add's toast must be gone, or it would be taken for this one's
-    if find(c, "Ce PC est déjà dans la liste"):
-        wait_text(c, "Ce PC est déjà dans la liste", gone=True, timeout=15)
+    """Add a running test host by address and pair it (setup of the scenarios; scenario 1 tests pairing itself):
+    adding opens the new PC's pairing dialog by itself, the PIN shown goes to the host, the PC must be paired.  No
+    retry: the « PIN incorrect » for the right PIN seen before (about one pairing in 16) was a client bug, fixed
+    (LavArtemis-Qt 53f946d2, the AES key cut at a zero byte of the hash)."""
     add_by_address(c, f"127.0.0.1:{host.port}")
-    wait_computer(c, host.name, lambda comp: comp["online"])
-    deadline = time.time() + 8
+    deadline = time.time() + 15
     paired = None
     while paired is None:
         shown = texts(c)
@@ -202,13 +185,11 @@ def add_and_pair(c, host):
             pin = read_pin(c, host.name)
             assert give_pin(host, pin).get("status") is True
             paired = _wait_paired(c, host)
-        elif "Ce PC est déjà dans la liste" in shown or time.time() > deadline:
-            paired = pair_from_add_menu(c, host)
         else:
+            assert "Ce PC est déjà dans la liste" not in shown and time.time() < deadline, \
+                f"adding {host.name} did not open its pairing dialog; texts {shown}"
             time.sleep(0.2)
-    if not paired:
-        TRACE.append(f"{time.strftime('%H:%M:%S')} RETRY: pairing {host.name} again from the add menu")
-        assert pair_from_add_menu(c, host), f"{host.name} could not be paired (twice)"
+    assert paired, f"{host.name} was not paired with the PIN it was given; trace {TRACE[-4:]}"
     return wait_computer(c, host.name, lambda comp: comp["paired"])
 
 
@@ -276,6 +257,7 @@ def set_switch(c, label, key, value):
     """Click a switch row of the open settings page (its label) until the setting `key` is `value`."""
     if c.call("setting", action="get", key=key)["value"] == value:
         return
+    wait_settled(c, label)
     c.click(label)
     deadline = time.time() + 5
     while c.call("setting", action="get", key=key)["value"] != value:
@@ -285,10 +267,26 @@ def set_switch(c, label, key, value):
 
 # ---------------------------------------------------------------- stream
 
+def wait_settled(c, text, timeout=10.0):
+    """Wait until the item showing `text` keeps the same place over two reads 0.3 s apart.  When the app list
+    arrives the home's cards are created first and laid out at the next polish: a tree read in between gives them
+    all the same corner (seen: every card and tile at 40,74), and a click computed from it lands on nothing."""
+    deadline = time.time() + timeout
+    last = None
+    while True:
+        items = find(c, text)
+        rect = (items[0]["x"], items[0]["y"], items[0]["w"], items[0]["h"]) if items else None
+        if rect is not None and rect == last:
+            return items[0]
+        if time.time() > deadline:
+            raise AssertionError(f"{text!r} never settled (last {rect})")
+        last = rect
+        time.sleep(0.3)
+
+
 def launch(c, title, timeout=40.0):
-    """Click a card or a cover of the home, wait for the stream's SDL loop and a first decoded frame.  On the known
-    toolBar bug (stream never starts) the scenario stops as an expected failure."""
-    import bugs
+    """Click a card or a cover of the home, wait for the stream's SDL loop and a first decoded frame."""
+    wait_settled(c, title)
     c.click(title)
     deadline = time.time() + timeout
     while True:
@@ -296,9 +294,6 @@ def launch(c, title, timeout=40.0):
         sess = st["session"]
         if sess["streaming"] and sess["decoded"] > 0:
             return st
-        if not sess["active"] and bugs.toolbar_bug_seen(c.log_text()):
-            import pytest
-            pytest.xfail(bugs.TOOLBAR)
         if time.time() > deadline:
             raise AssertionError(f"no stream after {timeout:.0f}s: page {st['page']}, session {sess}, "
                                  f"texts {texts(c)[:10] if st['page'] else []}")
@@ -324,6 +319,25 @@ def open_quick_menu(c):
             return idx
         assert time.time() < deadline, "the quick menu did not show"
         time.sleep(0.2)
+
+
+def assert_quick_menu_footer_clear(c, window):
+    """The in-game menu's footer button (« Fermer (Échap) » / « ← Retour ») is below the list, and no visible part of
+    a list row lies under it (the tree gives the part of each item left visible by its clipping ancestors)."""
+    items = c.tree(window=window)
+    footer = max((i for i in items if i.get("text") in ("Fermer (Échap)", "← Retour")),
+                 key=lambda i: i["w"] * i["h"], default=None)
+    assert footer is not None, f"no footer button in the menu: {[i.get('text') for i in items if i.get('text')]}"
+    lv = next(i for i in items if i["type"] == "ListView")
+    assert lv["y"] + lv["h"] <= footer["y"] + 1, f"the list {lv} reaches under the footer {footer}"
+    rows = [i for i in items if i.get("text") and i["type"] == "Text" and i is not footer
+            and i["text"] not in ("Fermer (Échap)", "← Retour")
+            and lv["x"] <= i["x"] < lv["x"] + lv["w"] and i["y"] >= lv["y"] - 1]
+    assert rows, "no list row found"
+    under = [i for i in rows if i["y"] < footer["y"] + footer["h"] and i["y"] + i["h"] > footer["y"]
+             and i["x"] < footer["x"] + footer["w"] and i["x"] + i["w"] > footer["x"]]
+    assert not under, f"rows drawn under the footer {footer}: {under}"
+    TRACE.append(f"quick menu: list ends at y={lv['y'] + lv['h']}, footer at y={footer['y']}, {len(rows)} rows clear")
 
 
 def quick_menu_click(c, text, window):

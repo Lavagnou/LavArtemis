@@ -1,38 +1,11 @@
 """Known product bugs, recognised by their symptom.  A scenario that meets one stops as an expected failure (xfail)
-with the evidence, instead of failing for a reason already reported; once the bug is fixed the symptom is gone and
-the scenario runs to its end.  Never used to skip an assertion: each check below is the bug's own signature."""
-import pytest
+with the evidence, instead of failing for a reason already reported; once the bug is fixed the symptom is gone,
+its entry goes from here and the scenario must pass.  Never used to skip an assertion: each check is the bug's own
+signature.
 
-TOOLBAR = ("PRODUCT BUG (LavArtemis-Qt): `toolBar` was deleted with the legacy UI (c37eb550) but StreamSegue.qml:131, "
-           "QuitSegue.qml:38, CliPair.qml:39, CliStartStreamSegue.qml:38 and CliQuitStreamSegue.qml:23 still set "
-           "`toolBar.visible`: ReferenceError, the rest of StackView.onActivated never runs, so no stream starts "
-           "(stuck on « Démarrage de … ») and an art:// pairing link never pairs")
-
-ADD_ALREADY_LISTED = ("PRODUCT BUG (LavArtemis-Qt): adding a new PC by address shows « Ce PC est déjà dans la liste » "
-                      "and never opens the pairing dialog: ComputerManager emits computerAddCompleted before "
-                      "computerStateChanged for a new host (computermanager.cpp ~1524-1530), so HostsView.addComplete "
-                      "(HostsView.qml:228-235) looks for the new PC in a model that does not have it yet. Racy: when the new "
-                      "PC's polling thread reports it first, the dialog does open (seen once in about fifteen adds "
-                      "on loopback; a LAN host answers slower, so the bug should show more often)")
-
-LIBRARY_ORDER = ("PRODUCT BUG (LavArtemis-Qt): the Playnite library on the home is sorted by name, not in the host's "
-                 "order (most recently played first, NvComputer::sortApps): AppModel::updateAppList inserts every new "
-                 "app at its alphabetical place (appmodel.cpp ~245, `existingApp.name.toLower() > newApp.name...`), "
-                 "and initialize() goes through it too")
-
-
-def toolbar_bug_seen(client_log):
-    return "ReferenceError: toolBar is not defined" in client_log
-
-
-def xfail_if_toolbar_bug(bench):
-    log = "".join(open(p, encoding="utf-8", errors="replace").read() for p in bench.clients_logs if p)
-    if toolbar_bug_seen(log):
-        pytest.xfail(TOOLBAR)
-
-
-QUIT_SESSION_EXITS_CLIENT = (
-    "PRODUCT BUG (LavArtemis-Qt): « Quitter la session » in the in-game menu closes the whole client instead of "
-    "going back to the home: QuickMenuManager::quit() (quickmenumanager.cpp ~270-287) calls "
-    "Session::setShouldExit(true), which forces the host app to quit (wanted) and also sets m_ShouldExit, so "
-    "DeferredSessionCleanupTask calls QCoreApplication::quit() (session.cpp ~2125). Android goes back to the home")
+None open.  Fixed in LavArtemis-Qt (2026-11-25), their scenarios now assert the right behaviour:
+- toolBar left in the stream and CLI segues (no stream, no art:// pairing): cf898563 -- scenarios 1c, 5, 6, 8;
+- add by address said « Ce PC est déjà dans la liste », no pairing dialog: 56c91db6 -- scenarios 1a, 1b;
+- Playnite library sorted by name instead of the host's order: 23f65be2 -- scenario 2;
+- « Quitter la session » closed the client: 4c260672 -- scenario 5.
+"""

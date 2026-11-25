@@ -2,9 +2,6 @@
 testbench as the user would in LavApollo's web UI), and pair it from an art:// link that carries a passphrase."""
 import time
 
-import pytest
-
-import bugs
 import helpers
 import hosts
 
@@ -19,16 +16,14 @@ def test_pairing_add_by_address_opens_pairing(bench):
     helpers.add_by_address(c, ADDRESS)
     deadline = time.time() + 15
     shown = []
-    while time.time() < deadline:
+    while True:
         shown = helpers.texts(c)
         if any("ce code :" in t for t in shown):
             break
-        if "Ce PC est déjà dans la liste" in shown:
-            bench.shot("01-already-listed")
-            comp = helpers.computer(c.state(), atlas.name)
-            bench.note(f"after Ajouter: texts {shown}; state.computers: {comp}")
-            assert comp is not None and not comp["paired"], "the PC should be listed, not paired yet"
-            pytest.xfail(bugs.ADD_ALREADY_LISTED)
+        if "Ce PC est déjà dans la liste" in shown or time.time() > deadline:
+            bench.shot("01-no-pairing-dialog")
+            raise AssertionError(f"adding a new PC must open its pairing dialog; texts {shown}, "
+                                 f"state.computers {helpers.computer(c.state(), atlas.name)}")
         time.sleep(0.2)
     bench.shot("01-pairing-dialog")
     pin = helpers.read_pin(c, atlas.name)
@@ -42,29 +37,16 @@ def test_pairing_add_by_address_opens_pairing(bench):
 
 def test_pairing_with_pin(bench):
     """The PIN shown by the client, typed on the host, pairs the PC: state.computers[0].paired, its apps listed, the
-    home on « Sur Test-Atlas ».  The PIN comes from the dialog that adding opens, or, when that dialog does not open
-    (bugs.ADD_ALREADY_LISTED), from « Ajouter un PC » › « Test-Atlas · 127.0.0.1:40989 » (the PC answers there)."""
+    home on « Sur Test-Atlas ».  The PIN comes from the dialog that adding the PC by address opens."""
     atlas, = bench.up("atlas-test")
     c = bench.start_client()
     assert c.state()["computers"] == [], "a reset client knows no PC"
     helpers.add_by_address(c, ADDRESS)
     helpers.wait_computer(c, atlas.name, lambda x: x["online"])
-    deadline = time.time() + 8
-    via_menu = False
-    while True:
-        shown = helpers.texts(c)
-        if any(t.startswith(f"Sur {atlas.name},") and "ce code :" in t for t in shown):
-            break
-        if "Ce PC est déjà dans la liste" in shown or time.time() > deadline:
-            via_menu = True
-            helpers.open_add_menu(c)
-            bench.shot("02-add-menu")
-            entry = f"{atlas.name} · {ADDRESS}"
-            assert helpers.find(c, entry), f"the add menu should list {entry}"
-            c.click(entry)
-            break
+    deadline = time.time() + 15
+    while not any(t.startswith(f"Sur {atlas.name},") and "ce code :" in t for t in helpers.texts(c)):
+        assert time.time() < deadline, f"adding must open the pairing dialog; texts {helpers.texts(c)}"
         time.sleep(0.2)
-    bench.note(f"PIN dialog {'from the add menu' if via_menu else 'opened by the add'}")
     pin = helpers.read_pin(c, atlas.name)
     assert len(pin) == 4 and pin.isdigit()
     bench.shot("02-pin")
@@ -91,9 +73,6 @@ def test_pairing_art_link_with_passphrase(bench):
         comp = helpers.computer(c.state(), atlas.name)
         if comp and comp["paired"]:
             break
-        if bugs.toolbar_bug_seen(c.log_text()):
-            bench.shot("03-cli-pair-stuck")
-            pytest.xfail(bugs.TOOLBAR)
         time.sleep(0.3)
     else:
         bench.shot("03-not-paired")
