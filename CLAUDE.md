@@ -1001,11 +1001,46 @@ Les réglages desktop LavArtemis vivent dans `app/settings/artemissettings.{h,cp
 
 > ⚠️ Les setters d'`ArtemisSettings` **ne persistent pas** tout seuls : `SettingsView2.qml` appelle `ArtemisSettings.save()` (avec `StreamingPreferences.save()`) dans `saveNow()`, déclenché par `persist()` après chaque modification. Tout nouveau point d'édition doit faire pareil.
 
+## 🧪 Banc de test (desktop)
+
+De vrais clients contre de vrais hôtes, sans toucher au système : des **LavApollo en mode « hôte de test »**
+(faux PC isolés, sur loopback) et le **build de test de LavArtemis-Qt** (`LavArtemisTest.exe`, piloté par un canal de
+commande), le tout lancé par un runner pytest. Windows seulement, desktop seulement (l'Android n'a pas de banc).
+Mode d'emploi complet, scénarios et codes de sortie : `tools/testbench/README.md`.
+
+- **Où** : `tools/testbench/` ici (runner, scénarios `scenarios/`, rapports `testbench-reports/`, hors git) ;
+  côté hôte, le mode `test_host` de LavApollo (faux PC : config, applis, bibliothèque Playnite, jaquettes
+  générées, journaux d'entrées) ; côté client, `CONFIG+=lav_test` de LavArtemis-Qt (`scripts\build-test.bat`) et son
+  canal de commande (état, arbre des vues, clics, captures, entrées injectées). Le banc reconstruit ce qui est périmé.
+- **Lancer** : `python tools\testbench\testbench.py run` (suite complète), `-k <mot>` pour un scénario,
+  `--rerun-failed-once` (rejoue une fois chaque échec ; un scénario qui ne passe qu'au rejeu est un **FLAKE**).
+  Rapport : `tools/testbench/testbench-reports/<date>_<heure>/report.md` (+ captures et journaux).
+  **Codes de sortie** : `0` tout passe du premier coup · `1` un scénario échoue ou a été ignoré, ou pytest a échoué
+  sans résultat explicable · `3` FLAKY · `4` écran éteint (rien n'a tourné).
+- **Garanties** : ports 127.0.0.1 **40000-44999** seulement (le vrai LavApollo, base 45989, n'est jamais contacté, arrêté
+  ni configuré ; le client de test refuse toute autre adresse), organisation Qt **« LavArtemis Test »** (jamais les
+  réglages de LavArtemis / Dev), fenêtres **sans prise de focus**, **entrées injectées seulement** (ni vrai pointeur,
+  ni vrai clavier, ni son, ni micro), ni installation ni gestionnaire `art://` ; seuls les processus lancés par le banc
+  sont arrêtés.
+- ⚠️ **Écran allumé obligatoire.** Écran éteint, Qt Quick ne met plus les fenêtres en page et la moitié des scénarios
+  échouent sans que l'appli y soit pour rien. `run` le détecte (`display.py` : `GUID_CONSOLE_DISPLAY_STATE`, lu sans
+  jamais allumer l'écran) et sort en **code 4** avant de lancer quoi que ce soit.
+- **Porte de release** : `scripts/local-release.ps1` lance `testbench.py run --suite desktop --rerun-failed-once` **avant
+  tout build** et s'arrête sur tout code non nul (1, 3 FLAKY, 4 écran éteint, autre = erreur du runner), en pointant le
+  dossier du rapport. `-SkipTests` la saute avec un avertissement visible. **Un FLAKE bloque aussi la release** : il se
+  regarde, il ne se livre pas. Vérifier la porte sans GUI : `LAV_TESTBENCH_SELFTEST=pass|fail|flaky` (scénario interne,
+  honoré par `run` seulement ; ne contrôle pas l'écran).
+- **Règle** : toute nouvelle fonctionnalité desktop (ou tout bug corrigé) vient avec un **scénario** ; un bug produit
+  connu non corrigé passe son scénario en `xfail` sur sa signature exacte, avec la cause, jamais en skip (un scénario
+  ignoré fait échouer la porte).
+
 ## 🤖 CI/CD & release
 
 - **Les releases se construisent sur le PC du mainteneur** (depuis le 2026-11-23, quota Actions trop juste) :
   `scripts/local-release.ps1 -NotesFile <notes.md>` (`-SkipAndroid` / `-SkipWindows` réutilisent un build,
-  `-NoPublish` s'arrête avant le tag) construit les APK signés (`key/release.keystore`, mot de passe dans
+  `-NoPublish` s'arrête avant le tag, `-SkipTests` saute le banc de test) lance d'abord **le banc de test desktop**
+  (étape « Tests », avant tout build : `testbench.py run --suite desktop --rerun-failed-once` ; tout code non nul
+  arrête la release : 1 échec, 3 FLAKY, 4 écran éteint — voir « Banc de test »), puis construit les APK signés (`key/release.keystore`, mot de passe dans
   `key/keystore.properties`, hors git — ne jamais l'ouvrir ni l'afficher), le client Windows **x64
   seulement** (pas de kit Qt arm64 ici : `LAV_X64_ONLY=1` donne un installeur sans ARM64 ; `CI_VERSION` et un
   `version.txt` réécrit le temps du build donnent la version), le zip portable, puis tag `v<lavVersionName>`,

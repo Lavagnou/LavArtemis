@@ -19,6 +19,24 @@ Il faut les dépôts `LavApollo` et `LavArtemis-Qt` à côté de celui-ci (ou `L
 (`ninja -j <LAV_TESTBENCH_JOBS, défaut 1>`) et le client (`scripts\build-test.bat`, `LAV_TEST_JOBS`, défaut 2).
 Un build tué faute de mémoire n'est pas relancé : libérer de la mémoire et relancer.
 
+## Porte de release
+
+`scripts\local-release.ps1` lance `python tools\testbench\testbench.py run --suite desktop --rerun-failed-once` après
+ses contrôles (commit épinglé, arbre propre) et **avant tout build** ; tout code non nul arrête la release (1 échec,
+3 FLAKY, 4 écran éteint, autre = erreur du runner) et indique le dossier du rapport. `-SkipTests` la saute, avec un
+avertissement. Le client de test est reconstruit depuis le clone LavArtemis-Qt épinglé s'il est périmé.
+
+**Écran éteint = code 4.** Avant de lancer quoi que ce soit, `run` lit l'état de l'écran (`display.py` : le réglage
+d'alimentation `GUID_CONSOLE_DISPLAY_STATE` n'est pas interrogeable, il est livré en `WM_POWERBROADCAST` à une
+fenêtre inscrite par `RegisterPowerSettingNotification`, et Windows envoie la valeur courante dès l'inscription ;
+une fenêtre invisible, 1,5 s d'attente). Éteint : message « écran éteint : le banc de test a besoin de l'écran allumé »
+et sortie 4 ; allumé, tamisé ou état inconnu (pas de réponse) : on lance. Le banc ne rallume jamais l'écran.
+
+**Vérifier la porte sans GUI** : `LAV_TESTBENCH_SELFTEST=pass|fail|flaky`, honoré par `run` seulement : il remplace
+les scénarios par un scénario interne (`selftest/test_gate.py`, hors `scenarios/`), sans hôte ni client ni contrôle de
+l'écran, et donne 0 / 1 / 3 (le rejeu fait passer `flaky`). Exemple :
+`$env:LAV_TESTBENCH_SELFTEST='flaky'; scripts\local-release.ps1 -NotesFile n.md -NoPublish -SkipAndroid -SkipWindows`.
+
 ## Rapport
 
 `tools/testbench/testbench-reports/<date>_<heure>/` (hors git : captures et journaux peuvent porter des noms de
@@ -40,8 +58,9 @@ qu'au rejeu est marqué **FLAKE**, jamais masqué.
 | Code | Sens |
 |---|---|
 | 0 | chaque scénario a passé **du premier coup** (un `xfail` attendu compte comme passé) |
-| 1 | un scénario échoue (après son rejeu s'il y en a eu un), ou pytest a échoué sans résultat de scénario (collecte, interruption) |
+| 1 | un scénario échoue ou a été **ignoré** (skip : il n'a rien prouvé), après son rejeu s'il y en a eu un ; ou pytest a fini avec un code non nul sans qu'aucun scénario n'échoue (collecte, interruption, erreur d'usage) |
 | 3 | **FLAKY** : plus rien n'échoue, mais un scénario n'a passé qu'au rejeu : une instabilité à regarder, pas à livrer |
+| 4 | **écran éteint** : rien n'a tourné (voir ci-dessous) ; `run` refuse de démarrer, sans jamais allumer l'écran |
 
 En fin de run, un bloc récapitulatif sur la sortie standard liste `FAIL: <scénario>` / `FLAKE: <scénario>` et
 `RESULT: PASSED|FAILED|FLAKY (exit n)`, en plus de `report.md`.
