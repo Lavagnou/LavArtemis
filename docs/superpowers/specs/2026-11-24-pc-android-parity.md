@@ -22,7 +22,8 @@ s'ajoute ici comme écart.
   dans l'en-tête : En ligne, Session en cours, Hors ligne, Recherche… ; écrans d'attente « Aucun PC
   appairé », « Connexion à %1… », « Chargement des applis… », « %1 est hors ligne » (+ « Réveiller » quand
   le PC peut l'être, mêmes messages que Mes PC) ; bibliothèque vide : « Aucun jeu Playnite sur ce PC.
-  Installe l'extension LavApollo Link… ».
+  Installe l'extension LavApollo Link… » ; bibliothèque Playnite **dans l'ordre de l'hôte**, le plus récemment
+  joué d'abord (le PC la triait par nom jusqu'au 2026-11-25).
 - **Confirmations** : quitter ou relancer une session demande « Quitter %1 ? Ce qui n'est pas sauvegardé
   sera perdu. » / « Quitter %1 puis le relancer ? … » ; lancer une autre appli pendant une session :
   « %1 est en cours. Le quitter pour lancer %2 ? … ».
@@ -32,7 +33,9 @@ s'ajoute ici comme écart.
   LavApollo sur ce PC. », vérifiée avant d'ouvrir le PC, de lancer une appli et de lancer un benchmark.
 - **Mes PC** : en-tête, cartes (état, « adresse · LavApollo x.y », « En cours : jeu », « Éteint ou en
   veille… »), menu par carte (Ouvrir, Benchmark des réglages / Appairer / Réveiller, Renommer, Oublier ce
-  PC), ajout d'un PC (liste du réseau, « Saisir une adresse… », dialogue, messages), appairage par code
+  PC), ajout d'un PC (liste du réseau, « Saisir une adresse… », dialogue, messages ; le PC qui répond à
+  l'adresse est appairé tout de suite s'il ne l'est pas, sinon « Ce PC est déjà dans la liste » s'il était
+  déjà appairé, « %1 est ajouté » autrement), appairage par code
   PIN (dialogue, messages d'échec, désormais avec les mêmes phrases), renommage (avec « Le nom de ce PC
   dans LavArtemis. Le PC lui-même garde le sien. »), oubli, réveil.
 - **Réglages** : mêmes pages (Profil, Affichage, Vidéo, Audio, Entrées, Manettes, Apparence, PC, Avancé),
@@ -54,7 +57,8 @@ s'ajoute ici comme écart.
 - **Mise à jour** : « Ignorer cette version » dans le dialogue ; la vérification automatique ne la propose
   plus, « Vérifier » dans les réglages si.
 - **Menu en jeu**, entrées communes dans cet ordre : Quitter <jeu Playnite>, Déconnecter, Quitter la
-  session (confirmée : « Tu veux vraiment quitter ? »), Commandes du PC hôte (« Aucune commande » expliqué
+  session (confirmée : « Tu veux vraiment quitter ? » ; ferme l'appli sur le PC distant et revient à l'accueil
+  du client, qui reste ouvert), Commandes du PC hôte (« Aucune commande » expliqué
   si l'hôte n'en donne pas), Envoyer des touches (les **15** mêmes raccourcis, mêmes libellés ; plus de
   raccourci HDR), Envoyer / Récupérer le presse-papiers, Statistiques de performance, Couper / Réactiver le
   micro (seulement quand le micro est envoyé), Passer en trackpad / multitouch (pour ce stream, retenu
@@ -147,6 +151,19 @@ Les textes qui nomment l'appareil restent différents exprès : « suit le mode 
 - Mise à jour : « Ignorer cette version ».
 - Raccourci HDR retiré ; tutoiement dans toutes les traductions (messages de stream, avertissements de
   lancement, « Tu veux vraiment quitter ? »).
+
+## 3 bis. Aligné le 2026-11-25 (PC, bogues trouvés par le banc de test)
+
+- **« Quitter la session »** fermait tout le client PC : il revient maintenant à l'accueil, comme Android (un
+  stream lancé en ligne de commande ou par un lien `art://` ferme toujours le client à la fin).
+- **Ajout d'un PC par adresse** : le PC affichait presque toujours « Ce PC est déjà dans la liste » sans
+  dialogue d'appairage ; il appaire désormais le PC qui a répondu, avec la règle d'Android
+  (`HostsActivity.onAdded()`), y compris un PC déjà connu mais pas appairé.
+- **Bibliothèque Playnite** dans l'ordre de l'hôte (le plus récent d'abord) au lieu de l'ordre alphabétique.
+- Hors parité mais trouvés au même passage, PC seulement : aucun stream ne démarrait depuis l'interface et
+  aucun lien `art://` n'appairait (0.7.0-dev.2 à dev.6) ; « PIN incorrect » pour le bon PIN une fois sur 16
+  environ (hérité de moonlight-qt ; Android n'a pas ce défaut) ; plantage `ncrypt.dll` pendant des rafales
+  de requêtes HTTPS ; pied du menu en jeu par-dessus la dernière ligne.
 
 ## 4. Ce qui reste
 
