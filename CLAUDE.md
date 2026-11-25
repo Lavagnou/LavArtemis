@@ -936,6 +936,12 @@ valeurs de référence.
 > `dequeueOutputBufferTimed()`) au **moment visé** par `releaseOutputBuffer` (`benchmarkPresented()`, à chaque
 > site de présentation). Tout nouveau chemin de présentation doit appeler `benchmarkPresented()`.
 
+- **La référence enregistre ce qu'elle a streamé** (`requested` = `effective` pour `baseline` et `baseline-repeat` :
+  `BenchmarkController.complete()`, `measure()` du desktop) : en Auto il n'y a pas de codec demandé, et le mode
+  adaptatif montait le débit puis confirmait sur la supposition (HEVC). `BenchmarkControllerTest`.
+- **Notes en anglais dans le JSON, traduites à l'affichage**, mêmes phrases des deux côtés (`BenchmarkNotes.java`,
+  `Benchmark::Notes` du desktop ; liste dans `LavApollo/docs/benchmark.md`, « Notes ») : chacun traduit aussi les
+  formes de l'autre, un rapport s'ouvre des deux côtés.
 - Android n'a pas d'étage « rendu » mesurable (SurfaceFlinger) et ne mesure pas PyroWave (décodé en natif,
   hors des stats Java) : ses scores ne se comparent pas un pour un à ceux du desktop. Chaque rapport compare
   ses propres runs.

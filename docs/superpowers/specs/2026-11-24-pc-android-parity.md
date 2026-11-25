@@ -218,6 +218,29 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
   HTTP 403… ») et jamais sans fin (délai de 15 s) ; page Raccourcis : **Ctrl+Alt+Maj+Q = « Déconnecter »**,
   **Ctrl+Alt+Maj+E = « Quitter la session »** (E fermait aussi tout le client).
 
+## 3 quinquies. Aligné le 2026-11-25 (benchmark, ligne de commande, mise à jour, manettes ; scénarios 12 à 14)
+
+- **Benchmark, référence** : la référence (et sa répétition) enregistre ce qu'elle a streamé (`requested` =
+  `effective`), des deux côtés. En Auto, les deux enregistraient la supposition (HEVC) et le mode adaptatif
+  montait le débit puis confirmait sur un codec que la référence n'avait pas streamé (`LavApollo/docs/benchmark.md`).
+- **Benchmark, notes** : écrites en anglais dans le JSON et traduites à l'affichage, **mêmes phrases** des deux
+  côtés (le PC les écrivait en français) ; le PC traduit toutes les formes d'Android, Android celles du PC
+  (« Le stream n'a pas démarré. », « …n'a pas pu démarrer. », « Le débit a été plafonné à %1 Mbit/s. ») ;
+  textes français repris d'Android (« Passé en %1, %2 à la place. », « Échec au démarrage (%1) : erreur %2. »,
+  « l'appareil est revenu à »…). Écart d'affichage : le PC montre les codecs et le pacing par leur nom
+  (« Passé en HEVC, V-Sync à la place. »), Android par leur identifiant (« hevc, vsync »).
+- PC seulement : noms de mode et d'objectif traduits dans le rapport et l'historique (« quick », « balanced »
+  s'affichaient) ; « Arrêter » avant le premier passage ramène la page de départ (page vide avant) ; « Arrêter »
+  pendant le redémarrage de la scène n'est plus suivi d'un passage.
+- PC seulement : un jeu Playnite lancé en ligne de commande, par un `.art` ou un lien pendant que Playnite tourne
+  démarre dans Playnite comme depuis l'accueil (la ligne de commande proposait de quitter Playnite) ; un lien ou
+  un `.art` mal formé ouvre l'accueil avec un message en français (le processus quittait) ; seul le premier
+  argument est un lien ou un `.art`.
+- PC seulement : une disposition de manette devinée est annoncée à chaque fois (mapper, chaque lancement), pas
+  seulement la première ; couper « Deviner la disposition » vaut sans redémarrer ; le nettoyage des installeurs
+  téléchargés ne touche plus ceux de l'autre appli (stable / Dev) ; le dialogue de mise à jour n'a plus l'icône
+  d'erreur.
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)
