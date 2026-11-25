@@ -4,8 +4,6 @@ from the library."""
 import json
 import time
 
-import pytest
-import bugs
 import helpers
 import hosts
 
@@ -48,7 +46,8 @@ def test_home_cards_library_and_hide(bench):
     assert len(found) == len(names), f"{len(found)} cover tiles for {len(names)} games"
     assert all(d < 40 for _n, d, _t in found), f"a tile does not show its cover: {found}"
     assert sorted(seen) == sorted(names), f"tiles {seen} != games {names}"
-    order_ok = seen == names
+    bench.note(f"library order on screen {seen}, library.json {names}")
+    assert seen == names, f"the library must keep the host's order (most recently played first): {seen} != {names}"
 
     # « Masquer » from the game's menu (right click on its cover)
     tile = next(t for n, _d, t in found if n == GAME)
@@ -90,8 +89,6 @@ def test_home_cards_library_and_hide(bench):
     shot = bench.shot("07-unhidden")
     final = tile_names(c, shot["path"], names, shot["dpr"])
     assert len(final) == len(names) and all(d < 40 for _n, d, _t in final), f"after unhide: {final}"
-
-    # Library order last: a known bug, the rest of the scenario must not depend on it
-    if not order_ok:
-        bench.note(f"library order on screen {seen}, library.json {names}")
-        pytest.xfail(bugs.LIBRARY_ORDER + f" -- seen {seen}, expected {names}")
+    # Shown again in the host's order, not appended by name
+    again_names = [n for n, _d, _t in final]
+    assert again_names == names, f"after unhide: {again_names} != {names}"
