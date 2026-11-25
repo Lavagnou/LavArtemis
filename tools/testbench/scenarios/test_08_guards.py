@@ -1,11 +1,11 @@
 """Scenario 8: the test client never talks to a real host.  Adding 192.168.1.231 (a real PC of the LAN),
 127.0.0.1:45989 (the real LavApollo service of this PC) and 127.0.0.1:47989 (the default GameStream port) is refused
 before any request, with the test build's message; an art:// pairing link to a real address (command line, the
-CLI pairing path) is refused too.  The client's log shows the refusals and not a single request to those addresses."""
+CLI pairing path) is refused too, at once and with the same message.  The client's log shows the refusals and not a
+single request to those addresses."""
 import re
 import time
 
-import bugs
 import helpers
 
 REFUSED = ["192.168.1.231", "127.0.0.1:45989", "127.0.0.1:47989"]
@@ -42,22 +42,20 @@ def test_guards_real_addresses_refused(bench):
 
     # A link handled by the command line (CliPair: ComputerManager::addNewHostManually, then NvHTTP)
     link = "art://192.168.1.231:47989?pin=1234&passphrase=testbench"
+    # The first client quits first: two clients would both serve the command pipe, and the channel could reach
+    # the wrong one (« another client is already connected »)
+    c.stop()
+    started = time.time()
     c = bench.start_client(reset=False, args=[link])
-    deadline = time.time() + 20
-    log = ""
-    while time.time() < deadline:
-        log = c.log_text()
-        refused = "refused (loopback and ports 40000-44999 only)" in log and "192.168.1.231:47989" in log
-        if refused or bugs.toolbar_bug_seen(log):
-            break
-        time.sleep(0.3)
+    # The refusal ends the CLI pairing with its message, well before the 10 s search timeout (it used to spin on
+    # « Connexion au PC... » until then, and end on a generic « Failed to connect »)
+    helpers.wait_text(c, MESSAGE, timeout=8)
+    elapsed = time.time() - started
     bench.shot("04-art-link-refused")
+    bench.note(f"art:// link refused after {elapsed:.1f}s (client start included)")
+    assert elapsed < 8, elapsed
+    log = c.log_text()
     assert not requests_to(log, "192.168.1.231"), requests_to(log, "192.168.1.231")
-    if bugs.toolbar_bug_seen(log):
-        # the CLI pairing page never starts (known product bug): nothing is attempted, so nothing can leave
-        bench.note("art:// link: CliPair never ran (toolBar bug); no request in the log")
-        assert c.state()["computers"] == []
-        return
     # Refused at the first layer (the pairing command adds the PC through the same guard) or, failing that, by
     # NvHTTP before any request
     assert ('manual add of "192.168.1.231:47989" refused' in log or
