@@ -95,9 +95,12 @@ def open_hosts(c):
         wait_page(c, "HostsView")
 
 
-def go_home(c):
+def go_home(c, timeout=15.0):
+    """Escape until the home shows (bounded: a page that ignores Escape fails the scenario instead of hanging it)."""
+    deadline = time.time() + timeout
     st = c.wait_idle()
     while st["page"] != "HomeView":
+        assert time.time() < deadline, f"Escape does not lead home: page {st['page']}, texts {texts(c)[-12:]}"
         c.call("key", key="Escape", target="qt")
         time.sleep(0.4)
         st = c.wait_idle()

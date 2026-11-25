@@ -535,6 +535,28 @@ def _web_post(opener, host, path, body):
 WEB_USER, WEB_PASSWORD = "testbench", "testbench-password"
 
 
+def _web_login(host):
+    """A web UI session on the fake PC (its sandboxed credentials, set on first use), as otp() logs in."""
+    opener = _web_opener()
+    try:
+        _web_post(opener, host, "/api/password", {"newUsername": WEB_USER, "newPassword": WEB_PASSWORD,
+                                                  "confirmNewPassword": WEB_PASSWORD})
+    except urllib.error.HTTPError:
+        pass  # already set by an earlier call (then only our own credentials can be there)
+    _web_post(opener, host, "/api/login", {"username": WEB_USER, "password": WEB_PASSWORD})
+    return opener
+
+
+def unpair_all(host):
+    """Remove every paired client on the fake PC, as the user does in LavApollo's web UI (Appairage › Tout
+    désappairer): POST /api/clients/unpair-all, logged in like otp().  The client's certificate is then unknown to the
+    host: its HTTPS requests get a 401."""
+    r = _web_post(_web_login(host), host, "/api/clients/unpair-all", {})
+    if not r.get("status"):
+        raise RuntimeError(f"{host.name}: unpair-all refused ({r})")
+    return r
+
+
 def otp(host, passphrase, device_name="testbench"):
     """A one-time pairing PIN for `passphrase` (Apollo OTP pairing, what an art://host?pin=&passphrase= link
     carries), asked the way the web UI does: credentials set on the fresh fake PC (they live in its sandboxed

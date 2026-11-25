@@ -84,3 +84,32 @@ def test_pairing_art_link_with_passphrase(bench):
     bench.restart_client()
     comp = helpers.wait_computer(bench.client, atlas.name, lambda x: x["paired"] and x["online"])
     assert comp["address"] == ADDRESS
+
+
+def test_pairing_art_link_already_paired(bench):
+    """An art:// pairing link for a PC that is already paired: that is a success (Android), « Test-Atlas est
+    appairé », and the PC opens on the home of the process the link started."""
+    atlas, = bench.up("atlas-test")
+    c = bench.start_client()
+    helpers.add_and_pair(c, atlas)
+    passphrase = "lavtestbench"
+    link = f"art://{ADDRESS}?pin={hosts.otp(atlas, passphrase)}&passphrase={passphrase}"
+    c = bench.restart_client(args=[link])
+    helpers.wait_text(c, f"{atlas.name} est appairé", timeout=30)
+    bench.shot("04-already-paired")
+    helpers.click(c, "OK")
+    helpers.wait_page(c, "HomeView")
+    helpers.wait_text(c, f"Sur {atlas.name}", timeout=20)
+    bench.shot("05-home")
+
+
+def test_pairing_art_link_expired_code(bench):
+    """A link whose code the host no longer has (used, expired, or never made): a French sentence naming the PC,
+    never the host's « OTP auth not available. » nor any English."""
+    atlas, = bench.up("atlas-test")
+    c = bench.start_client(reset=True, args=[f"art://{ADDRESS}?pin=1234&passphrase=lavtestbench"])
+    msg = helpers.wait_any_text(c, ["n'est plus valable"], timeout=30)
+    bench.shot("06-expired")
+    assert msg == (f"Le code du lien n'est plus valable sur {atlas.name} : il ne sert qu'une fois et expire au bout "
+                   "de 3 minutes. Crée un nouveau lien dans LavApollo."), msg
+    # Not closed here: closing the message quits this pairing process, which the bench counts as a crash

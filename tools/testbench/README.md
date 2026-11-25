@@ -113,12 +113,13 @@ Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce q
 |---|---|---|
 | 1 | `test_01_pairing.py` | ajout par adresse + PIN lu à l'écran donné à l'hôte ; lien `art://…&passphrase=` (OTP) sans PIN |
 | 2 | `test_02_home.py` | cartes Bureau puis Playnite Fullscreen, jaquettes, ordre de `library.json`, Masquer / réafficher |
-| 3 | `test_03_hosts.py` | Mes PC : PC éteint, version de LavApollo trop ancienne, renommer, oublier |
+| 3 | `test_03_hosts.py` | Mes PC : PC éteint, version de LavApollo trop ancienne (ouvrir et benchmark refusés), renommer, oublier |
 | 4 | `test_04_settings.py` | chaque page des Réglages en normal et en expert, une écriture relue après redémarrage |
 | 5 | `test_05_stream.py` | stream de Bureau : taille négociée (règle « résolution calée » appliquée à l'écran annoncé par le faux PC, `display` de `pc.json`, défaut 1920×1080 à 60 Hz), images décodées et numérotées, touches du menu en jeu, micro, quitter |
 | 5b | `test_05b_stream_input.py` | entrées du canal pendant un stream : rien n'atteint l'hôte quand le canal se tait ; déplacement et clic de souris, manette de test (A), touche envoyée au stream : chacun dans `input.jsonl` de l'hôte |
 | 6 | `test_06_playnite.py` | jeu Playnite pendant que Playnite tourne : `resume`, `playnite_launch`, « Quitter <jeu> » |
-| 7 | `test_07_this_pc.py` | « Impossible de streamer … depuis lui-même », aucune session |
+| 7 | `test_07_this_pc.py` | « Impossible de streamer … depuis lui-même », aucune session ; le benchmark de Mes PC refusé de même |
 | 8 | `test_08_guards.py` | 192.0.2.10 (pour un PC du réseau local : adresse TEST-NET-1, qu'aucune machine n'a), 127.0.0.1:45989, 127.0.0.1:47989 refusés, aucune requête au journal |
+| 9 | `test_09_lifecycle.py` | vie d'un PC : appairage retiré sur l'hôte (`hosts.unpair_all`, « Tout désappairer » de l'interface web) → en ligne, pas appairé, dans « Ajouter un PC », réappairé par son adresse ; 2ᵉ PC appairé affiché par l'accueil, oubli du PC affiché puis du dernier (« Aucun PC appairé ») ; PC éteint : cartes retirées, « Réveiller » → « Le réveil … n'a pas pu être envoyé. » ; un dialogue « Oublier » garde son PC quand la liste bouge ; mauvais PIN, un seul appairage à la fois, hôte arrêté pendant l'appairage (message français qui nomme le PC) ; formes d'adresse |
 
 Les streams restent légers (1280×720 à 30 i/s, H.264 logiciel côté hôte) et courts.

@@ -43,6 +43,16 @@ def test_hosts_offline_old_version_rename_forget(bench):
     helpers.wait_text(c, "Oups", gone=True)
     assert c.state()["page"] == "HostsView", "a refused PC must not open"
 
+    # Its benchmark is refused the same way (it would stream from it)
+    helpers.host_card_menu(c, old.name)
+    helpers.click(c, "Benchmark des réglages")
+    msg = helpers.wait_any_text(c, ["La version du logiciel hôte"])
+    assert msg.startswith(f"La version du logiciel hôte de {old.name} n'est pas prise en charge"), msg
+    bench.shot("03b-old-version-benchmark")
+    c.click("OK")
+    helpers.wait_text(c, "Oups", gone=True)
+    assert c.state()["page"] == "HostsView", "no benchmark page for a refused PC"
+
     # Rename (the PC keeps its own name; the client shows ours)
     helpers.host_card_menu(c, atlas.name)
     bench.shot("04-menu")

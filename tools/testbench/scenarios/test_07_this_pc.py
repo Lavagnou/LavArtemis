@@ -1,5 +1,6 @@
 """Scenario 7: a PC that is this very PC (LavApollo announces LavTestHostThisPc, test_host_this_pc): launching from
-it is refused with « Impossible de streamer … depuis lui-même », and no session starts on either side."""
+it is refused with « Impossible de streamer … depuis lui-même », and no session starts on either side; its benchmark
+(Mes PC › menu) is refused the same way."""
 import time
 
 import helpers
@@ -27,3 +28,13 @@ def test_this_pc_launch_refused(bench):
     assert "/launch?" not in log and "/resume?" not in log, "no launch request may leave"
     host_log = (me.dir / "sunshine.log").read_text(encoding="utf-8", errors="replace")
     assert "New streaming session" not in host_log
+
+    # A benchmark streams too: refused with the same sentence, from Mes PC, and nothing opens
+    helpers.click(c, "OK")
+    helpers.wait_text(c, "Oups", gone=True)
+    helpers.host_card_menu(c, me.name)
+    helpers.click(c, "Benchmark des réglages")
+    msg = helpers.wait_any_text(c, ["depuis lui-même"])
+    assert msg.startswith(f"Impossible de streamer {me.name} depuis lui-même"), msg
+    bench.shot("03-benchmark-refused")
+    assert c.state()["page"] == "HostsView"
