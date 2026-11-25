@@ -2,6 +2,7 @@
 
 Every action goes through the command channel (injected events only); every wait polls the client's state or its
 tree, never a fixed sleep longer than a UI animation."""
+import math
 import re
 import time
 
@@ -316,6 +317,21 @@ def launch(c, title, timeout=40.0):
             raise AssertionError(f"no stream after {timeout:.0f}s: page {st['page']}, session {sess}, "
                                  f"texts {texts(c)[:10] if st['page'] else []}")
         time.sleep(0.3)
+
+
+def host_display_fit(host_display, setting):
+    """(width, height, fps) a client negotiates when it does not create the host's display (it joins a session, or
+    launches without a virtual display): the « résolution calée » rule of both clients (HostDisplayFit, same
+    reference values).  The host display's aspect, at the largest size inside both the setting and that display
+    (never upscaled, rounded down to even), at the lower frame rate.  host_display: hosts.Host.display."""
+    hw, hh, hr = host_display
+    sw, sh, sf = setting
+    scale = min(1.0, sw / hw, sh / hh)
+
+    def even(v):
+        return max(2, v & ~1)
+
+    return even(math.floor(hw * scale)), even(math.floor(hh * scale)), min(sf, hr) if hr > 0 else sf
 
 
 def quick_menu_window(c):

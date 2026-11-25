@@ -9,6 +9,7 @@ import frames
 import helpers
 
 # The test client's settings: 1280x720 (the defaults of a reset client), 30 fps to keep the software encode light.
+# The negotiated size follows from them and the display the fake PC announces (atlas.display).
 SIZE = (1280, 720)
 FPS = 30
 
@@ -32,10 +33,13 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
 
     st = helpers.launch(c, "Bureau")
     sess = st["session"]
-    # Negotiated: the host's display is 1920x1080@60 and no virtual display is asked, so HostDisplayFit keeps the
-    # largest 16:9 size inside both (the settings): 1280x720, at min(30, 60) fps
-    assert (sess["width"], sess["height"], sess["fps"]) == (SIZE[0], SIZE[1], FPS), sess
-    assert c.stream_size() == (SIZE[0], SIZE[1], "negotiated")
+    # Negotiated: no virtual display is asked, so the client fits its setting to the display the fake PC announces
+    # (the fixture's test_host_display, never this PC's monitor): HostDisplayFit, 1280x720 at 30 fps for the default
+    # 1920x1080@60
+    expected = helpers.host_display_fit(atlas.display, (SIZE[0], SIZE[1], FPS))
+    bench.note(f"host display {atlas.display}, setting {SIZE}@{FPS}: expected {expected}")
+    assert (sess["width"], sess["height"], sess["fps"]) == expected, sess
+    assert c.stream_size() == (expected[0], expected[1], "negotiated")
 
     # Frames keep arriving and being decoded
     d1 = c.state()["session"]["decoded"]

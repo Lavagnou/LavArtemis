@@ -93,6 +93,10 @@ argument (`config.cpp:1526`, un argument sans `=` est le fichier de config).
   de test (et le seul hôte qu'il accepte).
 - Le nom du PC (`hostname`), `appversion`, `uniqueid`, la MAC et l'état « Playnite lancé » viennent de la
   config du faux PC : on peut simuler une version non prise en charge, un PC sans Playnite, etc.
+- Le **mode d'écran annoncé** (`CurrentDisplayWidth/Height/RefreshRate`, que le client suit avec la « résolution
+  calée ») est **fixe** : `test_host_display` (`display` de `pc.json`), défaut 1920×1080 à 60 Hz, jamais l'écran
+  réel du PC des tests — sinon la taille négociée dépendait du moniteur, et un changement de mode de celui-ci faisait
+  reconnecter le client de test en pleine session.
 
 ### Source vidéo synthétique
 
@@ -114,7 +118,7 @@ argument (`config.cpp:1526`, un argument sans `=` est le fichier de config).
 ### Données d'un faux PC (fixtures)
 
 Dossier `tools/testbench/fixtures/<nom>/` dans LavArtemis : `pc.json` (nom, version, MAC, ports, Playnite
-lancé ou non, appli en cours), `apps.json`, `playnite/library.json` + `covers/`. Les jaquettes sont
+lancé ou non, appli en cours, mode d'écran annoncé `display` = `"LxHxF"`, facultatif), `apps.json`, `playnite/library.json` + `covers/`. Les jaquettes sont
 **générées** (titre sur un fond de couleur), jamais des images de vrais jeux.
 
 ## 2. Client de test desktop (LavArtemis-Qt)

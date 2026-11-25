@@ -66,6 +66,9 @@ PORT_MIN, PORT_MAX = 40000, 44999
 # Offsets used by an instance around its base port (base-5 .. base+21).
 PORT_SPAN = (-5, 21)
 STARTUP_TIMEOUT = 60.0
+# The display mode a fake PC announces in serverinfo (CurrentDisplayWidth/Height/RefreshRate, LavApollo
+# `test_host_display`): fixed by the fixture, never the monitor of the PC the tests run on.  Same default as LavApollo.
+DEFAULT_DISPLAY = (1920, 1080, 60)
 MSYS_PATH = "C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;"
 
 
@@ -76,6 +79,7 @@ class Host:
     pid: "int | None"
     dir: pathlib.Path
     fixture: str = ""
+    display: tuple = DEFAULT_DISPLAY  # (width, height, refresh) announced in serverinfo
 
 
 def default_workdir():
@@ -94,6 +98,19 @@ def available_fixtures():
 
 def load_fixture(name):
     return json.loads((FIXTURES / name / "pc.json").read_text(encoding="utf-8"))
+
+
+def display_mode(pc):
+    """(width, height, refresh) a fake PC announces: pc.json's optional "display" ("2560x1600x120"), else
+    DEFAULT_DISPLAY.  Refused unless LavApollo would accept it too (its parse_mode: 1..16384, refresh 1..1000)."""
+    text = pc.get("display")
+    if not text:
+        return DEFAULT_DISPLAY
+    parts = str(text).split("x")
+    limits = (16384, 16384, 1000)
+    if len(parts) != 3 or not all(p.isdigit() and 1 <= int(p) <= m for p, m in zip(parts, limits)):
+        raise ValueError(f"{pc.get('name')}: display {text!r} is not WIDTHxHEIGHTxREFRESH")
+    return tuple(int(p) for p in parts)
 
 
 def _slash(p):
@@ -118,6 +135,8 @@ def render_conf(pc, pcdir):
         lines.append(f"test_host_appversion = {pc['appversion']}")
     if pc.get("this_pc"):
         lines.append("test_host_this_pc = enabled")
+    # Always written: the scenarios derive the negotiated stream size from the same value
+    lines.append("test_host_display = {}x{}x{}".format(*display_mode(pc)))
     return "\n".join(lines) + "\n"
 
 
@@ -402,14 +421,14 @@ def up(fixtures, workdir=None, force_instances=(), overrides=None):
     for f, pc in pcs.items():
         pcdir = workdir / f
         if not pc.get("instance", True):
-            result.append(Host(pc["name"], pc["port"], None, pcdir, f))
+            result.append(Host(pc["name"], pc["port"], None, pcdir, f, display_mode(pc)))
             continue
         shutil.rmtree(pcdir, ignore_errors=True)
         write_pc_files(pc, f, pcdir)
         p = _spawn(pc, pcdir)
         records.append({"name": pc["name"], "pid": p.pid, "exe": str(sunshine_exe())})
         (workdir / "pids.json").write_text(json.dumps(records))  # written at once: a crash leaves it
-        result.append(Host(pc["name"], pc["port"], p.pid, pcdir, f))
+        result.append(Host(pc["name"], pc["port"], p.pid, pcdir, f, display_mode(pc)))
     _wait_serverinfo(result, workdir)
     return result
 
@@ -441,12 +460,15 @@ def restart(host, workdir=None, changes=None):
     records.append({"name": pc["name"], "pid": p.pid, "exe": str(sunshine_exe())})
     f.write_text(json.dumps(records))
     host.pid = p.pid
+    host.display = display_mode(pc)
     _wait_serverinfo([host], workdir)
     return host
 
 
 def pin(host, pin, name="testbench"):
-    """Enter a pairing PIN as the web UI does.  127.0.0.1 explicitly (::1 and localhost are refused)."""
+    """Enter a pairing PIN as the web UI does, at 127.0.0.1 explicitly.  LavApollo refuses only ::1 (it checks the
+    peer address, so after name resolution): `localhost` would work when it resolves to 127.0.0.1 and be refused
+    when it resolves to ::1 first."""
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE

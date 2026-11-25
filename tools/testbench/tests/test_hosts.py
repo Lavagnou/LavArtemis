@@ -94,6 +94,7 @@ def test_conf_generation(tmp_path):
     assert lines["sunshine_name"] == "Test-Atlas"
     assert lines["test_host_mac"] == pc["mac"]
     assert "test_host_this_pc" not in lines and "test_host_appversion" not in lines
+    assert lines["test_host_display"] == "1920x1080x60"  # fixed, never this PC's monitor
     for key in ("file_state", "file_apps", "credentials_file", "log_path"):
         assert pathlib.Path(lines[key]).is_absolute() and "\\" not in lines[key]
         assert lines[key].startswith(str(tmp_path).replace("\\", "/"))
@@ -104,6 +105,16 @@ def test_this_pc_and_old_version_tags(tmp_path):
     assert "test_host_this_pc = enabled" in conf
     conf = hosts.render_conf(hosts.load_fixture("old-version-test"), tmp_path)
     assert "test_host_appversion = 2.1.0.0" in conf
+
+
+def test_display_mode_from_fixture(tmp_path):
+    assert hosts.display_mode({"name": "x"}) == hosts.DEFAULT_DISPLAY == (1920, 1080, 60)
+    pc = dict(hosts.load_fixture("atlas-test"), display="2560x1600x120")
+    assert hosts.display_mode(pc) == (2560, 1600, 120)
+    assert "test_host_display = 2560x1600x120" in hosts.render_conf(pc, tmp_path)
+    for bad in ("2560x1600", "2560X1600X120", "0x1600x120", "2560x1600x1001", "axbxc", "-1x2x3"):
+        with pytest.raises(ValueError):
+            hosts.display_mode({"name": "x", "display": bad})
 
 
 def test_offline_has_no_instance():
