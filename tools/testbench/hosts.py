@@ -137,6 +137,9 @@ def render_conf(pc, pcdir):
         lines.append("test_host_this_pc = enabled")
     # Always written: the scenarios derive the negotiated stream size from the same value
     lines.append("test_host_display = {}x{}x{}".format(*display_mode(pc)))
+    if pc.get("server_cmd"):
+        # Commands of the host PC (in-game menu); run in test mode as logged no-ops (commands.jsonl)
+        lines.append("server_cmd = " + json.dumps(pc["server_cmd"], separators=(",", ":")))
     return "\n".join(lines) + "\n"
 
 
@@ -477,6 +480,54 @@ def pin(host, pin, name="testbench"):
                                  headers={"Content-Type": "application/json"}, method="POST")
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ctx))
     return json.loads(opener.open(req, timeout=10).read())
+
+
+def _test_request(host, path, body=None):
+    """A control route of the fake PC (`/api/test/*`, LavApollo test host mode: 127.0.0.1 only, no login), like
+    pin().  GET without a body, POST with one."""
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    data = None if body is None else json.dumps(body).encode()
+    req = urllib.request.Request(f"https://127.0.0.1:{host.port + 1}{path}", data=data,
+                                 headers={"Content-Type": "application/json"},
+                                 method="GET" if body is None else "POST")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ctx))
+    return json.loads(opener.open(req, timeout=10).read())
+
+
+def set_display(host, mode):
+    """Change the display mode the fake PC announces from now on, as when its display changes mid-session:
+    (width, height, refresh), or None for the fixture's own.  host.display follows."""
+    text = "" if mode is None else "{}x{}x{}".format(*mode)
+    r = _test_request(host, "/api/test/display", {"mode": text})
+    if not r.get("status"):
+        raise RuntimeError(f"{host.name}: display change refused ({r})")
+    host.display = tuple(mode) if mode is not None else display_mode(load_fixture(host.fixture))
+    return r
+
+
+def fail_next(host, what):
+    """Make the fake PC's next `launch` / `resume` fail (503), or its next `cancel` leave the app running while
+    answering success (what a host does for a game another device started)."""
+    r = _test_request(host, "/api/test/fail", {"what": what})
+    if not r.get("status"):
+        raise RuntimeError(f"{host.name}: fail_next({what}) refused ({r})")
+    return r
+
+
+def terminate(host):
+    """The streamed app exits on the fake PC: the host ends the stream (graceful termination).  True when an app
+    was running."""
+    return bool(_test_request(host, "/api/test/terminate", {}).get("status"))
+
+
+def clipboard(host, text=None):
+    """The fake PC's clipboard: returns it, or sets it (as if copied on the PC) when `text` is given."""
+    if text is None:
+        return _test_request(host, "/api/test/clipboard").get("text", "")
+    _test_request(host, "/api/test/clipboard", {"text": text})
+    return text
 
 
 def stop(host, workdir=None):
