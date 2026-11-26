@@ -286,6 +286,10 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > - **Menu en jeu** (Dev) : `V2GameMenu` (tuiles Braise, panneau Affiche, dock Ludique), Reprendre + 9 + « Plus »
 >   construits par `GameMenu.showTileMenu` ; **pastille « Menu »** (`ui/MenuPill`) à la place du bouton flottant,
 >   le bouton vocal reste.
+> - **Bibliothèque** : `LibraryScreen` = une mise en page par thème (Braise grille 6 + fiche, Affiche liste numérotée
+>   avec **fenêtre de 8 lignes** à la manette, Ludique grille 8 + barre), RecyclerView (jaquettes chargées à
+>   l'affichage), D-pad par `V2Activity.onV2Move` ; filtres et « joué hier » dans `LibraryModel` (= desktop), LB / RB
+>   = filtre suivant.
 > - Captures : `HomeScreenshotTest` (1280 × 720 = prototype, 1280 × 800, 915 × 412, 960 × 540, 3 thèmes × clair /
 >   sombre × tactile / manette, hors ligne, options, menu en jeu) ; tests `FocusGridTest`, `HomeLayoutTest`,
 >   `SessionChoiceTest`.

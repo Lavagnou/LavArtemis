@@ -397,34 +397,75 @@ public class HomeScreenshotTest {
         }
     }
 
+    /**
+     * The library page (prototype V8-22): every theme, light and dark, at the gamepad (focus on the
+     * 2nd game, Uncrashed) and at touch; then the Installés and Masqués filters (V8-60 / V8-72) and an
+     * empty library (V8-23), Braise dark at the gamepad.
+     */
     @Test
     public void library() throws Exception {
-        RuntimeEnvironment.setQualifiers("w960dp-h540dp-land-xhdpi");
-        V2Input.reset(V2Input.Kind.TOUCH);
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                for (V2Input.Kind input : new V2Input.Kind[]{V2Input.Kind.PAD, V2Input.Kind.TOUCH}) {
+                    libraryShot("library-" + t + "-" + (dark ? "sombre" : "clair") + "-" + (input == V2Input.Kind.TOUCH ? "tactile" : "manette"),
+                            t, dark, input, 0, true);
+                }
+            }
+        }
+        libraryShot("library-installes-braise-sombre-manette", "braise", true, V2Input.Kind.PAD, 2, true);
+        libraryShot("library-masques-braise-sombre-manette", "braise", true, V2Input.Kind.PAD, 3, true);
+        libraryShot("library-masques-affiche-clair-manette", "affiche", false, V2Input.Kind.PAD, 3, true);
+        libraryShot("library-vide-braise-sombre-manette", "braise", true, V2Input.Kind.PAD, 0, false);
+        libraryShot("library-vide-ludique-clair-manette", "ludique", false, V2Input.Kind.PAD, 0, false);
+    }
+
+    private void libraryShot(String file, String t, boolean dark, V2Input.Kind input, int filter, boolean games) throws Exception {
+        RuntimeEnvironment.setQualifiers("w1280dp-h720dp-land-mdpi");
+        V2Input.reset(input);
         Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
-        List<NvApp> apps = apps();
-        LibraryScreen lib = new LibraryScreen(ctx, V2Theme.of("braise", true), Density.forSize(960, 540), new LibraryScreen.Actions() {
-            @Override
-            public void back() {
+        V2Theme theme = V2Theme.of(t, dark);
+        List<NvApp> apps = games ? apps() : new ArrayList<>(apps().subList(0, 3));
+        CoverSource covers = covers(apps);
+        java.util.Set<Integer> hidden = DATA.real ? DATA.hidden(apps) : new java.util.HashSet<>(Arrays.asList(105));
+        HomeModel m = HomeModel.build(apps, 2, GAMES[0], true, hidden, false);
+        LibraryScreen lib = new LibraryScreen(ctx, theme, HomeLayout.forSize(1280, 720), new LibraryScreen.Actions() {
+            @Override public void back() {}
+            @Override public void launch(NvApp app) {}
+            @Override public void options(NvApp app) {}
+        }, covers);
+        lib.bind(pc("ATLAS-PC", true), m, ShotData.NOW);
+        if (filter != 0) {
+            lib.setFilter(filter);
+        }
+        View root = lib.getView();
+        draw(root, 1280, 720);
+        if (input != V2Input.Kind.TOUCH) {
+            allowFocus(root);
+            if (games) {
+                lib.focusIndex(filter == 0 ? 1 : 0);
+            } else {
+                lib.requestInitialFocus();
             }
+            draw(root, 1280, 720);
+            allowFocus(root);
+            if (games) {
+                lib.focusIndex(filter == 0 ? 1 : 0);
+            }
+        }
+        save(draw(root, 1280, 720), file);
+    }
 
-            @Override
-            public void launch(NvApp app) {
+    /** Robolectric keeps the window in touch mode: the focusable views take the focus anyway */
+    private static void allowFocus(View v) {
+        if (v.isFocusable()) {
+            v.setFocusableInTouchMode(true);
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                allowFocus(g.getChildAt(i));
             }
-
-            @Override
-            public void options(NvApp app) {
-            }
-
-            @Override
-            public void toggleHidden() {
-            }
-        }, covers(apps));
-        java.util.Set<Integer> hidden = DATA.real ? DATA.hidden(apps) : new java.util.HashSet<>(Arrays.asList(105, 106));
-        lib.bind(pc("ATLAS-PC", true), HomeModel.build(apps, 2, GAMES[1], true, hidden, true), true);
-        Bitmap bmp = draw(lib.getView(), 1920, 1080);
-        save(bmp, "console-braise-dark-library");
-        assertNotEquals(0, bmp.getWidth());
+        }
     }
 
     private static final class NoActions implements HomeScreen.Actions {

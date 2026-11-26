@@ -512,6 +512,8 @@ public abstract class V2HostActivity extends V2Activity {
         }
         hidden = HiddenApps.setHidden(this, currentUuid, app.getAppId(), hide);
         refresh();
+        // Prototype ctxAct(hide): where the game went
+        toast(getString(hide ? R.string.v2_lib_hidden_toast : R.string.v2_lib_unhidden_toast, labelOf(app)));
     }
 
     /**

@@ -265,10 +265,15 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT:
                 if (down) {
+                    int mx = code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : (code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0);
+                    int my = code == KeyEvent.KEYCODE_DPAD_UP ? -1 : (code == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : 0);
+                    if (onV2Move(focused, mx, my)) {
+                        return true;
+                    }
                     List<List<View>> rows = focusRows();
                     if (rows != null && !rows.isEmpty()) {
-                        int dx = code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : (code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0);
-                        int dy = code == KeyEvent.KEYCODE_DPAD_UP ? -1 : (code == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : 0);
+                        int dx = mx;
+                        int dy = my;
                         if (dx != 0 && onV2Horizontal(focused, dx)) {
                             return true;
                         }
@@ -307,6 +312,14 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
      */
     protected List<List<View>> focusRows() {
         return null;
+    }
+
+    /**
+     * A D-pad move handled by the screen itself (a scrolling grid whose items are not all built, as
+     * the library); true when handled. Called before the focus grid.
+     */
+    protected boolean onV2Move(View focused, int dx, int dy) {
+        return false;
     }
 
     /** Left / right on the focused view before the grid moves (a choice row steps its value); true when handled */

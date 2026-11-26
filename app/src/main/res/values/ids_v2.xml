@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="v2_cover_loaded" type="id" />
+    <item name="v2_tag_app" type="id" />
 </resources>

@@ -1,14 +1,14 @@
 package com.limelight.v2;
 
+import android.content.res.Configuration;
+import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-import android.os.Bundle;
-
 import com.limelight.nvstream.http.NvApp;
 
-/** The whole Playnite library of the shown PC ("Tout voir"). */
+/** The whole Playnite library of the shown PC ("Tout voir"), prototype « library ». */
 public class LibraryActivity extends V2HostActivity {
     private FrameLayout container;
     private LibraryScreen screen;
@@ -27,7 +27,8 @@ public class LibraryActivity extends V2HostActivity {
         if (container == null) {
             return;
         }
-        screen = new LibraryScreen(this, theme, Density.of(getResources().getConfiguration()), new LibraryScreen.Actions() {
+        Configuration cfg = getResources().getConfiguration();
+        screen = new LibraryScreen(this, theme, HomeLayout.forSize(cfg.screenWidthDp, cfg.screenHeightDp), new LibraryScreen.Actions() {
             @Override
             public void back() {
                 finish();
@@ -41,12 +42,6 @@ public class LibraryActivity extends V2HostActivity {
             @Override
             public void options(NvApp app) {
                 showOptions(app);
-            }
-
-            @Override
-            public void toggleHidden() {
-                showHidden = !showHidden;
-                refresh();
             }
         }, covers);
         container.removeAllViews();
@@ -66,9 +61,18 @@ public class LibraryActivity extends V2HostActivity {
         if (screen == null) {
             return;
         }
-        screen.bind(currentComputer(), currentModel(), showHidden);
-        if (!initialFocusDone && currentModel() != null && !container.isInTouchMode()) {
+        HomeModel m = currentModel();
+        screen.bind(currentComputer(), m, System.currentTimeMillis() / 1000);
+        if (!initialFocusDone && m != null && !container.isInTouchMode()) {
             container.post(() -> initialFocusDone = screen.requestInitialFocus());
+        }
+    }
+
+    @Override
+    protected void setHidden(NvApp app, boolean hide) {
+        super.setHidden(app, hide);
+        if (screen != null) {
+            screen.afterHideToggle();
         }
     }
 
@@ -77,6 +81,24 @@ public class LibraryActivity extends V2HostActivity {
         if (screen != null) {
             screen.refreshInput();
         }
+    }
+
+    @Override
+    protected boolean onV2Move(View focused, int dx, int dy) {
+        return screen != null && screen.move(focused, dx, dy);
+    }
+
+    @Override
+    protected boolean shoulderKeysEnabled() {
+        return true;
+    }
+
+    @Override
+    protected boolean onV2Shoulder(int delta) {
+        if (screen != null) {
+            screen.shiftFilter(delta);
+        }
+        return true;
     }
 
     @Override

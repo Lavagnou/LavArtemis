@@ -437,6 +437,11 @@ final class HomeParts {
         int appId = Integer.MIN_VALUE;
 
         Cover(Context ctx, V2Theme th, HomeLayout l, float wPx, float hPx) {
+            this(ctx, th, l, wPx, hPx, -1);
+        }
+
+        /** radiusPx: prototype px of the corners (library: Braise 12), -1 for the home's */
+        Cover(Context ctx, V2Theme th, HomeLayout l, float wPx, float hPx, float radiusPx) {
             super(ctx, th);
             this.th = th;
             this.l = l;
@@ -445,10 +450,11 @@ final class HomeParts {
             setLongClickable(true);
             setScaleOnFocus(true);
             Ui.noClip(this);
-            float r = th.isAffiche() ? 0 : pxf(ctx, l, th.isLudique() ? 24 : 14);
+            float rp = radiusPx >= 0 ? radiusPx : (th.isLudique() ? 24 : 14);
+            float r = th.isAffiche() ? 0 : pxf(ctx, l, rp);
             int bg = th.isAffiche() ? th.lit.band : (th.isLudique() ? th.surface2 : th.lit.card);
             setBackground(rect(bg, r, 0, 0));
-            setRing(th.isAffiche() ? 0 : l.b(th.isLudique() ? 24 : 14), 0, 0);
+            setRing(th.isAffiche() ? 0 : l.b(rp), 0, 0);
             // Affiche: the outline alone (ring2), the cover is not filled yellow
             setFocusFill(false);
             name = HomeParts.text(ctx, th, l, 15, 800, th.isAffiche() ? th.lit.onBand : th.muted, true);
