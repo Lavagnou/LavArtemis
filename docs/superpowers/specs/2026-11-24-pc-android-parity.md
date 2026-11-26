@@ -69,19 +69,24 @@ s'ajoute ici comme écart.
     vraiment quitter ? » ; ferme l'appli sur le PC distant et revient à l'accueil du client) · Passer en trackpad /
     multitouch (pour ce stream, retenu avec « Retenir le mode tactile choisi en jeu ») · Micro (Activé / Coupé ;
     **grisé « Micro non envoyé »** quand le micro n'est pas envoyé) · Statistiques de performance · Plus.
-    Libellés courts du dock Ludique : « Quitter la session », « Clavier ».
+    Libellés courts du dock Ludique : « Quitter la session » (deux lignes), « Clavier » (Android), « Libérer
+    clavier/souris » (PC).
   - Propre à une plateforme dans les tuiles : **Android** « Ouvrir le clavier » (le clavier de l'appareil, entre
-    le mode tactile et Micro) ; **PC** « Libérer la souris et le clavier » (dans Plus depuis la version 87 de
-    l'atelier, voir decisions-design.md).
+    le mode tactile et Micro) ; **PC** « Libérer la souris et le clavier » (entre Micro et Statistiques, version 89
+    de l'atelier). Le mode tactile n'apparaît que là où il change quelque chose (PC tactile ; Android hors écran
+    externe).
   - **Plus**, entrées communes d'abord : Presse-papiers · Commandes du PC hôte (la liste `ServerCommand` de l'hôte ;
     vide : « Aucune commande de serveur » et le même texte d'explication) · Zoom (Android : mode Zoom/Panoramique).
     Puis Android : bouton vocal, le déplacer, pivoter, contrôleur à l'écran, touches spéciales, clavier virtuel
-    complet, sensibilité, pastille « Menu », entrées de la manette ; PC : ses entrées (plein écran, réduire,
-    capturer le clavier, comportement de la souris…). **Une icône devant chaque entrée de Plus**, comme les
+    complet, sensibilité, pastille « Menu », entrées de la manette. PC, dans l'ordre de l'atelier : Plein écran /
+    fenêtre · Presse-papiers · Commandes du PC hôte · Zoom · Réduire la fenêtre · Capturer le clavier · Comportement
+    de la souris (Bureau / Jeu, l'ex-« Mode de souris »). **Une icône devant chaque entrée de Plus**, comme les
     tuiles : trait de l'accent en Braise, pastille ronde en Ludique, aucune en Affiche.
-  - **Retiré des deux** : Envoyer des touches.
-  - État : **Android fait** (2026-11-26, `StreamMenu.tiles()` / `more()`, `V2GameMenu.tile()` / `icon()`) ; le PC
-    est aligné par un autre passage.
+  - **Retiré des deux** : Envoyer des touches. PC seulement : Masquer le curseur local, Verrouiller le pointeur,
+    Coller du texte (leurs raccourcis Ctrl+Alt+Maj restent).
+  - État : **Android fait** (2026-11-26, `StreamMenu.tiles()` / `more()`, `V2GameMenu.tile()` / `icon()`) ; **PC
+    aligné** (2026-11-26, LavArtemis-Qt `port-v8`, `QuickMenu.qml` ; icônes de Plus par `LavOptions`, champ `icon` ;
+    scénario 17 S2).
 - **Stream** (vague 2 de la vérification, 2026-11-25) : nom des étapes de connexion traduits comme
   `utils/StreamStages` (« Démarrage : négociation RTSP », « Échec au démarrage : … (erreur n) ») ; « Connexion
   lente au PC / Baisse le débit », « Mauvaise connexion au PC » ; statistiques à l'écran avec les formulations
@@ -374,7 +379,8 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   sur 265 »), en majuscules derrière « ← » en Affiche. Les autres filtres gardent « N affichés sur M », M = les jeux
   non masqués. Android : `LibraryModel.Count.Kind.HIDDEN`, chaîne `v2_lib_count_hidden_none` (le français range 0
   dans « one » : « aucun » a sa propre chaîne) et plurals `v2_lib_count_hidden`, cas dans `LibraryModelTest`.
-  **Écart : le desktop (`LibraryView.qml` countLine) ne l'a pas encore**, à reporter (port-v8 de LavArtemis-Qt).
+  Desktop : `LibraryCountText::line(…, hiddenFilter)` (`tests/librarycount`), `LibraryView.qml` countLine sur le filtre
+  Masqués ; scénario 2 (« Test-Atlas · 1 jeu masqué »). **Aligné** (LavArtemis-Qt `port-v8`).
 
 ## 4. Ce qui reste
 
