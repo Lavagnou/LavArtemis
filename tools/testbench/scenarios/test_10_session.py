@@ -346,8 +346,10 @@ def test_s5_quit_confirmed_twice(bench):
     helpers.launch(c, "Bureau")
     qm = menu_entry(c, "Quitter la session")
     helpers.wait_any_text(c, [helpers.QUIT_CONFIRM])
-    c.call("click", text="Quitter la session", window=qm)
-    c.cmd("click", text="Quitter la session", window=qm)  # the second one may find the menu gone: fine
+    # The confirmation's button has the tile's text (menu workshop): it is the last one in the tree, the dialog being
+    # drawn above the tiles (helpers.quick_menu_click)
+    c.call("click", text="Quitter la session", window=qm, index=-1)
+    c.cmd("click", text="Quitter la session", window=qm, index=-1)  # the second one may find the menu gone: fine
     wait_home(c, "after « Quitter la session » twice")
     time.sleep(2)
     alive(c, "after « Quitter la session » twice")
