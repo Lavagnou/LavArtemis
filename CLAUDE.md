@@ -296,6 +296,12 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   plus long, toutes à la hauteur de la plus haute (≥ 108) ; si une rangée ne tient pas, texte réduit jusqu'à 11 dp,
 >   puis deux rangées centrées (5 + 4 en portrait), puis trois. ⚠️ Plus de hauteur fixe ni de largeur imposée :
 >   c'est ce qui coupait « Repre/ndre » et rognait « Retour à Playnite ». `GameMenuDockTest` vérifie chaque taille.
+>   **Toutes les tuiles ont la même taille** (règle de l'utilisateur, 2026-11-26) : Braise, chaque rangée de la
+>   grille prend la hauteur de la tuile la plus haute (« Quitter Red Dead Redemption 2 » et sa sous-ligne), jamais
+>   une rangée plus haute qu'une autre ; Affiche, toutes les lignes de la même hauteur ; Ludique, même largeur et
+>   même hauteur, sur une rangée comme sur deux. `V2GameMenu.EqualColumn` (grille Braise, liste Affiche) mesure
+>   puis redonne la hauteur la plus grande à chaque enfant ; `EqualRow` respecte alors la hauteur exacte reçue.
+>   `GameMenuTileSizeTest` (3 thèmes, 7 tailles, jeux court / long / Bureau).
 >   « Plus » (`StreamMenu.more`) : Presse-papiers · Commandes du PC hôte · Zoom/Panoramique, puis Android seul
 >   (bouton vocal, le déplacer, pivoter, contrôleur à l'écran, touches spéciales, clavier virtuel complet,
 >   sensibilité, pastille « Menu », entrées de la manette), **chaque entrée avec son icône** (`V2GameMenu.icon()`,

@@ -71,6 +71,9 @@ s'ajoute ici comme écart.
     **grisé « Micro non envoyé »** quand le micro n'est pas envoyé) · Statistiques de performance · Plus.
     Libellés courts du dock Ludique : « Quitter la session » (deux lignes), « Clavier » (Android), « Libérer
     clavier/souris » (PC).
+  - **Toutes les tuiles ont la même taille** (règle de l'utilisateur, 2026-11-26) : Braise, rangées de même
+    hauteur (la tuile la plus haute la donne) ; Affiche, lignes de même hauteur ; Ludique, tuiles de même taille.
+    **Android fait** (`V2GameMenu.EqualColumn`, `GameMenuTileSizeTest`) ; PC et prototype : à vérifier de leur côté.
   - Propre à une plateforme dans les tuiles : **Android** « Ouvrir le clavier » (le clavier de l'appareil, entre
     le mode tactile et Micro) ; **PC** « Libérer la souris et le clavier » (entre Micro et Statistiques, version 89
     de l'atelier). Le mode tactile n'apparaît que là où il change quelque chose (PC tactile ; Android hors écran

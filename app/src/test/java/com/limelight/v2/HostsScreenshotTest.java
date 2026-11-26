@@ -329,7 +329,9 @@ public class HostsScreenshotTest {
             useTheme(themeId, dark);
             V2Input.reset(input);
             HostsActivity a = Robolectric.buildActivity(HostsActivity.class).setup().get();
-            String title = playnite ? "Hades II" : a.getString(R.string.v2_desktop);
+            // A long name: « Quitter Red Dead Redemption 2 » and its sub-line make the tallest tile,
+            // every other tile takes its height (GameMenuTileSizeTest)
+            String title = playnite ? "Red Dead Redemption 2" : a.getString(R.string.v2_desktop);
             String via = a.getString(playnite ? R.string.v2_via_inside : R.string.v2_via_desktop);
             Dialog d = V2GameMenu.show(a, V2Theme.load(a), title, "ATLAS-PC", via,
                     HomeScreenshotTest.menuTiles(a, playnite, title), null);

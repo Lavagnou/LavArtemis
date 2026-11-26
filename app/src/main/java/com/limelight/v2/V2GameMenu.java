@@ -228,8 +228,8 @@ public final class V2GameMenu {
             panel.addView(head);
             panel.addView(HomeParts.ruleV(ctx, l, th.lit.bandLive), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(ctx, l, 3)));
             android.widget.ScrollView sv = new android.widget.ScrollView(ctx);
-            LinearLayout rows = new LinearLayout(ctx);
-            rows.setOrientation(LinearLayout.VERTICAL);
+            // Every row as tall as the tallest (« Quitter {jeu} » and its sub-line)
+            LinearLayout rows = new EqualColumn(ctx);
             sv.addView(rows);
             panel.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
             for (Tile tile : tiles) {
@@ -387,6 +387,10 @@ public final class V2GameMenu {
             // Room for a tile's label and value (section width as laid out below, 3 columns, padding 18)
             int sectionW = Math.min(px(ctx, l, 740), Ui.dp(ctx, l.widthDp - 32));
             int innerW = (sectionW - 2 * px(ctx, l, 12)) / cols - 2 * px(ctx, l, 18);
+            // Every row of the grid as tall as the tallest tile (« Quitter {jeu} » and its sub-line)
+            LinearLayout grid = new EqualColumn(ctx);
+            Ui.noClip(grid);
+            section.addView(grid);
             LinearLayout row = null;
             for (int i = 0; i < tiles.size(); i++) {
                 if (i % cols == 0) {
@@ -395,7 +399,7 @@ public final class V2GameMenu {
                     Ui.noClip(row);
                     LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                     rlp.topMargin = px(ctx, l, i == 0 ? 16 : 12);
-                    section.addView(row, rlp);
+                    grid.addView(row, rlp);
                 }
                 Tile tile = tiles.get(i);
                 HomeParts.Button b = button(ctx, th, tile, dialog);
@@ -525,8 +529,10 @@ public final class V2GameMenu {
         return lp;
     }
 
-    /** A row of tiles that all take the height of the tallest (the prototype's grid rows) */
-    /** A row whose items all take the height of the tallest (CSS grid rows); V2Sheet uses it too */
+    /**
+     * A row whose items all take the height of the tallest (CSS grid rows); V2Sheet uses it too. Given
+     * an exact height (EqualColumn: the tallest row of the grid), its items take that height.
+     */
     static final class EqualRow extends LinearLayout {
         EqualRow(Context ctx) {
             super(ctx);
@@ -540,6 +546,9 @@ public final class V2GameMenu {
             for (int i = 0; i < getChildCount(); i++) {
                 max = Math.max(max, getChildAt(i).getMeasuredHeight());
             }
+            if (MeasureSpec.getMode(heightSpec) == MeasureSpec.EXACTLY) {
+                max = Math.max(max, MeasureSpec.getSize(heightSpec) - getPaddingTop() - getPaddingBottom());
+            }
             for (int i = 0; i < getChildCount(); i++) {
                 View c = getChildAt(i);
                 if (c.getMeasuredHeight() != max) {
@@ -548,6 +557,42 @@ public final class V2GameMenu {
                 }
             }
             setMeasuredDimension(getMeasuredWidth(), max + getPaddingTop() + getPaddingBottom());
+        }
+    }
+
+    /**
+     * A vertical list whose children all take the height of the tallest: the rows of the Braise grid
+     * (EqualRow) and the rows of the Affiche list. Rule of the user: every tile of the in-game menu
+     * has the same size, a row is never taller than another (GameMenuTileSizeTest).
+     */
+    static final class EqualColumn extends LinearLayout {
+        EqualColumn(Context ctx) {
+            super(ctx);
+            setOrientation(VERTICAL);
+        }
+
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            super.onMeasure(widthSpec, heightSpec);
+            int max = 0;
+            for (int i = 0; i < getChildCount(); i++) {
+                View c = getChildAt(i);
+                if (c.getVisibility() != GONE) {
+                    max = Math.max(max, c.getMeasuredHeight());
+                }
+            }
+            int grow = 0;
+            for (int i = 0; i < getChildCount(); i++) {
+                View c = getChildAt(i);
+                if (c.getVisibility() != GONE && c.getMeasuredHeight() != max) {
+                    grow += max - c.getMeasuredHeight();
+                    c.measure(MeasureSpec.makeMeasureSpec(c.getMeasuredWidth(), MeasureSpec.EXACTLY),
+                            MeasureSpec.makeMeasureSpec(max, MeasureSpec.EXACTLY));
+                }
+            }
+            if (grow > 0) {
+                setMeasuredDimension(getMeasuredWidth(), resolveSize(getMeasuredHeight() + grow, heightSpec));
+            }
         }
     }
 
