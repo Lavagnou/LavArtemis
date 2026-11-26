@@ -129,6 +129,7 @@
     <string name="v2_pair_unknown_host">L\'adresse de %1$s est introuvable.</string>
     <string name="v2_pair_not_found">%1$s n\'a pas répondu à la demande d\'appairage (erreur 404). Vérifie que c\'est bien LavApollo qui tourne.</string>
     <string name="v2_pair_network">La connexion avec %1$s a été perdue pendant l\'appairage (%2$s).</string>
+    <string name="v2_pair_link_expired">Le code du lien n\'est plus valable sur %1$s : il ne sert qu\'une fois et expire au bout de 3 minutes. Crée un nouveau lien dans LavApollo.</string>
     <!-- Menu en jeu -->
     <string name="v2_game_menu_hint_pad">A : choisir · B : fermer</string>
     <string name="v2_game_menu_hint_keys">Entrée : choisir · Échap : fermer</string>

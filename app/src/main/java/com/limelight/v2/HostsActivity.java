@@ -27,16 +27,15 @@ import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.nvstream.wol.WakeOnLanSender;
 import com.limelight.preferences.AddComputerManually;
 import com.limelight.utils.CacheHelper;
+import com.limelight.utils.PairingErrorText;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.v2.ui.V2Dialogs;
 
 import org.xmlpull.v1.XmlPullParserException;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -533,13 +532,11 @@ public class HostsActivity extends V2HostActivity {
                         binder.invalidateStateForComputer(computer.uuid);
                     }
                 }
-            } catch (UnknownHostException e) {
-                message = getString(R.string.v2_pair_unknown_host, name);
-            } catch (FileNotFoundException e) {
-                message = getString(R.string.v2_pair_not_found, name);
             } catch (XmlPullParserException | IOException e) {
+                // The desktop's sentences: an expired link code, a short reason (« erreur 500 »),
+                // never the exception's English text
                 LimeLog.warning("v2: pairing failed: " + e);
-                message = getString(R.string.v2_pair_network, name, String.valueOf(e.getMessage()));
+                message = PairingErrorText.forException(getResources(), name, e);
             }
             final String error = message;
             final boolean ok = success;
