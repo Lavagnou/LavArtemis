@@ -36,8 +36,51 @@ public class CoverView extends View {
     public void setBitmap(Bitmap bitmap) {
         if (this.bitmap != bitmap) {
             this.bitmap = bitmap;
+            blurred = null;
             invalidate();
         }
+    }
+
+    private boolean blur;
+    private Bitmap blurred;
+    private float zoom = 1f;
+
+    /**
+     * Draw the image blurred (the prototype's filter: blur(28-30px) scale(1.25-1.3)): it is shrunk
+     * by halves to a couple of dozen pixels, then drawn back to size with bilinear filtering.
+     */
+    public void setBlur(boolean blur) {
+        this.blur = blur;
+        zoom = blur ? 1.3f : 1f;
+        blurred = null;
+        invalidate();
+    }
+
+    public void setSaturation(float saturation) {
+        android.graphics.ColorMatrix m = new android.graphics.ColorMatrix();
+        m.setSaturation(saturation);
+        android.graphics.ColorMatrixColorFilter f = new android.graphics.ColorMatrixColorFilter(m);
+        plainPaint.setColorFilter(f);
+        bitmapPaint.setColorFilter(f);
+        invalidate();
+    }
+
+    private Bitmap blurredBitmap() {
+        if (blurred == null && bitmap != null) {
+            Bitmap b = bitmap;
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= 26 && b.getConfig() == Bitmap.Config.HARDWARE) {
+                    b = b.copy(Bitmap.Config.ARGB_8888, false);
+                }
+                while (b.getWidth() > 24 && b.getHeight() > 24) {
+                    b = Bitmap.createScaledBitmap(b, Math.max(1, b.getWidth() / 2), Math.max(1, b.getHeight() / 2), true);
+                }
+                blurred = b;
+            } catch (RuntimeException | OutOfMemoryError e) {
+                blurred = bitmap;
+            }
+        }
+        return blurred;
     }
 
     public Bitmap getBitmap() {
@@ -59,10 +102,11 @@ public class CoverView extends View {
         if (bitmap == null || getWidth() <= 0 || getHeight() <= 0) {
             return;
         }
-        // Centre crop
+        Bitmap bitmap = blur ? blurredBitmap() : this.bitmap;
+        // Centre crop (zoomed in a little when blurred, so the soft edges stay outside)
         float vw = getWidth(), vh = getHeight();
         int bw = bitmap.getWidth(), bh = bitmap.getHeight();
-        float scale = Math.max(vw / bw, vh / bh);
+        float scale = Math.max(vw / bw, vh / bh) * zoom;
         float cw = vw / scale, ch = vh / scale;
         int left = Math.round((bw - cw) / 2f), top = Math.round((bh - ch) / 2f);
         src.set(left, top, left + Math.round(cw), top + Math.round(ch));

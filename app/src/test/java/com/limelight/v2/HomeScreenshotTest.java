@@ -47,9 +47,14 @@ import java.util.Map;
 @Config(sdk = {33}, shadows = {com.limelight.shadows.ShadowMoonBridge.class, com.limelight.shadows.ShadowGameManager.class})
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 public class HomeScreenshotTest {
+    /** The prototype's library (V8, recent first) */
     private static final String[] GAMES = {
-            "Red Dead Redemption 2", "Hades II", "Cyberpunk 2077", "Elden Ring", "Celeste",
-            "Forza Horizon 5", "Baldur's Gate 3", "Hollow Knight", "Stardew Valley", "Portal 2", "Outer Wilds", "Tunic"};
+            "Red Dead Redemption 2", "Uncrashed", "Rocket League", "Velocidrone", "Split Fiction",
+            "Flight Simulator", "Hades II", "Cyberpunk 2077", "Elden Ring", "Celeste", "Forza Horizon 5", "Tunic"};
+    /** Hours played of each game (0 = never played) */
+    private static final int[] HOURS = {212, 38, 640, 12, 9, 75, 41, 66, 120, 18, 30, 0};
+    /** Library size of the prototype ("266 jeux") */
+    private static final int LIBRARY = 266;
 
     @After
     public void tearDown() {
@@ -67,9 +72,15 @@ public class HomeScreenshotTest {
         playnite.setPlayniteHost(true);
         list.add(playnite);
         list.add(app("Steam Big Picture", 3));
-        for (int i = 0; i < GAMES.length; i++) {
-            NvApp g = app(GAMES[i], 100 + i);
+        long now = 1_800_000_000L;
+        for (int i = 0; i < LIBRARY; i++) {
+            NvApp g = app(i < GAMES.length ? GAMES[i] : "Jeu " + (i + 1), 100 + i);
             g.setPlayniteGame(true);
+            g.setPlayniteInstalled(true);
+            if (i < GAMES.length) {
+                g.setPlaynitePlaytime(HOURS[i] * 3600L);
+                g.setPlayniteLastActivity(now - i * 86_400L);
+            }
             list.add(g);
         }
         return list;
@@ -94,7 +105,10 @@ public class HomeScreenshotTest {
                     {0xFF5B6B3A, 0xFF101A0C}, {0xFF2F7FB5, 0xFF0B1E33}, {0xFFB53A6B, 0xFF2A0A18}};
             int i = 0;
             for (NvApp a : apps) {
-                if (a.getAppId() == 100 || a.getAppId() == 104 || a.getAppId() == 109) {
+                if (a.getAppId() >= 100 + GAMES.length) {
+                    continue;
+                }
+                if (a.getAppId() == 104 || a.getAppId() == 109) {
                     continue; // no cover on the host: the name shows (a long one: Red Dead Redemption 2)
                 }
                 int[] c = palette[i++ % palette.length];
@@ -187,7 +201,7 @@ public class HomeScreenshotTest {
     private enum Scene { IDLE, PLAYNITE_GAME, DESKTOP }
 
     private void home(String file, String themeId, boolean dark, int wDp, int hDp, Scene scene, V2Input.Kind input) throws Exception {
-        RuntimeEnvironment.setQualifiers("w" + wDp + "dp-h" + hDp + "dp-" + (wDp > hDp ? "land" : "port") + "-xhdpi");
+        RuntimeEnvironment.setQualifiers("w" + wDp + "dp-h" + hDp + "dp-" + (wDp > hDp ? "land" : "port") + (wDp >= 1100 ? "-mdpi" : "-xhdpi"));
         V2Input.reset(input);
         Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
         V2Theme theme = V2Theme.of(themeId, dark);
@@ -196,16 +210,17 @@ public class HomeScreenshotTest {
 
         HomeScreen.State s = new HomeScreen.State();
         ComputerDetails atlas = pc("ATLAS-PC", true);
-        s.hosts = Arrays.asList(atlas, pc("SALON", false));
+        s.hosts = Arrays.asList(atlas, pc("BUREAU-PAPA", false));
+        s.updateAvailable = true;
         s.hostIndex = 0;
         int running = scene == Scene.PLAYNITE_GAME ? 2 : (scene == Scene.DESKTOP ? 1 : 0);
-        String game = scene == Scene.PLAYNITE_GAME ? GAMES[1] : "";
+        String game = scene == Scene.PLAYNITE_GAME ? GAMES[0] : "";
         s.model = HomeModel.build(apps, running, game, scene == Scene.PLAYNITE_GAME, null, false);
         s.sessionMinutes = running != 0 ? 42 : -1;
 
-        HomeScreen screen = new HomeScreen(ctx, theme, Density.forSize(wDp, hDp), new NoActions(), covers);
+        HomeScreen screen = new HomeScreen(ctx, theme, HomeLayout.forSize(wDp, hDp), new NoActions(), covers);
         screen.bind(s);
-        int density = 2;
+        int density = wDp >= 1100 ? 1 : 2;
         View root = screen.getView();
         Bitmap bmp = draw(root, wDp * density, hDp * density);
         if (input != V2Input.Kind.TOUCH) {
@@ -216,32 +231,41 @@ public class HomeScreenshotTest {
         save(bmp, file);
     }
 
+    private static final String[] THEMES = {"braise", "affiche", "ludique"};
+
+    /** Prototype stage (1280 x 720 dp, V8-05 / V8-06), every theme, light and dark, touch and gamepad */
     @Test
-    public void phoneBraiseDark() throws Exception {
-        home("phone-braise-dark-idle", "braise", true, 915, 412, Scene.IDLE, V2Input.Kind.TOUCH);
-        home("phone-braise-dark-session", "braise", true, 915, 412, Scene.PLAYNITE_GAME, V2Input.Kind.TOUCH);
+    public void prototypeSize() throws Exception {
+        sizes("proto", 1280, 720);
     }
 
+    /** Densite-Tablette (1280 x 800 dp) */
     @Test
-    public void consoleBraiseDark() throws Exception {
-        home("console-braise-dark-idle", "braise", true, 960, 540, Scene.IDLE, V2Input.Kind.PAD);
-        home("console-braise-dark-session", "braise", true, 960, 540, Scene.PLAYNITE_GAME, V2Input.Kind.PAD);
+    public void tablet() throws Exception {
+        sizes("tablet", 1280, 800);
     }
 
+    /** Densite-Telephone (915 x 412 dp) */
     @Test
-    public void afficheLight() throws Exception {
-        home("phone-affiche-light-idle", "affiche", false, 915, 412, Scene.IDLE, V2Input.Kind.TOUCH);
-        home("phone-affiche-light-session", "affiche", false, 915, 412, Scene.DESKTOP, V2Input.Kind.TOUCH);
-        home("console-affiche-light-idle", "affiche", false, 960, 540, Scene.IDLE, V2Input.Kind.PAD);
-        home("console-affiche-light-session", "affiche", false, 960, 540, Scene.PLAYNITE_GAME, V2Input.Kind.PAD);
+    public void phone() throws Exception {
+        sizes("phone", 915, 412);
     }
 
+    /** Densite-Console (960 x 540 dp) */
     @Test
-    public void ludiqueDark() throws Exception {
-        home("phone-ludique-dark-idle", "ludique", true, 915, 412, Scene.IDLE, V2Input.Kind.TOUCH);
-        home("phone-ludique-dark-session", "ludique", true, 915, 412, Scene.PLAYNITE_GAME, V2Input.Kind.TOUCH);
-        home("console-ludique-dark-idle", "ludique", true, 960, 540, Scene.IDLE, V2Input.Kind.PAD);
-        home("console-ludique-dark-session", "ludique", true, 960, 540, Scene.DESKTOP, V2Input.Kind.KEYS);
+    public void console() throws Exception {
+        sizes("console", 960, 540);
+    }
+
+    private void sizes(String prefix, int w, int h) throws Exception {
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                String mode = dark ? "sombre" : "clair";
+                home(prefix + "-" + t + "-" + mode + "-tactile", t, dark, w, h, Scene.PLAYNITE_GAME, V2Input.Kind.TOUCH);
+                home(prefix + "-" + t + "-" + mode + "-manette", t, dark, w, h, Scene.PLAYNITE_GAME, V2Input.Kind.PAD);
+            }
+            home(prefix + "-" + t + "-idle-manette", t, !"affiche".equals(t) && !"ludique".equals(t), w, h, Scene.IDLE, V2Input.Kind.PAD);
+        }
     }
 
     @Test
@@ -254,15 +278,30 @@ public class HomeScreenshotTest {
         RuntimeEnvironment.setQualifiers("w915dp-h412dp-land-xhdpi");
         V2Input.reset(V2Input.Kind.TOUCH);
         Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
-        HomeScreen none = new HomeScreen(ctx, V2Theme.of("braise", true), Density.forSize(915, 412), new NoActions(), null);
+        HomeScreen none = new HomeScreen(ctx, V2Theme.of("braise", true), HomeLayout.forSize(915, 412), new NoActions(), null);
         none.bind(new HomeScreen.State());
         save(draw(none.getView(), 1830, 824), "phone-braise-dark-no-pc");
 
         HomeScreen.State off = new HomeScreen.State();
         off.hosts = Arrays.asList(pc("ATLAS-PC", false));
-        HomeScreen offline = new HomeScreen(ctx, V2Theme.of("ludique", false), Density.forSize(915, 412), new NoActions(), null);
-        offline.bind(off);
-        save(draw(offline.getView(), 1830, 824), "phone-ludique-light-offline");
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                RuntimeEnvironment.setQualifiers("w1280dp-h720dp-land-mdpi");
+                V2Input.reset(V2Input.Kind.PAD);
+                Context c2 = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+                HomeScreen.State o = new HomeScreen.State();
+                ComputerDetails portable = pc("PORTABLE", false);
+                portable.macAddress = null;
+                o.hosts = Arrays.asList(pc("ATLAS-PC", true), portable);
+                o.hostIndex = 1;
+                o.updateAvailable = true;
+                HomeScreen offline = new HomeScreen(c2, V2Theme.of(t, dark), HomeLayout.forSize(1280, 720), new NoActions(), null);
+                offline.bind(o);
+                draw(offline.getView(), 1280, 720);
+                offline.requestInitialFocus();
+                save(draw(offline.getView(), 1280, 720), "proto-offline-" + t + "-" + (dark ? "sombre" : "clair") + "-manette");
+            }
+        }
     }
 
     @Test

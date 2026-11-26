@@ -34,6 +34,8 @@ public class HomeActivity extends V2HostActivity {
     private FrameLayout container;
     private HomeScreen screen;
     private boolean initialFocusDone;
+    /** A newer version was found: the header shows « Mise à jour » */
+    private UpdateChecker.UpdateInfo updateInfo;
     private final Runnable minuteTick = new Runnable() {
         @Override
         public void run() {
@@ -99,6 +101,8 @@ public class HomeActivity extends V2HostActivity {
             @Override
             public void cycleMode() {
                 cycleThemeMode();
+                int[] toasts = {R.string.v2_mode_toast_system, R.string.v2_mode_toast_light, R.string.v2_mode_toast_dark};
+                toast(toasts[theme.mode]);
             }
 
             @Override
@@ -135,7 +139,24 @@ public class HomeActivity extends V2HostActivity {
 
             @Override
             public void wake() {
-                HomeActivity.this.wake();
+                stateCardAction();
+            }
+
+            @Override
+            public void openUpdate() {
+                if (updateInfo != null) {
+                    UpdateDialogHelper.showUpdateDialog(HomeActivity.this, updateInfo);
+                }
+            }
+
+            @Override
+            public void hint(String key) {
+                View f = getCurrentFocus();
+                if ("A".equals(key) && f != null && f.isClickable()) {
+                    f.performClick();
+                } else if ("Y".equals(key) && f != null) {
+                    onV2Options(f);
+                }
             }
         }, covers);
         container.removeAllViews();
@@ -161,6 +182,7 @@ public class HomeActivity extends V2HostActivity {
         s.hostIndex = HostList.indexOf(s.hosts, currentUuid);
         ComputerDetails c = currentComputer();
         s.model = currentModel();
+        s.updateAvailable = updateInfo != null;
         if (c != null && s.model != null && HostList.isOnline(c)) {
             long since = SessionClock.observe(this, c.uuid, s.model.runningId, System.currentTimeMillis());
             // LavApollo says when the running app started; the device's own clock is for older hosts
@@ -195,6 +217,33 @@ public class HomeActivity extends V2HostActivity {
             return true;
         }
         return false;
+    }
+
+    @Override
+    protected List<List<View>> focusRows() {
+        return screen == null ? null : screen.focusRows();
+    }
+
+    @Override
+    protected void onGridFocus(View target) {
+        if (screen != null) {
+            screen.onGridFocus(target);
+        }
+    }
+
+    /** The PC state card (prototype cardAct): add a PC, wait, open Mes PC or wake the PC */
+    private void stateCardAction() {
+        HomeScreen.CardState cs = screen == null ? null : screen.getCardState();
+        ComputerDetails c = currentComputer();
+        if (cs == HomeScreen.CardState.FIRSTRUN || cs == HomeScreen.CardState.OFFLINE_NO_MAC) {
+            startActivity(new Intent(this, HostsActivity.class));
+        } else if (cs == HomeScreen.CardState.SEARCHING || cs == HomeScreen.CardState.LOADING) {
+            if (c != null) {
+                toast(getString(R.string.v2_pc_searching, c.name));
+            }
+        } else {
+            wake();
+        }
     }
 
     @Override
@@ -304,6 +353,8 @@ public class HomeActivity extends V2HostActivity {
         UpdateChecker.check(this, new UpdateChecker.Callback() {
             @Override
             public void onUpdateAvailable(UpdateChecker.UpdateInfo info) {
+                updateInfo = info;
+                refresh();
                 if (!UpdateChecker.isSkipped(HomeActivity.this, info.version)) {
                     UpdateDialogHelper.showUpdateDialog(HomeActivity.this, info);
                 }

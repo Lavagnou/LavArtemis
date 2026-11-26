@@ -41,7 +41,12 @@ public final class CoverLoader implements CoverSource {
     private final Set<Integer> none = new HashSet<>();
     private volatile boolean closed;
 
+    private final Context appContext;
+    private final String uniqueId;
+
     public CoverLoader(Context context, ComputerDetails computer, String uniqueId) {
+        this.appContext = context.getApplicationContext();
+        this.uniqueId = uniqueId;
         this.computer = computer;
         this.disk = new DiskAssetLoader(context);
         this.network = new NetworkAssetLoader(context, uniqueId);
@@ -135,6 +140,54 @@ public final class CoverLoader implements CoverSource {
         return b.bitmap == null
                 || (b.originalWidth == 130 && b.originalHeight == 180)
                 || (b.originalWidth == 628 && b.originalHeight == 888);
+    }
+
+    // ---- backgrounds (Braise's hero) -----------------------------------------------------------
+
+    private final android.util.LruCache<Integer, Bitmap> backgrounds = new android.util.LruCache<>(4);
+    private final Set<Integer> noBackground = new HashSet<>();
+
+    @Override
+    public Bitmap peekBackground(NvApp app) {
+        return backgrounds.get(app.getAppId());
+    }
+
+    @Override
+    public void loadBackground(final NvApp app, final Sink sink) {
+        final int id = app.getAppId();
+        Bitmap cached = backgrounds.get(id);
+        if (cached != null || noBackground.contains(id) || !app.hasPlayniteBackground()) {
+            sink.onCover(id, cached);
+            return;
+        }
+        try {
+            executor.execute(() -> {
+                Bitmap b = null;
+                try {
+                    com.limelight.nvstream.http.NvHTTP http = new com.limelight.nvstream.http.NvHTTP(
+                            com.limelight.utils.ServerHelper.getCurrentAddressFromComputer(computer), computer.httpsPort,
+                            uniqueId, computer.serverCert, com.limelight.binding.PlatformBinding.getCryptoProvider(appContext));
+                    try (InputStream in = http.getBackground(app)) {
+                        android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
+                        o.inPreferredConfig = Bitmap.Config.RGB_565;
+                        b = android.graphics.BitmapFactory.decodeStream(in, null, o);
+                    }
+                } catch (IOException | RuntimeException ignored) {
+                }
+                final Bitmap result = b;
+                main.post(() -> {
+                    if (result != null) {
+                        backgrounds.put(id, result);
+                    } else {
+                        noBackground.add(id);
+                    }
+                    if (!closed) {
+                        sink.onCover(id, result);
+                    }
+                });
+            });
+        } catch (RejectedExecutionException ignored) {
+        }
     }
 
     public void close() {

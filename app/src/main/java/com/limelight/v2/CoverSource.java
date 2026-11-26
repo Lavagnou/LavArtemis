@@ -16,4 +16,13 @@ public interface CoverSource {
 
     /** Already in memory, or null */
     Bitmap peek(NvApp app);
+
+    /** A Playnite game's background image (LavApollo, NvApp.hasPlayniteBackground()); null when none */
+    default void loadBackground(NvApp app, Sink sink) {
+        sink.onCover(app.getAppId(), null);
+    }
+
+    default Bitmap peekBackground(NvApp app) {
+        return null;
+    }
 }

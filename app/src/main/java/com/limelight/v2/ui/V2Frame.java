@@ -38,7 +38,7 @@ import java.util.Map;
  * the whole face through one layer, so covers and texts dim alike;</li>
  * <li>the focus decoration of the theme, only for gamepad and keyboard (V2Input): a ring in the page
  * colour then the ring colour (Braise 3 / 6 px, Ludique 4 / 9 px); for Affiche a yellow fill with dark
- * ink plus a 4 px outline 4 px away (the prototype's ring + ring2), or the outline alone on images.</li>
+ * ink (ring), or a 4 px outline 4 px away (ring2) on the recent covers.</li>
  * </ul>
  * Ancestors must not clip children ({@link Ui#noClip}) or the halo and the ring are cut.
  */
@@ -91,8 +91,20 @@ public class V2Frame extends FrameLayout implements V2Input.Listener {
     /** Affiche: whether focus fills the item yellow (true) or only outlines it (images) */
     public void setFocusFill(boolean fill) {
         focusFill = fill;
+        focusOutline = !fill;
         applyFocusLook();
     }
+
+    /**
+     * Affiche: the 4 px outline 4 px away (prototype ring2). Only the recent covers (outline alone)
+     * and the launch button (fill and outline) have it; every other item is just filled yellow.
+     */
+    public void setFocusOutline(boolean outline) {
+        focusOutline = outline;
+        invalidate();
+    }
+
+    private boolean focusOutline;
 
     public void setDimmed(boolean dimmed) {
         if (this.dimmed != dimmed) {
@@ -292,6 +304,9 @@ public class V2Frame extends FrameLayout implements V2Input.Listener {
     }
 
     private void drawFocus(Canvas canvas) {
+        if (theme.focusFill && !focusOutline) {
+            return;
+        }
         float gap = Ui.dpf(getContext(), theme.focusGap);
         float outer = Ui.dpf(getContext(), theme.focusOuter);
         if (!theme.focusFill) {
