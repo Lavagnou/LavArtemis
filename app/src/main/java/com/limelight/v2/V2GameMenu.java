@@ -61,6 +61,15 @@ public final class V2GameMenu {
 
     public static Dialog show(Activity activity, V2Theme th, String title, String host, String via, List<Tile> tiles,
                               Runnable onCancel) {
+        return show(activity, th, title, host, via, tiles, onCancel, 0);
+    }
+
+    /**
+     * @param focus the tile that takes the focus: 0 (Reprendre) when the menu opens, the tile a
+     *              sub-dialog came from when it is closed (prototype: back returns to the tile)
+     */
+    public static Dialog show(Activity activity, V2Theme th, String title, String host, String via, List<Tile> tiles,
+                              Runnable onCancel, int focus) {
         android.content.res.Configuration conf = activity.getResources().getConfiguration();
         HomeLayout l = HomeLayout.forSize(conf.screenWidthDp, conf.screenHeightDp);
         final Dialog dialog = new Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
@@ -78,7 +87,10 @@ public final class V2GameMenu {
         });
         DialogKeys.install(dialog);
         dialog.show();
-        View first = content.findViewWithTag(FIRST);
+        View first = focus > 0 ? tile(content, focus) : null;
+        if (first == null) {
+            first = content.findViewWithTag(FIRST);
+        }
         if (first != null) {
             first.requestFocus();
         }
@@ -86,6 +98,24 @@ public final class V2GameMenu {
     }
 
     private static final Object FIRST = new Object();
+
+    /** The n-th tile of a built menu */
+    static View tile(View v, int n) {
+        Object tag = v.getTag(com.limelight.R.id.v2_menu_tile);
+        if (tag instanceof Integer && (Integer) tag == n) {
+            return v;
+        }
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View found = tile(g.getChildAt(i), n);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
 
     static View build(Context ctx, V2Theme th, HomeLayout l, String title, String host, String via, List<Tile> tiles,
                       final Dialog dialog) {
@@ -315,6 +345,9 @@ public final class V2GameMenu {
         if (!items.isEmpty()) {
             items.get(0).setTag(FIRST);
         }
+        for (int i = 0; i < items.size(); i++) {
+            items.get(i).setTag(com.limelight.R.id.v2_menu_tile, i);
+        }
 
         // Gamepad / keyboard hints: A Valider · B Fermer le menu
         V2Input.Kind k = V2Input.get(ctx);
@@ -364,7 +397,8 @@ public final class V2GameMenu {
     }
 
     /** A row of tiles that all take the height of the tallest (the prototype's grid rows) */
-    private static final class EqualRow extends LinearLayout {
+    /** A row whose items all take the height of the tallest (CSS grid rows); V2Sheet uses it too */
+    static final class EqualRow extends LinearLayout {
         EqualRow(Context ctx) {
             super(ctx);
             setBaselineAligned(false);

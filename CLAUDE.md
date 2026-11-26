@@ -285,7 +285,12 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   et Relancer passent par le même dialogue ; plus de « Oui / Non ».
 > - **Menu en jeu** (Dev) : `V2GameMenu` (tuiles Braise, panneau Affiche, dock Ludique), Reprendre + 9 + « Plus »
 >   construits par `GameMenu.showTileMenu` ; **pastille « Menu »** (`ui/MenuPill`) à la place du bouton flottant,
->   le bouton vocal reste.
+>   le bouton vocal reste. « Plus » liste les entrées du prototype (`StreamMenu.more`, plus de « Menu avancé » en Dev) ;
+>   Touches / Commandes / Presse-papiers / Plus en `V2Sheet` (grille `V2Sheet.columns()` = ctxCols), et Annuler / B les
+>   referme **sur leur tuile** (`GameMenu.sub()` / `showSubSheet`). Statistiques au style du thème (`ui/StatsStyle`).
+>   ⚠️ La pastille se cache à la manette : `Game` **observe** `dispatchKeyEvent` / `dispatchTouchEvent` /
+>   `dispatchGenericMotionEvent` pour `V2Input` (Dev, rien n'est consommé : tout part au stream comme avant), règle
+>   `StreamMenu.pillVisible` ; un nouveau chemin qui montre la pastille passe par `applyMenuPill()`.
 > - **Bibliothèque** : `LibraryScreen` = une mise en page par thème (Braise grille 6 + fiche, Affiche liste numérotée
 >   avec **fenêtre de 8 lignes** à la manette, Ludique grille 8 + barre), RecyclerView (jaquettes chargées à
 >   l'affichage), D-pad par `V2Activity.onV2Move` ; filtres et « joué hier » dans `LibraryModel` (= desktop), LB / RB

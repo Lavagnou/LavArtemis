@@ -334,6 +334,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private boolean onExternelDisplay = false;
     /** The floating menu button; in LavArtemis Dev the prototype's « Menu » pill (MenuPill) */
     private View floatingMenuButton;
+    /** LavArtemis Dev: floatingMenuButton is the prototype's « Menu » pill */
+    private boolean menuPill;
+    private boolean menuPillWanted = true;
     private VoicePttButton voicePttButton;
     // The key left of 1, as a US-normalized VK (VK_OEM_3): the host turns it into scancode 0x29,
     // which its own layout reads as ² on AZERTY. VK_OEM_7, what a French Android keyboard
@@ -713,6 +716,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
 
+        if (BuildConfig.LAV_DEV) {
+            // The prototype's statistics box, per theme (the stable keeps its look)
+            com.limelight.v2.V2Theme statsTheme = com.limelight.v2.V2Theme.load(this);
+            com.limelight.v2.ui.StatsStyle.apply(performanceOverlayLite, statsTheme);
+            com.limelight.v2.ui.StatsStyle.apply(performanceOverlayBig, statsTheme);
+        }
+
         // Check if the user has enabled performance stats overlay
         if (prefConfig.enablePerfOverlay) {
             performanceOverlayView.setVisibility(View.VISIBLE);
@@ -980,6 +990,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             pill.setOnClickListener(v -> showGameMenu(null));
             parent.addView(pill, com.limelight.v2.ui.MenuPill.layoutParams(this));
             floatingMenuButton = pill;
+            menuPill = true;
+            com.limelight.v2.V2Input.addListener(menuPillInputListener);
             updateFloatingButtonVisibility(true);
         } else {
             updateFloatingButtonVisibility(prefConfig.enableBackMenu && prefConfig.enableFloatingButton);
@@ -1396,7 +1408,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 floatingButtonShown = floatingMenuButton.isShown();
 
-                if (floatingButtonShown) {
+                if (menuPill) {
+                    applyMenuPill();
+                } else if (floatingButtonShown) {
                     floatingMenuButton.setVisibility(View.GONE);
                 }
 
@@ -1436,7 +1450,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             else {
                 isHidingOverlays = false;
 
-                if (floatingButtonShown) {
+                if (menuPill) {
+                    applyMenuPill();
+                } else if (floatingButtonShown) {
                     floatingMenuButton.setVisibility(View.VISIBLE);
                 }
 
@@ -1955,6 +1971,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        com.limelight.v2.V2Input.removeListener(menuPillInputListener);
 
         if (restartRequested) {
             // Start the replacement once this instance is gone (Game is singleTask)
@@ -4817,13 +4834,69 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void updateFloatingButtonVisibility(boolean show) {
+        if (menuPill) {
+            menuPillWanted = show;
+            applyMenuPill();
+            return;
+        }
         floatingMenuButton.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     public void toggleFloatingButtonVisibility() {
         if (floatingMenuButton != null) {
-            updateFloatingButtonVisibility(floatingMenuButton.getVisibility() == View.GONE);
+            updateFloatingButtonVisibility(menuPill ? !menuPillWanted : floatingMenuButton.getVisibility() == View.GONE);
         }
+    }
+
+    /** LavArtemis Dev: the « Menu » pill was not hidden by the user (« Plus » › Masquer la pastille) */
+    public boolean isMenuPillWanted() {
+        return menuPillWanted;
+    }
+
+    /**
+     * LavArtemis Dev: the prototype shows the « Menu » pill unless the last input was a gamepad (Start
+     * opens the menu there), nor in picture in picture; the statistics sit under it when it shows.
+     */
+    private void applyMenuPill() {
+        if (!menuPill || floatingMenuButton == null) {
+            return;
+        }
+        boolean show = com.limelight.v2.StreamMenu.pillVisible(menuPillWanted, isHidingOverlays, com.limelight.v2.V2Input.get(this));
+        floatingMenuButton.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (performanceOverlayView != null && !prefConfig.enablePerfOverlayBottom
+                && performanceOverlayView.getLayoutParams() instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) performanceOverlayView.getLayoutParams();
+            lp.topMargin = com.limelight.v2.ui.Ui.dp(this, com.limelight.v2.StreamMenu.statsTopPx(show));
+            performanceOverlayView.setLayoutParams(lp);
+        }
+    }
+
+    private final com.limelight.v2.V2Input.Listener menuPillInputListener = kind -> runOnUiThread(this::applyMenuPill);
+
+    // LavArtemis Dev: what was used last (touch, gamepad, keyboard) decides whether the pill shows.
+    // Observed only: every event goes on to the stream unchanged.
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (menuPill) {
+            com.limelight.v2.V2Input.onKey(event);
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (menuPill) {
+            com.limelight.v2.V2Input.onTouch(event);
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (menuPill) {
+            com.limelight.v2.V2Input.onGenericMotion(event);
+        }
+        return super.dispatchGenericMotionEvent(event);
     }
 
 

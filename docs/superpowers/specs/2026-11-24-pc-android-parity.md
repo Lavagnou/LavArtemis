@@ -311,6 +311,12 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
 - **Écarts de la nuit** : Android n'a pas « Afficher les détails » (écran de détails pas porté) ; le desktop n'a pas
   le « Créer un raccourci sur le bureau (.art) » côté Android (PC seulement, voulu). Android a le menu en jeu en
   tuiles (Reprendre + 9 + Plus) et la pastille « Menu » ; le desktop garde `QuickMenu` pour l'instant.
+- **Écart ouvert (2026-11-26, Android)** : les 15 raccourcis d'« Envoyer des touches » sont écrits comme le prototype
+  (« Échap », « Alt + F4 », « Windows », « Windows + D », « Ctrl + Alt + Suppr », « Ctrl + Maj + Échap »,
+  « Windows + Maj + Gauche », « Ctrl + Alt + Maj + F12 »…, sans parenthèses) ; le desktop (`KeyMacroManager`) garde
+  « Alt+F4 », « Win+D (afficher le bureau) »… et doit suivre. Sous-menus du menu en jeu Android au style du prototype
+  (« Menu du stream », « Envoyées au PC comme si tu les tapais là-bas. », « Accéder aux commandes de contrôle du PC
+  hôte », « Commande envoyée : … ») : à reprendre au desktop avec son menu en tuiles.
 
 ## 4. Ce qui reste
 

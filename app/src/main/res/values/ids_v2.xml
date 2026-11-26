@@ -2,4 +2,5 @@
 <resources>
     <item name="v2_cover_loaded" type="id" />
     <item name="v2_tag_app" type="id" />
+    <item name="v2_menu_tile" type="id" />
 </resources>

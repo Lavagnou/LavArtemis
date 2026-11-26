@@ -323,19 +323,19 @@
     <!-- « Envoyer des touches »: the desktop's built-in shortcuts (KeyMacroManager), same labels -->
     <string name="v2_keys_esc">Échap</string>
     <string name="v2_keys_f11">F11</string>
-    <string name="v2_keys_alt_f4">Alt+F4</string>
-    <string name="v2_keys_alt_enter">Alt+Entrée</string>
-    <string name="v2_keys_ctrl_v">Ctrl+V</string>
-    <string name="v2_keys_win">Touche Windows</string>
-    <string name="v2_keys_win_d">Win+D (afficher le bureau)</string>
-    <string name="v2_keys_win_g">Win+G (Game Bar)</string>
-    <string name="v2_keys_ctrl_alt_del">Ctrl+Alt+Suppr</string>
-    <string name="v2_keys_ctrl_shift_esc">Ctrl+Maj+Échap (gestionnaire des tâches)</string>
-    <string name="v2_keys_ctrl_alt_tab">Ctrl+Alt+Tab</string>
-    <string name="v2_keys_shift_tab">Maj+Tab (overlay Steam)</string>
-    <string name="v2_keys_win_shift_left">Win+Maj+Gauche (fenêtre sur l\'autre écran)</string>
-    <string name="v2_keys_ctrl_alt_shift_f1">Ctrl+Alt+Maj+F1 (changer d\'écran)</string>
-    <string name="v2_keys_ctrl_alt_shift_f12">Ctrl+Alt+Maj+F12 (changer d\'écran)</string>
+    <string name="v2_keys_alt_f4">Alt + F4</string>
+    <string name="v2_keys_alt_enter">Alt + Entrée</string>
+    <string name="v2_keys_ctrl_v">Ctrl + V</string>
+    <string name="v2_keys_win">Windows</string>
+    <string name="v2_keys_win_d">Windows + D</string>
+    <string name="v2_keys_win_g">Windows + G</string>
+    <string name="v2_keys_ctrl_alt_del">Ctrl + Alt + Suppr</string>
+    <string name="v2_keys_ctrl_shift_esc">Ctrl + Maj + Échap</string>
+    <string name="v2_keys_ctrl_alt_tab">Ctrl + Alt + Tab</string>
+    <string name="v2_keys_shift_tab">Maj + Tab</string>
+    <string name="v2_keys_win_shift_left">Windows + Maj + Gauche</string>
+    <string name="v2_keys_ctrl_alt_shift_f1">Ctrl + Alt + Maj + F1</string>
+    <string name="v2_keys_ctrl_alt_shift_f12">Ctrl + Alt + Maj + F12</string>
 
     <!-- In-game menu (Dev): the single touch-mode switch, Game.switchTouchMode() -->
     <string name="v2_menu_touch_to_trackpad">Passer en trackpad</string>
@@ -695,4 +695,27 @@
     <string name="v2_ago_months">il y a %1$d mois</string>
     <string name="v2_ago_last_year">l’an dernier</string>
     <string name="v2_ago_years">il y a %1$d ans</string>
+    <!-- In-game menu, what the V8 tile menu still needed (Plus, sub-menus, stats) -->
+    <string name="v2_keys_note">Envoyées au PC comme si tu les tapais là-bas.</string>
+    <string name="v2_cmds_note">Accéder aux commandes de contrôle du PC hôte</string>
+    <string name="v2_cmds_none_title">Aucune commande de serveur</string>
+    <string name="v2_cmds_none_note">Vérifie que le PC hôte lance Apollo ou LavApollo, et que cet appareil a la permission « Commande de serveur ».</string>
+    <string name="v2_cmd_sent">Commande envoyée : %1$s</string>
+    <string name="v2_more_mic">Micro</string>
+    <string name="v2_more_mic_on">Activé</string>
+    <string name="v2_more_mic_off">Coupé</string>
+    <string name="v2_more_mic_not_sent">Micro non envoyé</string>
+    <string name="v2_more_mic_not_sent_value">Non envoyé</string>
+    <string name="v2_more_mic_not_sent_toast">Le micro n’est pas envoyé : active « Envoyer mon micro au PC distant » dans Réglages › Audio</string>
+    <string name="v2_more_rotate">Pivoter l’écran</string>
+    <string name="v2_more_osc">Basculer le contrôleur à l’écran</string>
+    <string name="v2_more_pill_show">Afficher la pastille « Menu »</string>
+    <string name="v2_more_pill_hide">Masquer la pastille « Menu »</string>
+    <string name="v2_more_voice_show">Afficher le bouton vocal</string>
+    <string name="v2_more_voice_hide">Masquer le bouton vocal</string>
+    <string name="v2_more_voice_move">Déplacer le bouton vocal</string>
+    <string name="v2_more_special_keys">Basculer les touches spéciales</string>
+    <string name="v2_more_full_keyboard">Basculer le clavier virtuel complet</string>
+    <string name="v2_more_sensitivity">Changer la sensibilité tactile</string>
+    <string name="v2_more_quit_session">Quitter la session</string>
 </resources>

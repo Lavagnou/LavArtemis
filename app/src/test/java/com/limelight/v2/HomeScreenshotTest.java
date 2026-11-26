@@ -279,6 +279,112 @@ public class HomeScreenshotTest {
         }
     }
 
+    /**
+     * The sub-dialogs of the in-game menu over it (prototype V8-29 Plus, V8-30 keys, V8-64 commands,
+     * V8-31 no command), focus on the first option at the gamepad. Labels as GameMenu builds them.
+     */
+    @Test
+    public void streamSheets() throws Exception {
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                String mode = dark ? "sombre" : "clair";
+                RuntimeEnvironment.setQualifiers("w1280dp-h720dp-land-mdpi");
+                V2Input.reset(V2Input.Kind.PAD);
+                Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+                V2Theme theme = V2Theme.of(t, dark);
+                HomeLayout l = HomeLayout.forSize(1280, 720);
+
+                V2Sheet.Spec plus = streamSpec(ctx, R.string.v2_menu_more);
+                plus.note = theme.isAffiche() ? GAMES[0] + " — " + ctx.getString(R.string.v2_via_inside).toUpperCase(java.util.Locale.FRENCH)
+                        : GAMES[0] + " · " + ctx.getString(R.string.v2_via_inside);
+                plus.option(StreamMenu.withValue(ctx.getString(R.string.v2_more_mic), ctx.getString(R.string.v2_more_mic_off)), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_voice_hide), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_voice_move), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_rotate), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_osc), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_special_keys), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_full_keyboard), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_sensitivity), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_quit_session), false, false, null);
+                plus.option(ctx.getString(R.string.v2_more_pill_hide), false, false, null);
+                plus.option(ctx.getString(R.string.v2_cancel), false, false, null);
+                sheetShot(ctx, theme, l, plus, "plus-" + t + "-" + mode + "-manette");
+
+                V2Sheet.Spec keys = streamSpec(ctx, R.string.v2_menu_send_keys);
+                keys.note = ctx.getString(R.string.v2_keys_note);
+                int[] keyLabels = {R.string.v2_keys_esc, R.string.v2_keys_f11, R.string.v2_keys_alt_f4, R.string.v2_keys_alt_enter,
+                        R.string.v2_keys_ctrl_v, R.string.v2_keys_win, R.string.v2_keys_win_d, R.string.v2_keys_win_g,
+                        R.string.v2_keys_ctrl_alt_del, R.string.v2_keys_ctrl_shift_esc, R.string.v2_keys_ctrl_alt_tab,
+                        R.string.v2_keys_shift_tab, R.string.v2_keys_win_shift_left, R.string.v2_keys_ctrl_alt_shift_f1,
+                        R.string.v2_keys_ctrl_alt_shift_f12};
+                for (int k : keyLabels) {
+                    keys.option(ctx.getString(k), false, false, null);
+                }
+                keys.option(ctx.getString(R.string.v2_cancel), false, false, null);
+                sheetShot(ctx, theme, l, keys, "keys-" + t + "-" + mode + "-manette");
+
+                V2Sheet.Spec cmds = streamSpec(ctx, R.string.v2_menu_server_cmd);
+                cmds.note = ctx.getString(R.string.v2_cmds_note);
+                cmds.option("Verrouiller la session Windows", false, false, null);
+                cmds.option("Redémarrer Playnite", false, false, null);
+                cmds.option("Éteindre l’écran du PC", false, false, null);
+                cmds.option(ctx.getString(R.string.v2_cancel), false, false, null);
+                sheetShot(ctx, theme, l, cmds, "cmds-" + t + "-" + mode + "-manette");
+
+                V2Sheet.Spec none = streamSpec(ctx, R.string.v2_cmds_none_title);
+                none.note = ctx.getString(R.string.v2_cmds_none_note);
+                none.option(ctx.getString(R.string.v2_ok), true, false, null);
+                sheetShot(ctx, theme, l, none, "nocmds-" + t + "-" + mode + "-manette");
+            }
+        }
+    }
+
+    private static V2Sheet.Spec streamSpec(Context ctx, int title) {
+        V2Sheet.Spec spec = new V2Sheet.Spec();
+        spec.kind = ctx.getString(R.string.v2_menu_kind);
+        spec.where = "ATLAS-PC";
+        spec.title = ctx.getString(title);
+        spec.info = true;
+        return spec;
+    }
+
+    /** The stream (the running game's background), the tile menu, then the sheet over them */
+    private void sheetShot(Context ctx, V2Theme theme, HomeLayout l, V2Sheet.Spec spec, String name) throws Exception {
+        List<NvApp> apps = apps();
+        CoverSource covers = covers(apps);
+        Bitmap bmp = Bitmap.createBitmap(1280, 720, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        Bitmap stream = covers.peekBackground(apps.get(3));
+        if (stream == null) {
+            stream = covers.peek(apps.get(4));
+        }
+        if (stream != null) {
+            c.drawBitmap(stream, null, new android.graphics.Rect(0, 0, 1280, 720), new Paint(Paint.FILTER_BITMAP_FLAG));
+        }
+        java.util.List<V2GameMenu.Tile> tiles = new java.util.ArrayList<>();
+        tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_resume), ctx.getString(R.string.v2_resume), "", "", R.drawable.v2_ic_m_resume, false, 0, null));
+        for (int i = 0; i < 8; i++) {
+            tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_menu_more), ctx.getString(R.string.v2_menu_more), "›", "", R.drawable.v2_ic_m_more, false, 1, null));
+        }
+        tiles.add(new V2GameMenu.Tile("Déconnecter", "Déconnecter", "", "", R.drawable.v2_ic_m_disconnect, false, 7, null));
+        tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_menu_quit, GAMES[0]), ctx.getString(R.string.v2_short_quit), "",
+                ctx.getString(R.string.v2_menu_quit_playnite_sub), R.drawable.v2_ic_m_quit, false, 8, null));
+        // The menu under the sheet without its own hints (in the app it closes when a sub-dialog opens)
+        V2Input.reset(V2Input.Kind.TOUCH);
+        View menu = V2GameMenu.build(ctx, theme, l, GAMES[0], "ATLAS-PC", ctx.getString(R.string.v2_via_inside), tiles, null);
+        c.drawBitmap(draw(menu, 1280, 720), 0, 0, null);
+        V2Input.reset(V2Input.Kind.PAD);
+        View sheet = V2Sheet.build(ctx, theme, l, spec, null);
+        draw(sheet, 1280, 720);
+        View first = firstFocusable(sheet);
+        if (first != null) {
+            first.setFocusableInTouchMode(true);
+            first.requestFocus();
+        }
+        c.drawBitmap(draw(sheet, 1280, 720), 0, 0, null);
+        save(bmp, name);
+    }
+
     private static View nthButton(View root, int n) {
         java.util.List<View> found = new java.util.ArrayList<>();
         collectButtons(root, found);

@@ -71,6 +71,17 @@ public final class V2Sheet {
 
     private V2Sheet() {}
 
+    /** Columns of the options (prototype ctxCols): 1, 2 past 8 options, 3 past 14 */
+    public static int columns(int options) {
+        return options > 14 ? 3 : options > 8 ? 2 : 1;
+    }
+
+    /** Width of the box in prototype px (prototype ctx.w): the theme's width, 250 more per extra column */
+    public static int boxWidthPx(boolean affiche, boolean ludique, int cols) {
+        return (affiche ? 580 : (ludique ? 560 : 520)) + (cols - 1) * 250;
+    }
+
+
     public static Dialog show(Activity activity, V2Theme th, Spec spec) {
         android.content.res.Configuration conf = activity.getResources().getConfiguration();
         HomeLayout l = HomeLayout.forSize(conf.screenWidthDp, conf.screenHeightDp);
@@ -214,6 +225,8 @@ public final class V2Sheet {
         if (af) {
             box.addView(HomeParts.ruleV(ctx, l, th.fg), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(ctx, l, 3)));
         }
+        int cols = columns(spec.options.size());
+        LinearLayout line = null;
         for (int i = 0; i < spec.options.size(); i++) {
             final Option o = spec.options.get(i);
             HomeParts.Button b = new HomeParts.Button(ctx, th);
@@ -261,11 +274,37 @@ public final class V2Sheet {
                 b.setTag(FIRST);
             }
             b.setMinimumHeight(Math.max(px(ctx, l, h), Ui.dp(ctx, 44)));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (i > 0 && !af) {
-                lp.topMargin = px(ctx, l, 12);
+            if (cols == 1) {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                if (i > 0 && !af) {
+                    lp.topMargin = px(ctx, l, 12);
+                }
+                rows.addView(b, lp);
+            } else {
+                // A grid (prototype grid-template-columns): gap 12, Affiche 18 between columns and none between rows
+                if (i % cols == 0) {
+                    line = new V2GameMenu.EqualRow(ctx);
+                    line.setOrientation(LinearLayout.HORIZONTAL);
+                    Ui.noClip(line);
+                    LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    if (i > 0 && !af) {
+                        rlp.topMargin = px(ctx, l, 12);
+                    }
+                    rows.addView(line, rlp);
+                }
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                if (i % cols > 0) {
+                    lp.setMarginStart(px(ctx, l, af ? 18 : 12));
+                }
+                line.addView(b, lp);
             }
-            rows.addView(b, lp);
+        }
+        if (line != null) {
+            for (int k = spec.options.size() % cols; k > 0 && k < cols; k++) {
+                LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(0, 1, 1f);
+                sp.setMarginStart(px(ctx, l, af ? 18 : 12));
+                line.addView(new android.widget.Space(ctx), sp);
+            }
         }
         ScrollView scroll = new ScrollView(ctx);
         scroll.setVerticalScrollBarEnabled(false);
@@ -277,7 +316,7 @@ public final class V2Sheet {
         slp.setMargins(-ring, -ring, -ring, -ring);
         box.addView(scroll, slp);
 
-        int width = px(ctx, l, af ? 580 : (lu ? 560 : 520));
+        int width = px(ctx, l, boxWidthPx(af, lu, cols));
         int maxW = Ui.dp(ctx, l.widthDp - 32);
         FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(Math.min(width, maxW), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
         blp.topMargin = blp.bottomMargin = Ui.dp(ctx, 12);
