@@ -340,7 +340,8 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     et deux clés que leur lecteur prend dans les prefs de base (`checkbox_auto_update` par `UpdateChecker`,
     `keyboard_axi_list` par le chargeur des touches) — sinon l'écriture partirait dans le profil et ne serait
     jamais lue. Un nouveau profil est un **instantané complet** (toutes les lignes, défauts compris), langue et
-    apparence exclues.
+    apparence exclues ; « Appliquer comme profil » du benchmark aussi (`BenchmarkSettings.applyAsProfile` part de
+    `SettingsStore.snapshot()`), comme `ProfileManager::createProfile()` sur le desktop (`BenchmarkProfileTest`).
   - **Effets de bord repris** de `StreamSettings` : nouvelle résolution / fréquence → débit remis au défaut **tant
     qu'il est le débit recommandé** (`SettingsStore.bitrateIsRecommended()` : jamais écrit, ou égal au défaut ; bougé
     à la main, il reste ; « Revenir au débit recommandé » le fait suivre de nouveau — la règle du desktop,
@@ -484,6 +485,10 @@ d'un texte ou d'un réglage commun). Repères Android :
 - **Presse-papiers** (`smartClipboardSync` / « Synchroniser le presse-papiers ») : envoyé au début du stream, récupéré
   sur « Déconnecter », à la demande dans le menu en jeu, mêmes messages ; le desktop envoie en plus une copie faite
   pendant le stream (détails : `desktop/CLAUDE.md`, « Session et menu en jeu »).
+- **Erreurs de l'hôte en français** : `utils/HostErrorText` (= `ComputerManager::hostErrorDetail()` /
+  `quitErrorText()` du desktop) donne le motif court (« erreur 500 », « connexion refusée »…) et la phrase d'un
+  quitter refusé, « Impossible de quitter %1 sur le PC (%2). » (le 599 garde la sienne) : presse-papiers, accueil
+  (`ServerHelper.doQuit`), fin de stream (`Game`). Jamais `e.getMessage()` à l'écran.
 - **Micro hors profils** (voir « Passthrough du micro »). **« Envoyer des touches »** : 15 raccourcis, les
   mêmes que le desktop (sans le raccourci HDR Win+Alt+B).
 - « Version du logiciel hôte non prise en charge » : règle `v2/HostSupport` reprise telle quelle par le

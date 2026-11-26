@@ -71,7 +71,9 @@ s'ajoute ici comme écart.
   modifié : reconnexion… », jamais l'appli quittée ; suivi actif dès que l'hôte annonce son écran (comme Android).
 - **Presse-papiers** : envoyé au début du stream, récupéré sur « Déconnecter », envoyé / récupéré à la demande
   depuis le menu ; mêmes messages (« Presse-papiers envoyé avec succès », « Échec de la récupération du
-  presse-papiers : … »).
+  presse-papiers : … »). Ce qui suit les deux-points est le même court motif traduit des deux côtés (« erreur
+  500 », « connexion refusée », « pas de réponse à temps »… : `ComputerManager::hostErrorDetail()` /
+  `utils/HostErrorText`), jamais le texte anglais de l'exception (vague 6).
 - **Toucher en mode Trackpad** : le doigt déplace le curseur, tap = clic gauche, appui à deux doigts = clic
   droit, appui long (un doigt) = glisser, **deux doigts qui bougent = défilement** (même vitesse : 5 unités
   par pixel d'un écran de référence de 720 lignes). L'appui long à deux doigts ne fait rien, des deux côtés.
@@ -207,6 +209,11 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
 
 - **Nouveau profil** : il part du profil en cours sur PC aussi (il partait des réglages globaux : créé sous
   « Maison », il en perdait les valeurs). Android le faisait déjà (instantané).
+  **Vague 6 (2026-11-26)** : des deux côtés, un nouveau profil est un **instantané complet** de ce qui est en
+  vigueur, défauts compris, qu'un profil soit actif ou non, langue et apparence exclues : PC
+  `ProfileManager::createProfile()` (il était vide sans profil actif, partiel sous un profil épars ; test
+  `tests/profiles`), Android « Appliquer comme profil » du benchmark (`BenchmarkSettings.applyAsProfile`, qui ne
+  copiait que le profil actif : sans profil, le seul réglage du passage ; test `BenchmarkProfileTest`).
 - **Débit qui suit la résolution et les images/s** : une seule règle, celle du texte choisi « Suit la résolution
   et les images/s tant que tu ne le changes pas » : il suit tant qu'il est le débit recommandé, bougé à la main il
   reste, « Revenir au débit recommandé » le fait suivre de nouveau. Le PC le faisait déjà (`autoAdjustBitrate`) ;
@@ -252,6 +259,16 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
   ne la donne pas garde son ordre (`NvComputer::sortApps()` / `HomeModel.sortRecentFirst()`).
 - **Latence** : même mesure, un `connect` TCP après chaque poll réussi, au moins 1 ms (`PcMonitorThread::
   measureLatencyMs` / `computers/HostLatency`).
+
+## 3 septies. Aligné le 2026-11-26 (vague 6, revue des vagues 1–4)
+
+- **Quitter une appli qui refuse** (accueil, fin de session, « Quitter l'appli sur le PC distant à la fin ») : la
+  même phrase des deux côtés, « Impossible de quitter %1 sur le PC (%2). », %1 l'appli, %2 le motif court commun
+  (« erreur 500 », « connexion refusée »…) ; l'erreur 599 garde sa phrase (« Le jeu en cours n'a pas été lancé par
+  ce PC / cet appareil… »). Avant : texte anglais de l'exception sur PC (fin de session, accueil) et sur Android
+  (`ServerHelper.doQuit`, fin de stream de `Game`, où le 599 n'avait même pas sa phrase).
+- Écart restant, minime : le motif d'une erreur réseau inconnue porte son numéro sur PC (« erreur réseau 99 »,
+  code Qt), pas sur Android (« erreur réseau ») : les deux piles n'ont pas les mêmes codes.
 
 ## 4. Ce qui reste
 
