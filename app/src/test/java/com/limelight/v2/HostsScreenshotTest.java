@@ -361,6 +361,7 @@ public class HostsScreenshotTest {
         gameMenu("gamemenu-console-ludique-dark", "ludique", true, 960, 540, V2Input.Kind.KEYS);
         gameMenu("gamemenu-phone-ludique-light", "ludique", false, 915, 412, V2Input.Kind.TOUCH);
         gameMenu("gamemenu-portrait-ludique-dark", "ludique", true, 412, 915, V2Input.Kind.TOUCH);
+        gameMenu("gamemenu-tablet-ludique-dark", "ludique", true, 1280, 800, V2Input.Kind.PAD);
     }
 
     @Test

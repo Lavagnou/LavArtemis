@@ -172,6 +172,11 @@ public final class V2GameMenu {
 
     private static final Object FIRST = new Object();
 
+    /** Ludique dock: room left and right of a tile's text (prototype px) */
+    private static final float DOCK_PAD = 6;
+    /** Ludique dock: smallest size of a tile's label (dp) when the text shrinks to fit a row */
+    private static final float DOCK_MIN_LABEL_DP = 11;
+
     /** The n-th tile of a built menu */
     static View tile(View v, int n) {
         Object tag = v.getTag(com.limelight.R.id.v2_menu_tile);
@@ -281,13 +286,8 @@ public final class V2GameMenu {
             FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(ctx, l, 52), Gravity.TOP | Gravity.START);
             plp.setMargins(px(ctx, l, 48), px(ctx, l, 36), 0, 0);
             root.addView(pill, plp);
-            LinearLayout dock = new LinearLayout(ctx);
-            dock.setOrientation(LinearLayout.HORIZONTAL);
-            dock.setClickable(true);
-            dock.setBackground(rect(th.bg, pxf(ctx, l, 40), 0, 0));
-            dock.setPadding(px(ctx, l, 16), px(ctx, l, 14), px(ctx, l, 16), px(ctx, l, 14));
-            Ui.noClip(dock);
-            float tw = Math.min(96, (l.stageWidth() - 48 - 32 - 8 * (tiles.size() - 1)) / Math.max(1, tiles.size()));
+            List<TextView> labs = new ArrayList<>(), vals = new ArrayList<>();
+            List<HomeParts.Button> buttons = new ArrayList<>();
             for (int i = 0; i < tiles.size(); i++) {
                 Tile tile = tiles.get(i);
                 HomeParts.Button b = button(ctx, th, tile, dialog);
@@ -316,21 +316,52 @@ public final class V2GameMenu {
                 TextView lab = HomeParts.text(ctx, th, l, 13, 800, th.fg, false);
                 lab.setText(tile.shortLabel);
                 lab.setGravity(Gravity.CENTER);
-                // « Quitter la session » (workshop) takes two lines in a 96 px tile
-                lab.setMaxLines(2);
+                // « Quitter la session » (workshop) takes two lines in a 96 px tile; the tile is as
+                // wide as its longest word (DockFit), so lines only break between words
+                lab.setMaxLines(3);
                 col.addView(lab, tlpTop(ctx, l, 6));
                 TextView val = HomeParts.text(ctx, th, l, 11, 600, th.lit.muted2, false);
                 val.setText(tile.value.isEmpty() && tile.danger && !tile.sub.isEmpty() ? ctx.getString(R.string.v2_menu_back_playnite) : tile.value);
                 val.setGravity(Gravity.CENTER);
-                val.setMaxLines(2);
+                val.setMaxLines(3);
                 col.addView(val, tlpTop(ctx, l, 4));
+                col.setPadding(px(ctx, l, DOCK_PAD), px(ctx, l, 10), px(ctx, l, DOCK_PAD), px(ctx, l, 10));
                 b.addView(col, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-                LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(px(ctx, l, tw), px(ctx, l, 108));
-                if (i > 0) {
-                    blp.setMarginStart(px(ctx, l, 8));
-                }
-                dock.addView(b, blp);
+                labs.add(lab);
+                vals.add(val);
+                buttons.add(b);
                 items.add(b);
+            }
+            // One row of 96 x 108 tiles in the prototype; on a narrow screen (a phone in portrait)
+            // the tiles widen to their longest word, the text shrinks to a readable minimum, then the
+            // dock takes a second row (DockFit: a gap of the prototype, port-notes)
+            float word = 0;
+            for (TextView tv : labs) {
+                word = Math.max(word, longestWord(tv));
+            }
+            for (TextView tv : vals) {
+                word = Math.max(word, longestWord(tv));
+            }
+            // A pixel or two of slack: a line laid out by StaticLayout can be a hair wider than measureText
+            word = (float) Math.ceil(word) + Ui.dp(ctx, 2);
+            float avail = Ui.dp(ctx, l.widthDp) - 2 * px(ctx, l, 12) - 2 * px(ctx, l, 16);
+            float minScale = Math.min(1f, DOCK_MIN_LABEL_DP / l.t(13));
+            DockFit fit = DockFit.of(tiles.size(), word, px(ctx, l, DOCK_PAD), px(ctx, l, 96), px(ctx, l, 8), avail, minScale);
+            if (fit.scale < 1f) {
+                for (TextView tv : labs) {
+                    tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, l.t(13) * fit.scale);
+                }
+                for (TextView tv : vals) {
+                    tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, l.t(11) * fit.scale);
+                }
+            }
+            Dock dock = new Dock(ctx, fit.rows, (int) Math.ceil(fit.tile), px(ctx, l, 8), px(ctx, l, 108));
+            dock.setClickable(true);
+            dock.setBackground(rect(th.bg, pxf(ctx, l, 40), 0, 0));
+            dock.setPadding(px(ctx, l, 16), px(ctx, l, 14), px(ctx, l, 16), px(ctx, l, 14));
+            Ui.noClip(dock);
+            for (HomeParts.Button tb : buttons) {
+                dock.addView(tb);
             }
             FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                     Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
@@ -517,6 +548,60 @@ public final class V2GameMenu {
                 }
             }
             setMeasuredDimension(getMeasuredWidth(), max + getPaddingTop() + getPaddingBottom());
+        }
+    }
+
+    /**
+     * The Ludique dock: rows of tiles of one width (DockFit), each row centred, every tile as tall as
+     * the tallest (at least the prototype's 108 px), so a label or a value is never clipped
+     */
+    static final class Dock extends ViewGroup {
+        private final int[] rows;
+        private final int tileW, gap, minH;
+        private int tileH;
+
+        Dock(Context ctx, int[] rows, int tileW, int gap, int minH) {
+            super(ctx);
+            this.rows = rows;
+            this.tileW = tileW;
+            this.gap = gap;
+            this.minH = minH;
+        }
+
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            int w = MeasureSpec.makeMeasureSpec(tileW, MeasureSpec.EXACTLY);
+            int h = minH;
+            for (int i = 0; i < getChildCount(); i++) {
+                View c = getChildAt(i);
+                c.measure(w, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+                h = Math.max(h, c.getMeasuredHeight());
+            }
+            tileH = h;
+            for (int i = 0; i < getChildCount(); i++) {
+                getChildAt(i).measure(w, MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY));
+            }
+            int per = 0;
+            for (int r : rows) {
+                per = Math.max(per, r);
+            }
+            int width = per * tileW + Math.max(0, per - 1) * gap + getPaddingLeft() + getPaddingRight();
+            int height = rows.length * h + Math.max(0, rows.length - 1) * gap + getPaddingTop() + getPaddingBottom();
+            setMeasuredDimension(resolveSize(width, widthSpec), resolveSize(height, heightSpec));
+        }
+
+        @Override
+        protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            int inner = getWidth() - getPaddingLeft() - getPaddingRight();
+            int i = 0, y = getPaddingTop();
+            for (int count : rows) {
+                int x = getPaddingLeft() + (inner - (count * tileW + Math.max(0, count - 1) * gap)) / 2;
+                for (int k = 0; k < count && i < getChildCount(); k++, i++) {
+                    getChildAt(i).layout(x, y, x + tileW, y + tileH);
+                    x += tileW + gap;
+                }
+                y += tileH + gap;
+            }
         }
     }
 
