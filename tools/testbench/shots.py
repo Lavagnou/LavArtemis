@@ -72,6 +72,9 @@ class Shooter:
                 _set(self.c, "uiTheme", theme)
                 _set(self.c, "uiThemeMode", mode)
                 for inp in (inputs or self.inputs):
+                    if inp == "keys":
+                        # the last input is the keyboard: a key that does nothing else (Insert)
+                        self.c.call("key", key="Insert", target="qt")
                     if prepare:
                         prepare(self.c, inp)
                     time.sleep(settle)
@@ -98,6 +101,66 @@ def shot_home(sh, ctx):
     sh.themed("home")
 
 
+@screen("home-session")
+def shot_home_session(sh, ctx):
+    """The home with a session running on the PC: Bureau launched, then « Déconnecter » (Ctrl+Alt+Shift+Q), the
+    app keeps running on the fake PC.  The stream itself is a real SDL window of the test client (non-activating,
+    as in `run`)."""
+    import helpers
+    helpers.go_home(sh.c)
+    try:
+        helpers.launch(sh.c, ctx.get("launch", "Bureau"), timeout=40)
+    except AssertionError as e:
+        print(f"shots: home-session skipped, no stream ({e})")
+        return
+    sh.c.call("key", key="Q", modifiers="Ctrl+Alt+Shift", target="stream")
+    sh.c.wait_for(lambda st: st["page"] == "HomeView" and not st["session"]["active"], 30)
+    time.sleep(3.0)  # the next poll says the app still runs
+    sh.themed("home-session")
+
+
+@screen("library")
+def shot_library(sh, ctx):
+    import helpers
+    helpers.go_home(sh.c)
+    sh.c.click("Tout voir →", index=-1)
+    helpers.wait_page(sh.c, "LibraryView")
+    time.sleep(2.0)
+    sh.themed("library")
+    helpers.go_home(sh.c)
+
+
+@screen("details")
+def shot_details(sh, ctx):
+    """Details of the first recent game: its options (keyboard: Menu), « Afficher les détails »."""
+    import helpers
+    helpers.go_home(sh.c)
+    _keys(sh.c, "Up", "Up", "Up", "Down", "Down", "Menu")
+    helpers.wait_text(sh.c, "Afficher les détails")
+    sh.c.click("Afficher les détails")
+    helpers.wait_page(sh.c, "DetailsView")
+    time.sleep(1.5)
+    sh.themed("details")
+    helpers.go_home(sh.c)
+
+
+@screen("options")
+def shot_options(sh, ctx):
+    """Options of the first recent game: the centred dialog (keyboard: Menu)."""
+    import helpers
+    helpers.go_home(sh.c)
+
+    def prepare(c, inp):
+        if helpers.find(c, "Afficher les détails"):  # the dialog of the previous capture
+            c.call("key", key="Escape", target="qt")
+            helpers.wait_text(c, "Afficher les détails", gone=True)
+        _keys(c, "Up", "Up", "Up", "Down", "Down", "Menu")
+        helpers.wait_text(c, "Afficher les détails")
+    sh.themed("options", prepare=prepare, inputs=["keys"])
+    sh.c.call("key", key="Escape", target="qt")
+    helpers.wait_text(sh.c, "Afficher les détails", gone=True)
+
+
 @screen("hosts")
 def shot_hosts(sh, ctx):
     import helpers
@@ -114,7 +177,7 @@ def shot_settings(sh, ctx):
     helpers.go_home(sh.c)
 
 
-def run(out, screens=None, themes=THEMES, inputs=("mouse",), fixtures=("atlas-test",), keep=False):
+def run(out, screens=None, themes=THEMES, inputs=("mouse",), fixtures=("atlas-test",), keep=False, build=True):
     import helpers
     wd = workdir()
     out = pathlib.Path(out).resolve()
@@ -123,7 +186,7 @@ def run(out, screens=None, themes=THEMES, inputs=("mouse",), fixtures=("atlas-te
     c = None
     try:
         env = dict(OFFSCREEN_ENV, QT_QPA_PLATFORM_PLUGIN_PATH=str(qt_platforms_dir()))
-        c = clientmod.Client.start(wd, reset=True, build=True, env=env)
+        c = clientmod.Client.start(wd, reset=True, build=build, env=env)
         c.wait_idle(timeout=30)
         for h in started:
             if h.pid:
@@ -137,6 +200,10 @@ def run(out, screens=None, themes=THEMES, inputs=("mouse",), fixtures=("atlas-te
         for name in (screens or list(SCREENS)):
             SCREENS[name](sh, ctx)
         print(f"shots: {len(sh.taken)} captures in {out}")
+        # QML warnings of the client (a broken binding shows here before it shows in a capture)
+        warnings = sorted({ln.split(" - ", 1)[-1] for ln in c.log_text().splitlines() if "qrc:/" in ln})
+        for w in warnings[:40]:
+            print("client:", w)
         return 0
     finally:
         if c is not None and not keep:

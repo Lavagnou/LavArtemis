@@ -117,6 +117,7 @@ def main(argv=None):
     s.add_argument("--themes", default="braise,affiche,ludique")
     s.add_argument("--inputs", default="mouse", help="comma-separated inputs: mouse, keys, pad")
     s.add_argument("--keep", action="store_true", help="leave the client and the fake PCs running")
+    s.add_argument("--no-build", action="store_true", help="use the test client as it is, never rebuild it")
     sub.add_parser("mark-client-built", help="record the current sources as the ones the client exe was built "
                                              "from (after checking the newer mtimes are comment-only edits)")
     a = ap.parse_args(argv)
@@ -125,7 +126,7 @@ def main(argv=None):
     if a.cmd == "shots":
         import shots
         sys.exit(shots.run(a.out, a.screens.split(",") if a.screens else None, a.themes.split(","),
-                           a.inputs.split(","), keep=a.keep))
+                           a.inputs.split(","), keep=a.keep, build=not a.no_build))
     if a.cmd == "mark-client-built":
         import client
         client.mark_built()
