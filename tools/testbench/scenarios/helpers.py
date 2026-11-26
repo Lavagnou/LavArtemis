@@ -9,6 +9,16 @@ import time
 import client as clientmod
 import hosts
 
+# The home's section of Playnite games (textes-choisis 12: the same title in every theme)
+HOME_LIBRARY_TITLE = "Bibliothèque Playnite · récents"
+# The home without a paired PC, and a PC that is off (prototype V8-07, V8-10: Affiche's titles in every theme)
+NO_PC_TITLE = "AUCUN PC APPAIRÉ"
+
+
+def offline_title(name):
+    return f"{name} — HORS LIGNE"
+
+
 PIN_RE = re.compile(r"ce code : ((?:\d ?){4})")
 # What the helpers read and did, for the scenario's notes (conftest writes it into the report)
 TRACE = []
@@ -209,8 +219,19 @@ def host_card_menu(c, name):
     """Right click on a PC's card in Mes PC (its menu: Ouvrir, Benchmark, Renommer, Oublier…)."""
     open_hosts(c)
     item = wait_text(c, name)[0]
+    # A dialog that just closed (« Oublier ») still fades out, its modal overlay over the page: a right click then
+    # lands on it and no menu opens.  A click by coordinates is not refused like a click by text: wait it out.
+    wait_no_popup(c)
     c.call("click", x=item["x"] + item["w"] // 2, y=item["y"] + item["h"] // 2, button="right")
     wait_text(c, "Renommer")
+
+
+def wait_no_popup(c, timeout=5.0):
+    """No popup (options, dialog) in the tree any more: the closing one finished its animation."""
+    deadline = time.time() + timeout
+    while any(i["type"] in ("PopupItem", "Overlay") for i in c.tree()):
+        assert time.time() < deadline, f"a popup stays open: {texts(c)[-12:]}"
+        time.sleep(0.2)
 
 
 # ---------------------------------------------------------------- settings
@@ -252,7 +273,7 @@ SETTINGS_PAGE_ROW = {
     "Manettes": "Assigner les boutons d’une manette",
     "Apparence": "Thème",
     "PC": "Quitter l'appli sur le PC distant à la fin",
-    "Raccourcis clavier": "Menu en jeu",
+    "Raccourcis clavier": "Menu du stream",
     "Avancé": "Chercher les mises à jour au démarrage",
 }
 
@@ -405,6 +426,9 @@ def quick_menu_click(c, text, window):
             quit_tile = [t for t in texts(c, window=window) if t.startswith("Quitter ") and t != text]
             assert quit_tile, f"no « Quitter … » tile in the in-game menu: {texts(c, window=window)}"
             text = quit_tile[0]
+    # The tiles come in one after the other when the menu opens: « Reprendre » (the first) can be there while
+    # « Déconnecter » (the last) is not yet
+    wait_quick_text(c, text, window)
     c.call("click", text=text, window=window)
     time.sleep(0.4)
 
@@ -426,7 +450,7 @@ def host_events(host, stream, key=None):
 def tiles(c):
     """Cover tiles of the screen (V8: HomeTile items taller than wide, « Tout voir » left out)."""
     items = c.tree()
-    tout_voir = [i for i in items if i.get("text") == "Tout voir"]
+    tout_voir = [i for i in items if i.get("text", "").startswith("Tout voir")]  # the See-all tile: « Tout voir → »
     return [t for t in items if t["type"] == "HomeTile" and t["h"] >= t["w"] * 1.2 and
             not any(t["x"] <= v["x"] < t["x"] + t["w"] and t["y"] <= v["y"] < t["y"] + t["h"] for v in tout_voir)]
 
@@ -463,27 +487,31 @@ def click_item(c, item, button="left"):
 def popup_texts(c):
     """Texts inside the open options (LavOptions: popover or dialog), in tree order; [] when none is open."""
     items = c.tree()
-    pop = next((i for i in items if i["type"] == "PopupItem" and i.get("objectName") == "LavOptions"), None)
-    if pop is None:
+    at = next((n for n, i in enumerate(items) if i["type"] == "PopupItem" and i.get("objectName") == "LavOptions"), None)
+    if at is None:
         return []
-    return [i["text"] for i in items if i.get("text") and i["type"] == "Text"
+    pop = items[at]
+    # Its own items only: they follow it in the tree (the popup is drawn above the page, in the window's overlay);
+    # the page's texts behind it lie inside its rectangle too (« 4 jeux », a tile's name)
+    return [i["text"] for i in items[at + 1:] if i.get("text") and i["type"] == "Text"
             and pop["x"] <= i["x"] < pop["x"] + pop["w"] and pop["y"] <= i["y"] < pop["y"] + pop["h"]]
 
 
 def tile_by_name(c, name):
     """The cover tile of a game, found by opening each tile's menu (its title is the game's name) and closing it:
-    works whatever the covers look like (dimmed while a session runs)."""
+    works whatever the covers look like (dimmed while a session runs).  The V8 options open with their kind line
+    (« Jeu Playnite · … »), then the title: both are read before deciding."""
     for t in sorted(tiles(c), key=reading_order):
         click_item(c, t, "right")
         deadline = time.time() + 5
         shown = []
-        while not shown and time.time() < deadline:
+        while len(shown) < 2 and time.time() < deadline:
             time.sleep(0.2)
             shown = popup_texts(c)
         c.call("key", key="Escape", target="qt")
         deadline = time.time() + 5
         while popup_texts(c) and time.time() < deadline:
             time.sleep(0.2)
-        if shown and shown[0] == name:
+        if name in shown[:2]:
             return t
     raise AssertionError(f"no cover tile for {name!r}")

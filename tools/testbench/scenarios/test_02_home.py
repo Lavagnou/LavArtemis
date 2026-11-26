@@ -4,7 +4,7 @@ unhide it from the library's « Masqués · N » filter.
 
 The V8 home has no names under the covers and no « Afficher le jeu masqué » button: hidden games come back only in
 the library (prototype `filters()`: « Masqués · N » after Tous / Récents / Installés).  Written for the V8 port,
-never run yet (port-notes.md)."""
+first run on 2026-11-26."""
 import json
 import time
 
@@ -23,7 +23,7 @@ def cover_tiles(c, page_items=None):
     """The cover tiles of the screen (home « Récents » or the library grid): HomeTile items taller than wide,
     « Tout voir » left out."""
     items = page_items or c.tree()
-    tout_voir = [i for i in items if i.get("text") == "Tout voir"]
+    tout_voir = [i for i in items if i.get("text", "").startswith("Tout voir")]  # the See-all tile: « Tout voir → »
     out = []
     for t in items:
         if t["type"] != "HomeTile" or t["h"] < t["w"] * 1.2:
@@ -67,7 +67,10 @@ def test_home_cards_recents_and_hide(bench):
 
     bureau = helpers.wait_text(c, "Bureau")[0]
     playnite = helpers.wait_text(c, "Playnite Fullscreen")[0]
-    assert bureau["x"] < playnite["x"] and abs(bureau["y"] - playnite["y"]) < 5
+    # One row: the titles overlap vertically (Playnite Fullscreen's longer title is fitted smaller, so its top is a
+    # few pixels off Bureau's; a card of another row would be a card's height away)
+    assert bureau["x"] < playnite["x"], (bureau, playnite)
+    assert bureau["y"] < playnite["y"] + playnite["h"] and playnite["y"] < bureau["y"] + bureau["h"], (bureau, playnite)
     time.sleep(1.0)  # covers fetched from the host fade in
     shot = bench.shot("01-home")
     found = names_of(c, shot, names)
@@ -93,7 +96,16 @@ def test_home_cards_recents_and_hide(bench):
     c.click("Tout voir →", index=-1)
     helpers.wait_page(c, "LibraryView")
     helpers.wait_text(c, "Masqués · 1")
-    c.click("Masqués · 1")
+    # The count never counts the hidden game: « Tous » and « Récents » (every game not hidden) say « 3 jeux », not
+    # « 3 affichés sur 3 » (LibraryCountText)
+    visible = len(names) - 1
+    helpers.wait_text(c, f"{atlas.name} · {visible} jeux")
+    # a filter chip: its MouseArea lies over its label, a click at the label's centre goes to it
+    helpers.click_item(c, helpers.wait_text(c, "Récents")[0])
+    helpers.wait_text(c, f"{atlas.name} · {visible} jeux")
+    assert not helpers.find(c, "affichés sur", contains=True), helpers.texts(c)
+    helpers.click_item(c, helpers.wait_text(c, "Masqués · 1")[0])
+    helpers.wait_text(c, f"{atlas.name} · 1 affiché sur {visible}")
     time.sleep(0.8)
     tiles = cover_tiles(c)
     assert len(tiles) == 1, f"the Masqués filter should hold the hidden game only: {len(tiles)} tiles"

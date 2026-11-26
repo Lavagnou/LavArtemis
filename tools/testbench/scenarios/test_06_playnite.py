@@ -52,7 +52,7 @@ def test_playnite_game_inside_running_playnite(bench):
     c.wait_for(lambda s: not s["session"]["active"] and s["page"] == "HomeView", 30)
     comp = helpers.wait_computer(c, atlas.name, lambda x: x["online"] and x["currentGameId"] != 0, timeout=20)
     playnite_app = comp["currentGameId"]
-    helpers.wait_text(c, "Bibliothèque Playnite")
+    helpers.wait_text(c, helpers.HOME_LIBRARY_TITLE)
     time.sleep(1.0)
     bench.shot("01-home-playnite-running")
 
@@ -108,7 +108,7 @@ def test_playnite_game_inside_running_playnite(bench):
     record_play(atlas, GAME)
     # the client fetches the app list every 10 polls (about 30 s)
     helpers.wait_computer(c, atlas.name, lambda x: [a for a in x["apps"] if a in names] == expected, timeout=60)
-    helpers.wait_text(c, "Bibliothèque Playnite")
+    helpers.wait_text(c, helpers.HOME_LIBRARY_TITLE)
     deadline = time.time() + 10
     while True:
         time.sleep(1.0)  # covers fade in; the moved row settles

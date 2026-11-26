@@ -78,10 +78,27 @@ def close_dialog(c):
     c.call("key", key="Escape", target="qt")
 
 
+# V8 menu in tiles: these entries are in the dialog that a tile opens (prototype: « Presse-papiers » → send / fetch,
+# « Plus » → the touch mode)
+IN_TILE_DIALOG = {
+    "Envoyer au PC ce que j’ai copié": "Presse-papiers",
+    "Récupérer ce qui est copié sur le PC": "Presse-papiers",
+    "Passer en trackpad": "Plus",
+    "Passer en multitouch": "Plus",
+}
+CLIP_SEND = "Envoyer au PC ce que j’ai copié"
+CLIP_FETCH = "Récupérer ce qui est copié sur le PC"
+
+
 def menu_click(c, text, qm):
     """Click an entry of the open in-game menu, scrolling its list down to it when it is below the fold."""
     if text == "Quitter la session":
         helpers.quick_menu_click(c, text, qm)  # V8: through the « Quitter <app> » tile
+        return
+    if text in IN_TILE_DIALOG:
+        helpers.quick_menu_click(c, IN_TILE_DIALOG[text], qm)
+        helpers.wait_quick_text(c, text, qm)
+        helpers.quick_menu_click(c, text, qm)
         return
     # The list keeps its scroll position from one opening to the next: down, then back up
     for dy in [0] + [-2] * 6 + [2] * 12:
@@ -285,8 +302,9 @@ def test_s3_refused_launch_and_refused_quit(bench):
     helpers.wait_text(c, "Le jeu en cours n'a pas été lancé par ce PC", contains=True, gone=True)
 
     # The host answers the quit with an error: which app and why, in French, never the exception's English text
-    # (review of waves 1-4, #6)
-    helpers.launch(c, "Bureau")
+    # (review of waves 1-4, #6).  The refused quit left Bureau running on the PC: the V8 home shows it as the session
+    # in progress (« EN COURS SUR … », its title is no button), joined again by « Reprendre »
+    helpers.launch(c, "Reprendre")
     stream_runs(c, 2, "after a refused quit")
     hosts.fail_next(atlas, "cancel_error")
     qm = menu_entry(c, "Quitter la session")
@@ -373,21 +391,21 @@ def test_s6_clipboard(bench):
     except AssertionError as e:
         problems.append(f"start: {e}")
 
-    # Fetched on demand: « Récupérer le presse-papiers »
+    # Fetched on demand: « Presse-papiers › Récupérer ce qui est copié sur le PC »
     hosts.clipboard(atlas, "copié sur le PC")
     n = len(c.state()["toasts"])
-    menu_entry(c, "Récupérer le presse-papiers")
+    menu_entry(c, CLIP_FETCH)
     deadline = time.time() + 10
     while c.call("clipboard")["text"] != "copié sur le PC" and time.time() < deadline:
         time.sleep(0.3)
     if c.call("clipboard")["text"] != "copié sur le PC":
-        problems.append(f"« Récupérer le presse-papiers » did nothing: {c.call('clipboard')['text']!r}")
+        problems.append(f"« {CLIP_FETCH} » did nothing: {c.call('clipboard')['text']!r}")
     try:
         wait_toast(c, n, "Presse-papiers récupéré")
     except AssertionError as e:
         problems.append(f"fetch: {e}")
 
-    # Sent on demand: « Envoyer le presse-papiers » (forced: even what came from the PC)
+    # Sent on demand: « Presse-papiers › Envoyer au PC ce que j’ai copié » (forced: even what came from the PC)
     c.call("clipboard", action="set", text="envoyé à la main")
     deadline = time.time() + 5
     # a copy made here while the stream runs goes to the PC at once
@@ -397,12 +415,12 @@ def test_s6_clipboard(bench):
         problems.append(f"a copy made during the stream was not sent: host has {hosts.clipboard(atlas)!r}")
     hosts.clipboard(atlas, "autre chose")
     n = len(c.state()["toasts"])
-    menu_entry(c, "Envoyer le presse-papiers")
+    menu_entry(c, CLIP_SEND)
     deadline = time.time() + 10
     while hosts.clipboard(atlas) != "envoyé à la main" and time.time() < deadline:
         time.sleep(0.3)
     if hosts.clipboard(atlas) != "envoyé à la main":
-        problems.append(f"« Envoyer le presse-papiers » did nothing: host has {hosts.clipboard(atlas)!r}")
+        problems.append(f"« {CLIP_SEND} » did nothing: host has {hosts.clipboard(atlas)!r}")
     try:
         wait_toast(c, n, "Presse-papiers envoyé")
     except AssertionError as e:
@@ -411,7 +429,7 @@ def test_s6_clipboard(bench):
     # A fetch the PC fails: why, in French (review of waves 1-4, #6: it was the exception's English text)
     hosts.fail_next(atlas, "clipboard")
     n = len(c.state()["toasts"])
-    menu_entry(c, "Récupérer le presse-papiers")
+    menu_entry(c, CLIP_FETCH)
     try:
         new = wait_toast(c, n, "Échec de la récupération du presse-papiers")
         msg = next(t for t in new if "Échec de la récupération du presse-papiers" in t)
@@ -457,8 +475,13 @@ def test_s7_server_commands(bench):
     assert not probed, f"the client probed guessed endpoints: {probed}"
     helpers.wait_any_text(c, ["Aucune commande de serveur"])
     bench.shot("01-no-commands", window=helpers.quick_menu_window(c))
-    c.call("key", key="Escape", target="qt", window=helpers.quick_menu_window(c))
-    menu_entry(c, "Déconnecter")
+    # Escape closes the dialog and goes back to the menu (its tiles), which stays open
+    qm = helpers.quick_menu_window(c)
+    c.call("key", key="Escape", target="qt", window=qm)
+    helpers.wait_text(c, "Aucune commande de serveur", gone=True)
+    assert c.state().get("quickMenu"), "Escape in a dialog of the menu closed the whole menu"
+    helpers.wait_quick_text(c, "Reprendre", qm)
+    helpers.quick_menu_click(c, "Déconnecter", qm)
     wait_home(c, "after « Déconnecter »")
 
     # A host with commands: listed, and run on the host

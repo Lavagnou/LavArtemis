@@ -175,7 +175,7 @@ def test_recents_follow_a_play_while_a_session_runs(bench):
 
     # The home's library follows (AppModel moves the row). The covers are dimmed while Playnite runs (their colour
     # says nothing): each tile is named by its menu's title
-    helpers.wait_text(c, "Bibliothèque Playnite")
+    helpers.wait_text(c, helpers.HOME_LIBRARY_TITLE)
     time.sleep(1.0)
     bench.shot("01-library-after-play")
     seen = tile_titles(c, names)

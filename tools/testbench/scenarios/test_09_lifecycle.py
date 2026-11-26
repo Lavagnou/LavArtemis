@@ -57,7 +57,7 @@ def _assert_french(text):
 
 def test_pairing_removed_on_host(bench):
     """Paired, then « Tout désappairer » in LavApollo: the client's certificate is refused (HTTPS 401).  The PC must
-    stay online and become not paired: it leaves the home (« Aucun PC appairé ») and the cards of Mes PC, shows in
+    stay online and become not paired: it leaves the home (« AUCUN PC APPAIRÉ ») and the cards of Mes PC, shows in
     « Ajouter un PC » with its address, and adding it again by address opens its pairing dialog."""
     atlas, = bench.up("atlas-test")
     c = bench.start_client()
@@ -68,7 +68,7 @@ def test_pairing_removed_on_host(bench):
     hosts.unpair_all(atlas)
     comp = helpers.wait_computer(c, atlas.name, lambda x: not x["paired"], timeout=30)
     assert comp["online"], f"a PC that answers is online, not paired: {comp}"
-    helpers.wait_text(c, "Aucun PC appairé")
+    helpers.wait_text(c, helpers.NO_PC_TITLE)
     helpers.wait_text(c, "Bureau", gone=True)
     bench.shot("02-home-unpaired")
 
@@ -95,7 +95,7 @@ def test_pairing_removed_on_host(bench):
 
 def test_second_pc_then_forget_both(bench):
     """Pairing a second PC shows it on the home (Android does).  Forgetting the PC the home shows moves the home to
-    the other one, with its own cards; forgetting the last one leaves « Aucun PC appairé ».  Nothing of a forgotten PC
+    the other one, with its own cards; forgetting the last one leaves « AUCUN PC APPAIRÉ ».  Nothing of a forgotten PC
     is left (state, cards), and the client lives on (it read the deleted PC before)."""
     atlas, cyn = bench.up("atlas-test", "cynisca-test")
     c = bench.start_client()
@@ -124,7 +124,7 @@ def test_second_pc_then_forget_both(bench):
     helpers.click(c, "Oublier")
     c.wait_for(lambda s: s["computers"] == [], 15)
     _back_home(c)
-    helpers.wait_text(c, "Aucun PC appairé")
+    helpers.wait_text(c, helpers.NO_PC_TITLE)
     helpers.wait_text(c, "Bureau", gone=True)
     bench.shot("03-none-left")
     time.sleep(4.0)  # a poll that was under way when the PC was forgotten comes back: nothing may use it
@@ -133,7 +133,7 @@ def test_second_pc_then_forget_both(bench):
 
 
 def test_switched_off_pc_leaves_the_home(bench):
-    """The PC the home shows switches off: its cards go, « Test-Atlas est hors ligne » with « Réveiller »; the wake
+    """The PC the home shows switches off: its cards go, « Test-Atlas — HORS LIGNE » with « Réveiller → »; the wake
     packets cannot leave in the test build, which the toast says (Android's v2_wake_failed).  Back on: the cards
     come back."""
     atlas, = bench.up("atlas-test")
@@ -142,12 +142,14 @@ def test_switched_off_pc_leaves_the_home(bench):
     _home_on(c, atlas.name)
 
     bench.stop_host("atlas-test")
-    helpers.wait_text(c, f"{atlas.name} est hors ligne", timeout=40)
+    helpers.wait_text(c, helpers.offline_title(atlas.name), timeout=40)
     helpers.wait_text(c, "Bureau", gone=True)
-    assert not helpers.find(c, f"Sur {atlas.name}"), "no card section for an offline PC"
+    # Prototype V8-10: « Sur Test-Atlas » now heads the offline card alone; no app card, no library
+    shown = helpers.texts(c)
+    assert not [t for t in ("Playnite Fullscreen", helpers.HOME_LIBRARY_TITLE) if t in shown], shown
     bench.shot("01-offline")
 
-    helpers.click(c, "Réveiller")
+    helpers.click(c, "Réveiller →")
     helpers.wait_text(c, f"Le réveil de {atlas.name} n'a pas pu être envoyé.")
     assert not helpers.find(c, f"Réveil envoyé à {atlas.name}")
     bench.shot("02-wake-failed")
