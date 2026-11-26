@@ -112,8 +112,10 @@ def pytest_sessionfinish(session, exitstatus):
 
 # ---------------------------------------------------------------- foreground watch
 
-_user32 = ctypes.windll.user32
-_kernel32 = ctypes.windll.kernel32
+# Private handles, not ctypes.windll's: argtypes set on windll.user32 are seen by every scenario that calls it with its
+# own structures (test_10's _RECT: "expected LP_RECT instance instead of pointer to _RECT")
+_user32 = ctypes.WinDLL("user32")
+_kernel32 = ctypes.WinDLL("kernel32")
 EVENT_SYSTEM_FOREGROUND = 0x0003
 WINEVENT_OUTOFCONTEXT = 0x0000
 WM_QUIT = 0x0012
@@ -227,7 +229,7 @@ GWL_EXSTYLE = -20
 WS_EX_TOPMOST = 0x8
 MONITOR_DEFAULTTONULL = 0
 DWMWA_CLOAKED = 14
-_dwmapi = ctypes.windll.dwmapi
+_dwmapi = ctypes.WinDLL("dwmapi")
 _dwmapi.DwmGetWindowAttribute.argtypes = [wt.HWND, wt.DWORD, ctypes.c_void_p, wt.DWORD]
 WNDENUMPROC = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
 _user32.GetAncestor.argtypes = [wt.HWND, wt.UINT]
