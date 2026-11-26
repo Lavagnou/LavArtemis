@@ -371,19 +371,8 @@ public class BenchmarkActivity extends Activity {
     // ---- Labels -------------------------------------------------------------------------------
 
     private String pacingLabel(String pacing) {
-        switch (pacing) {
-            case "default": return getString(R.string.benchmark_pacing_default);
-            case "ull": return getString(R.string.benchmark_pacing_ull);
-            case "paced-ull": return getString(R.string.benchmark_pacing_paced_ull);
-            case "predictive": return getString(R.string.benchmark_pacing_predictive);
-            case "vrr-low-latency": return getString(R.string.benchmark_pacing_vrr_low_latency);
-            case "vrr-balanced": return getString(R.string.benchmark_pacing_vrr_balanced);
-            case "vrr-smooth": return getString(R.string.benchmark_pacing_vrr_smooth);
-            case "vsync-off": return getString(R.string.benchmark_pacing_vsync_off);
-            case "vsync": return getString(R.string.benchmark_pacing_vsync);
-            case "vsync-paced": return getString(R.string.benchmark_pacing_vsync_paced);
-            default: return pacing;
-        }
+        // Shared with the run notes (« Passé en HEVC, … à la place. »)
+        return com.limelight.benchmark.BenchmarkNotes.pacingLabel(this, pacing);
     }
 
     private String modeLabel(Mode m) {
@@ -403,13 +392,7 @@ public class BenchmarkActivity extends Activity {
     }
 
     private String configLabel(RunConfig c) {
-        String codec;
-        switch (c.codec) {
-            case H264: codec = "H.264"; break;
-            case HEVC: codec = "HEVC"; break;
-            case AV1: codec = "AV1"; break;
-            default: codec = "PyroWave"; break;
-        }
+        String codec = com.limelight.benchmark.BenchmarkNotes.codecLabel(c.codec.id);
         String mbps = c.bitrateKbps % 1000 == 0 ? Integer.toString(c.bitrateKbps / 1000)
                 : String.format(Locale.getDefault(), "%.1f", c.bitrateKbps / 1000.0);
         return getString(R.string.benchmark_config, codec, mbps, pacingLabel(c.pacing));

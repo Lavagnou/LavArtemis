@@ -262,6 +262,12 @@ public class BenchmarkTest {
             if (run.skip) {
                 skipped++;
                 assertTrue(run.config.codec == Codec.AV1 || BenchmarkTypes.isVrrPacing(run.config.pacing));
+                // The notes of LavApollo/docs/benchmark.md (« Notes »), the desktop planner's words
+                if (run.config.codec == Codec.AV1) {
+                    assertEquals("av1 is not available: the device fell back to hevc", run.skipReason);
+                } else {
+                    assertEquals("VRR is not available on this display", run.skipReason);
+                }
             }
             results.add(r);
         }

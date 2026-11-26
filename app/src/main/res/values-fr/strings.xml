@@ -705,9 +705,9 @@
     <string name="benchmark_pacing_ull">latence ultra faible</string>
     <string name="benchmark_pacing_paced_ull">latence ultra faible rythmée</string>
     <string name="benchmark_pacing_predictive">rythme prédictif</string>
-    <string name="benchmark_pacing_vrr_low_latency">rythme VRR, faible latence</string>
-    <string name="benchmark_pacing_vrr_balanced">rythme VRR, équilibré</string>
-    <string name="benchmark_pacing_vrr_smooth">rythme VRR, fluide</string>
+    <string name="benchmark_pacing_vrr_low_latency">VRR, faible latence</string>
+    <string name="benchmark_pacing_vrr_balanced">VRR, équilibré</string>
+    <string name="benchmark_pacing_vrr_smooth">VRR, fluide</string>
     <string name="benchmark_pacing_vsync_off">V-Sync désactivée</string>
     <string name="benchmark_pacing_vsync">V-Sync</string>
     <string name="benchmark_pacing_vsync_paced">V-Sync + frame pacing</string>

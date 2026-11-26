@@ -32,6 +32,38 @@ public class BenchmarkNotesTest {
     }
 
     @Test
+    public void codecsAndPacingAreShownByName() {
+        // Every form a note can hold an id in (LavApollo/docs/benchmark.md, « Notes »), as the
+        // desktop shows them (Benchmark::Notes::localized: codecLabel, pacingLabel)
+        assertEquals("AV1 n'est pas disponible : l'appareil est revenu à HEVC",
+                BenchmarkNotes.localize(ctx, "av1 is not available: the device fell back to hevc"));
+        assertEquals("PyroWave n'est pas disponible : l'appareil est revenu à H.264",
+                BenchmarkNotes.localize(ctx, "pyrowave is not available: the client fell back to h264"));
+        assertEquals("Passé en HEVC, rythme par défaut à la place.",
+                BenchmarkNotes.localize(ctx, "Ran as hevc, default instead."));
+        assertEquals("Passé en H.264, latence ultra faible rythmée à la place.",
+                BenchmarkNotes.localize(ctx, "Ran as h264, paced-ull instead."));
+        assertEquals("Passé en AV1, VRR, équilibré à la place.",
+                BenchmarkNotes.localize(ctx, "Ran as av1, vrr-balanced instead."));
+        // The desktop's pacing ids, in a report made there
+        assertEquals("Passé en HEVC, V-Sync + frame pacing à la place.",
+                BenchmarkNotes.localize(ctx, "Ran as hevc, vsync-paced instead."));
+        assertEquals("Passé en HEVC, V-Sync désactivée à la place.",
+                BenchmarkNotes.localize(ctx, "Ran as hevc, vsync-off instead."));
+        // An id neither client knows is shown as it is
+        assertEquals("Passé en vp9, tearing à la place.", BenchmarkNotes.localize(ctx, "Ran as vp9, tearing instead."));
+    }
+
+    @Test
+    public void labelsAreTheDesktopOnes() {
+        assertEquals("VRR, faible latence", BenchmarkNotes.pacingLabel(ctx, "vrr-low-latency"));
+        assertEquals("VRR, équilibré", BenchmarkNotes.pacingLabel(ctx, "vrr-balanced"));
+        assertEquals("VRR, fluide", BenchmarkNotes.pacingLabel(ctx, "vrr-smooth"));
+        assertEquals("H.264", BenchmarkNotes.codecLabel("h264"));
+        assertEquals("PyroWave", BenchmarkNotes.codecLabel("pyrowave"));
+    }
+
+    @Test
     public void unknownNotesStayAsTheyAre() {
         assertEquals("", BenchmarkNotes.localize(ctx, ""));
         assertEquals("Le débit a été plafonné à 50 Mbit/s.", BenchmarkNotes.localize(ctx, "Le débit a été plafonné à 50 Mbit/s."));

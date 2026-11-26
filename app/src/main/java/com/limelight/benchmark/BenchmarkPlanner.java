@@ -279,7 +279,7 @@ public final class BenchmarkPlanner {
             if (BenchmarkTypes.isVrrPacing(run.config.pacing) && BenchmarkTypes.isVrrPacing(r.requested.pacing)
                     && !BenchmarkTypes.isVrrPacing(r.effective.pacing)) {
                 run.skip = true;
-                run.skipReason = "VRR pacing is not available";
+                run.skipReason = "VRR is not available on this display"; // the desktop planner's words (docs/benchmark.md)
                 return;
             }
         }

@@ -45,11 +45,12 @@ public final class BenchmarkNotes {
         }
         Matcher m = FELL_BACK.matcher(note);
         if (m.matches()) {
-            return context.getString(R.string.bench_note_fell_back, m.group(1), m.group(2));
+            // Codec ids (« hevc ») by their name, as the desktop shows them
+            return context.getString(R.string.bench_note_fell_back, codecLabel(m.group(1)), codecLabel(m.group(2)));
         }
         m = RAN_AS.matcher(note);
         if (m.matches()) {
-            return context.getString(R.string.bench_note_ran_as, m.group(1), m.group(2));
+            return context.getString(R.string.bench_note_ran_as, codecLabel(m.group(1)), pacingLabel(context, m.group(2)));
         }
         m = START_FAILED.matcher(note);
         if (m.matches()) {
@@ -65,5 +66,36 @@ public final class BenchmarkNotes {
             return context.getString(R.string.bench_note_bitrate_capped, m.group(1));
         }
         return note;
+    }
+
+    /** A codec id as shown elsewhere (« hevc » → « HEVC », the desktop's codecLabel); an unknown one as is */
+    public static String codecLabel(String id) {
+        BenchmarkTypes.Codec codec = BenchmarkTypes.Codec.fromId(id);
+        if (codec == null) {
+            return id;
+        }
+        switch (codec) {
+            case H264: return "H.264";
+            case HEVC: return "HEVC";
+            case AV1: return "AV1";
+            default: return "PyroWave";
+        }
+    }
+
+    /** A pacing id by its name, Android's and the desktop's (pacingLabel); an unknown one as is */
+    public static String pacingLabel(Context context, String pacing) {
+        switch (pacing) {
+            case "default": return context.getString(R.string.benchmark_pacing_default);
+            case "ull": return context.getString(R.string.benchmark_pacing_ull);
+            case "paced-ull": return context.getString(R.string.benchmark_pacing_paced_ull);
+            case "predictive": return context.getString(R.string.benchmark_pacing_predictive);
+            case "vrr-low-latency": return context.getString(R.string.benchmark_pacing_vrr_low_latency);
+            case "vrr-balanced": return context.getString(R.string.benchmark_pacing_vrr_balanced);
+            case "vrr-smooth": return context.getString(R.string.benchmark_pacing_vrr_smooth);
+            case "vsync-off": return context.getString(R.string.benchmark_pacing_vsync_off);
+            case "vsync": return context.getString(R.string.benchmark_pacing_vsync);
+            case "vsync-paced": return context.getString(R.string.benchmark_pacing_vsync_paced);
+            default: return pacing;
+        }
     }
 }
