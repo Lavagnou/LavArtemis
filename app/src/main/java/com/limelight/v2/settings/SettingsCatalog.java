@@ -335,8 +335,9 @@ public final class SettingsCatalog {
                     }
                     return out;
                 });
+        // Outside the profiles, as the desktop's maxPendingAudioMs (ProfilesManager.APP_WIDE_KEYS)
         slider(l, AUDIO, "seekbar_max_pending_audio_ms", R.string.v2_set_audio_buffer, 40).desc(R.string.v2_set_audio_buffer_d).expert()
-                .range(10, 100, 5, 5).format(MS);
+                .global().range(10, 100, 5, 5).format(MS);
         toggle(l, AUDIO, "checkbox_enable_audiofx", R.string.v2_set_audiofx, false).desc(R.string.v2_set_audiofx_d).expert();
 
         // ================================ Entrées ===============================
@@ -502,10 +503,11 @@ public final class SettingsCatalog {
         // The page of the desktop that holds the clipboard (Réglages v2 › PC)
         // As on the desktop (quitAppAfter), first row of the page
         toggle(l, PC, PreferenceConfiguration.QUIT_APP_AFTER_PREF_STRING, R.string.v2_set_quit_after, false).desc(R.string.v2_set_quit_after_d);
-        toggle(l, PC, "checkbox_smart_clipboard_sync", R.string.v2_set_clipboard, false).desc(R.string.v2_set_clipboard_d).expert();
+        // The clipboard is outside the profiles, as the desktop's clipboardSync* (ProfilesManager.APP_WIDE_KEYS)
+        toggle(l, PC, "checkbox_smart_clipboard_sync", R.string.v2_set_clipboard, false).desc(R.string.v2_set_clipboard_d).expert().global();
         toggle(l, PC, "checkbox_smart_clipboard_sync_toast", R.string.v2_set_clipboard_toast, true).desc(R.string.v2_set_clipboard_toast_d).expert()
-                .dependsOn("checkbox_smart_clipboard_sync");
-        toggle(l, PC, "checkbox_hide_clipboard_content", R.string.v2_set_clipboard_hide, true).desc(R.string.v2_set_clipboard_hide_d).expert();
+                .global().dependsOn("checkbox_smart_clipboard_sync");
+        toggle(l, PC, "checkbox_hide_clipboard_content", R.string.v2_set_clipboard_hide, true).desc(R.string.v2_set_clipboard_hide_d).expert().global();
 
         // ================================= Avancé ===============================
         toggle(l, AVANCE, "checkbox_auto_update", R.string.v2_set_auto_update, true).desc(R.string.v2_set_auto_update_d).global();
@@ -515,8 +517,9 @@ public final class SettingsCatalog {
         toggle(l, AVANCE, "checkbox_enable_adpf", R.string.v2_set_adpf, true).desc(R.string.v2_set_adpf_d).expert();
         toggle(l, AVANCE, "checkbox_sustained_performance", R.string.v2_set_sustained, false).desc(R.string.v2_set_sustained_d).expert();
         toggle(l, AVANCE, "checkbox_prevent_packet_loss", R.string.v2_set_keepalive, false).desc(R.string.v2_set_keepalive_d).expert();
+        // Outside the profiles, as the desktop's perfCsvLogging (ProfilesManager.APP_WIDE_KEYS)
         toggle(l, AVANCE, "checkbox_enable_perf_logging", R.string.v2_set_perf_log, false).desc(R.string.v2_set_perf_log_d).expert()
-                .dependsOn("checkbox_enable_perf_overlay");
+                .global().dependsOn("checkbox_enable_perf_overlay");
         action(l, AVANCE, "share_performance_logs", R.string.v2_set_perf_share, R.string.v2_set_share).desc(R.string.v2_set_perf_share_d).expert()
                 .dependsOn(v -> v.getBool("checkbox_enable_perf_overlay") && v.getBool("checkbox_enable_perf_logging"));
         action(l, AVANCE, "pref_debug_info", R.string.v2_set_debug, R.string.v2_set_open).desc(R.string.v2_set_debug_d).expert();

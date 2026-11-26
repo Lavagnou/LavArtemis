@@ -138,14 +138,23 @@ public class ProfilesManager {
 
     /**
      * Keys that describe this device rather than a stream: a profile never carries them, like the
-     * desktop's app-wide keys (ProfileManager::isGlobalKey). The microphone is the one the user
-     * plugs in here, whatever the profile. They were profile-scoped before 2026-11-24, so
-     * {@link #load} moves them out of existing profiles (LavArtemis Dev only: the stable keeps
-     * its profiles as they were).
+     * desktop's app-wide keys (ProfileManager::isGlobalKey) and its ArtemisSettings, which no
+     * profile holds either. The microphone is the one the user plugs in here, whatever the profile;
+     * the audio buffer depends on this device's audio stack; the clipboard and the CSV log are the
+     * desktop's global settings. They were profile-scoped before (the microphone until 2026-11-24,
+     * the others until 2026-11-26), so {@link #load} moves them out of existing profiles
+     * (LavArtemis Dev only: the stable keeps its profiles as they were). Each one is a global() row
+     * of Réglages (SettingsCatalog), so a new profile's snapshot leaves it out. Booleans, strings
+     * and ints only ({@link #migrateAppWideKeys}).
      */
     static final String[] APP_WIDE_KEYS = {
             PreferenceConfiguration.MIC_PASSTHROUGH_PREF_STRING,
             PreferenceConfiguration.MIC_DEVICE_PREF_STRING,
+            "seekbar_max_pending_audio_ms",
+            "checkbox_smart_clipboard_sync",
+            "checkbox_smart_clipboard_sync_toast",
+            "checkbox_hide_clipboard_content",
+            "checkbox_enable_perf_logging",
     };
 
     static boolean appWideKeysEnabled() {
@@ -210,6 +219,9 @@ public class ProfilesManager {
                 editor.putBoolean(e.getKey(), (Boolean) v);
             } else if (v instanceof String) {
                 editor.putString(e.getKey(), (String) v);
+            } else if (v instanceof Number) {
+                // An int setting (the audio buffer); the profiles file may hold it as a double
+                editor.putInt(e.getKey(), ((Number) v).intValue());
             }
         }
         editor.apply();

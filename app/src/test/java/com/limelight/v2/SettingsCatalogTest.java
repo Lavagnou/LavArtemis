@@ -586,10 +586,13 @@ public class SettingsCatalogTest {
         assertEquals(false, options.get("checkbox_enable_rumble"));
         // Defaults are copied too: the profile holds every setting
         assertEquals(true, options.get("checkbox_enable_adpf"));
-        assertEquals(40, options.get("seekbar_max_pending_audio_ms"));
-        // Language and appearance stay common
+        assertEquals(100, options.get("seekbar_touchpad_sensitivity_opacity"));
+        // Language, appearance and the device's settings (audio buffer, clipboard: as the desktop,
+        // ProfilesManager.APP_WIDE_KEYS) stay common
         assertFalse(options.containsKey("list_languages"));
         assertFalse(options.containsKey(V2Theme.PREF_THEME));
+        assertFalse(options.containsKey("seekbar_max_pending_audio_ms"));
+        assertFalse(options.containsKey("checkbox_smart_clipboard_sync"));
 
         // A write lands in the profile, the base preferences do not move
         store.setChoice(SettingsCatalog.find("list_resolution"), "2560x1440");

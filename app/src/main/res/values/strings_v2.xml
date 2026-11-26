@@ -164,7 +164,7 @@
 
     <!-- Profil -->
     <string name="v2_set_profile">Profil actif</string>
-    <string name="v2_set_profile_d">Un jeu de réglages de stream par usage, par exemple à la maison et à distance. Ce qui tient à cet appareil reste commun : langue, apparence, micro, mises à jour.</string>
+    <string name="v2_set_profile_d">Un jeu de réglages de stream par usage, par exemple à la maison et à distance. Ce qui tient à cet appareil reste commun : langue, apparence, micro et tampon audio, presse-papiers, mises à jour.</string>
     <string name="v2_set_profile_none">Réglages globaux (aucun profil)</string>
     <string name="v2_set_profiles_manage">Gérer les profils</string>
     <string name="v2_set_profiles_manage_d">Un nouveau profil part des réglages en cours.</string>

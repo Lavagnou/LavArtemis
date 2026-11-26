@@ -161,6 +161,56 @@ public class AppWideKeysTest {
         assertTrue(pm.getOverlayingSharedPreferences(context).getBoolean(MIC, false));
     }
 
+    /**
+     * What the desktop keeps out of its profiles (ArtemisSettings: maxPendingAudioMs,
+     * clipboardSync*, perfCsvLogging) stays out of Android's too, and Réglages writes each of
+     * them to the base preferences, never into a new profile's snapshot (global rows).
+     */
+    @Test
+    public void theDesktopsDeviceSettingsAreAppWide() {
+        Assume.assumeTrue("LavArtemis Dev only", BuildConfig.LAV_DEV);
+        String[] keys = {
+                MIC, MIC_DEVICE,
+                "seekbar_max_pending_audio_ms",
+                "checkbox_smart_clipboard_sync",
+                "checkbox_smart_clipboard_sync_toast",
+                "checkbox_hide_clipboard_content",
+                "checkbox_enable_perf_logging",
+        };
+        for (String key : keys) {
+            assertTrue(key, ProfilesManager.isAppWideKey(key));
+        }
+        assertFalse("a stream setting stays in the profiles", ProfilesManager.isAppWideKey("list_fps"));
+        // Every app-wide key is a global row of Réglages, so a new profile never copies it
+        for (String key : ProfilesManager.APP_WIDE_KEYS) {
+            com.limelight.v2.settings.SettingDef row = com.limelight.v2.settings.SettingsCatalog.find(key);
+            assertNotNull(key, row);
+            assertTrue(key + " is global in Réglages", row.global);
+        }
+    }
+
+    @Test
+    public void loadMovesTheAudioBufferAndClipboardOutOfSavedProfiles() {
+        Assume.assumeTrue("LavArtemis Dev only", BuildConfig.LAV_DEV);
+        ProfilesManager pm = ProfilesManager.getInstance();
+        pm.load(context);
+        SettingsProfile saved = profile("Maison", "seekbar_max_pending_audio_ms", 60,
+                "checkbox_smart_clipboard_sync", true, "list_fps", "60");
+        pm.add(saved);
+        pm.setActive(saved.getUuid());
+
+        ProfilesManager.instance = null;
+        ProfilesManager fresh = ProfilesManager.getInstance();
+        assertTrue(fresh.load(context));
+
+        SharedPreferences base = PreferenceManager.getDefaultSharedPreferences(context);
+        assertEquals(60, base.getInt("seekbar_max_pending_audio_ms", 40));
+        assertTrue(base.getBoolean("checkbox_smart_clipboard_sync", false));
+        assertFalse(fresh.getActive().getOptions().containsKey("seekbar_max_pending_audio_ms"));
+        assertFalse(fresh.getActive().getOptions().containsKey("checkbox_smart_clipboard_sync"));
+        assertEquals("60", fresh.getActive().getOptions().get("list_fps"));
+    }
+
     private static void deleteRecursively(File f) {
         if (f == null || !f.exists()) {
             return;
