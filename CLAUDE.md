@@ -283,11 +283,26 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > - **Options** : `V2Sheet` (dialogue centré du prototype) ; listes de `ctxOpts` dans `V2HostActivity.showOptions`,
 >   règle `SessionChoice` (rejoindre / dans Playnite / ferme quelque chose → les options s'ouvrent d'abord). Quitter
 >   et Relancer passent par le même dialogue ; plus de « Oui / Non ».
-> - **Menu en jeu** (Dev) : `V2GameMenu` (tuiles Braise, panneau Affiche, dock Ludique), Reprendre + 9 + « Plus »
->   construits par `GameMenu.showTileMenu` ; **pastille « Menu »** (`ui/MenuPill`) à la place du bouton flottant,
->   le bouton vocal reste. « Plus » liste les entrées du prototype (`StreamMenu.more`, plus de « Menu avancé » en Dev) ;
->   Touches / Commandes / Presse-papiers / Plus en `V2Sheet` (grille `V2Sheet.columns()` = ctxCols), et Annuler / B les
->   referme **sur leur tuile** (`GameMenu.sub()` / `showSubSheet`). Statistiques au style du thème (`ui/StatsStyle`).
+> - **Menu en jeu** (Dev) : `V2GameMenu` (tuiles Braise, panneau Affiche, dock Ludique) construit par
+>   `GameMenu.showTileMenu` ; **pastille « Menu »** (`ui/MenuPill`) à la place du bouton flottant, le bouton vocal
+>   reste. **Disposition de l'atelier du 2026-11-26** (`docs/superpowers/verif-2026-11-25/decisions-design.md`,
+>   « Menu en jeu », remplace « 9 entrées + Reprendre + Plus ») : tuiles `StreamMenu.tiles()` = Reprendre ·
+>   Déconnecter · Quitter {jeu} (**jeu lancé dans Playnite seulement**, pas pour le Bureau ni Playnite Fullscreen) ·
+>   Quitter la session · Passer en trackpad / multitouch (pas sur écran externe) · Ouvrir le clavier (le clavier
+>   de l'appareil, ex « Afficher le clavier logiciel ») · Micro (grisé « Micro non envoyé » sans micro envoyé, un
+>   toast dit où l'activer) · Statistiques de performance · Plus. Libellés par `V2GameMenu.tile()` (aussi utilisé
+>   par les captures) ; courts du dock Ludique : « Quitter la session » (sur deux lignes), « Clavier ».
+>   « Plus » (`StreamMenu.more`) : Presse-papiers · Commandes du PC hôte · Zoom/Panoramique, puis Android seul
+>   (bouton vocal, le déplacer, pivoter, contrôleur à l'écran, touches spéciales, clavier virtuel complet,
+>   sensibilité, pastille « Menu », entrées de la manette), **chaque entrée avec son icône** (`V2GameMenu.icon()`,
+>   `V2Sheet.Spec.option(label, icône, action)` : trait de l'accent en Braise, pastille ronde en Ludique, rien en
+>   Affiche ; chemins `v2_ic_m_*` copiés de l'atelier). **« Envoyer des touches » est retiré** (plus de
+>   `DEV_SEND_KEYS` ; la stable garde son sous-menu). Commandes / Presse-papiers / Plus en `V2Sheet` (grille
+>   `V2Sheet.columns()` = ctxCols), et Annuler / B les referme **sur leur tuile** (`GameMenu.sub()` /
+>   `showSubSheet` ; ouverts depuis Plus : sur la tuile Plus). Braise : une valeur qui couperait un mot du libellé
+>   (« Statistiques » + « Masquées » sur téléphone) passe dessous. Statistiques au style du thème (`ui/StatsStyle`).
+>   Tests `StreamMenuTest` ; captures `menu-<thème>-<mode>-{playnite,bureau}-manette`, `plus-*` (HomeScreenshotTest)
+>   et `gamemenu-*-{playnite,bureau}` (HostsScreenshotTest, le vrai menu aux tailles téléphone / console / portrait).
 >   ⚠️ La pastille se cache à la manette : `Game` **observe** `dispatchKeyEvent` / `dispatchTouchEvent` /
 >   `dispatchGenericMotionEvent` pour `V2Input` (Dev, rien n'est consommé : tout part au stream comme avant), règle
 >   `StreamMenu.pillVisible` ; un nouveau chemin qui montre la pastille passe par `applyMenuPill()`.
@@ -385,16 +400,11 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   (`pollComputer` → `HostNames.apply`), sinon le `hostname` du `serverinfo` l'écraserait au poll suivant
   (c'est le `hasCustomName` du desktop) ; il est aussi écrit dans la base. Oublier le PC l'efface.
 - `ComputerDetails.apolloVersion` (`ApolloVersion` du `serverinfo`) : « 192.168.1.24 · LavApollo 1.2.0 ».
-- **Menu en jeu** : en Dev, `GameMenu.showMenuDialog` passe par `v2/ui/V2ListDialog` (même liste, même
-  `run()` donc même `runWithGameFocus` ; « Annuler » devient un bouton ; deux colonnes sur un écran large
-  mais bas) ; le message « Aucune commande de serveur » aussi. La stable garde l'`AlertDialog`. Libellés
-  depuis `strings.xml` + `values-fr` (traduction de `game_menu_toggle_floating_button` ajoutée,
-  « Envoyer le presse-papiers » au lieu de « Télécharger »). **Ordre et libellés du menu rapide du desktop
-  pour les entrées communes** (Dev) : Quitter <jeu Playnite>, Déconnecter, Quitter la session, Commandes du
-  PC hôte, Envoyer des touches, presse-papiers ×2, Statistiques de performance, micro (seulement s'il est
-  envoyé), puis les entrées Android. « Envoyer des touches » = les 15 raccourcis du desktop (sans le HDR Win+Alt+B, retiré des deux)
-  (`GameMenu.DEV_SEND_KEYS` = presets de `KeyMacroManager`, mêmes libellés `v2_keys_*`) ; « Menu avancé »
-  ne garde que ce qui est propre à Android (le gestionnaire des tâches est Ctrl+Maj+Échap de la liste).
+- **Menu en jeu** : en Dev, le menu de tuiles de l'atelier du 2026-11-26 (voir « Portage exact du prototype V8 » :
+  `StreamMenu.tiles()` / `more()`, mêmes entrées communes, même ordre et mêmes libellés que le PC ; « Envoyer
+  des touches » retiré des deux). Ses dialogues (`V2Sheet`) et le message « Aucune commande de serveur » sont
+  thémés. La stable garde l'`AlertDialog` de `showMenu()` (sa liste, son « Menu avancé », son sous-menu de
+  touches), libellés depuis `strings.xml` + `values-fr`.
 - **Réglages v2** (phase 2b, = `desktop/app/gui/v2/SettingsView2.qml`) : `v2.SettingsActivity` + `SettingsScreen`
   (liste des pages à gauche, « Mode expert » en tête, lignes à droite ; < 640 dp de large : la liste, puis une
   page seule, Retour revient à la liste). L'accueil y mène en Dev ; `StreamSettings` reste celui de la stable.
@@ -577,8 +587,8 @@ d'un texte ou d'un réglage commun). Repères Android :
   `quitErrorText()` du desktop) donne le motif court (« erreur 500 », « connexion refusée »…) et la phrase d'un
   quitter refusé, « Impossible de quitter %1 sur le PC (%2). » (le 599 garde la sienne) : presse-papiers, accueil
   (`ServerHelper.doQuit`), fin de stream (`Game`). Jamais `e.getMessage()` à l'écran.
-- **Micro hors profils** (voir « Passthrough du micro »). **« Envoyer des touches »** : 15 raccourcis, les
-  mêmes que le desktop (sans le raccourci HDR Win+Alt+B).
+- **Micro hors profils** (voir « Passthrough du micro »). **Menu en jeu** : disposition de l'atelier du
+  2026-11-26, la même des deux côtés pour les entrées communes ; « Envoyer des touches » retiré des deux.
 - « Version du logiciel hôte non prise en charge » : règle `v2/HostSupport` reprise telle quelle par le
   desktop (`NvComputer::isSupportedAppVersion()`), même message avec la version, mêmes points de contrôle
   (ouvrir, lancer, benchmark).

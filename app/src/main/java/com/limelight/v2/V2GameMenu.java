@@ -27,8 +27,8 @@ import static com.limelight.v2.HomeParts.pxf;
 import static com.limelight.v2.HomeParts.rect;
 
 /**
- * The prototype's in-game menu (V8, MENU_AN): Reprendre, the nine most useful entries and « Plus »,
- * as tiles over the stream. Braise: a veil and a 3-column grid of tiles (icon in the accent, label,
+ * The in-game menu (prototype V8, MENU_AN, entries of the menu workshop of 2026-11-26: see
+ * StreamMenu.tiles()), as tiles over the stream. Braise: a veil and a 3-column grid of tiles (icon in the accent, label,
  * value), the game's name and "PC · via" above. Affiche: an ink panel on the right, one row per
  * entry, no icons. Ludique: a white pill with the PC, the game and the via line at the top left,
  * and a dock of round-chipped tiles at the bottom. A / B through DialogKeys; Reprendre first.
@@ -58,6 +58,79 @@ public final class V2GameMenu {
     }
 
     private V2GameMenu() {}
+
+    /** What the labels of the tiles depend on (plain data: GameMenu and the captures fill it) */
+    public static final class State {
+        /** The game or app the stream shows (prototype playingTitle) */
+        public String title = "";
+        public boolean playniteGame;
+        /** The touch tile switches to Trackpad (else to Multitouch) */
+        public boolean toTrackpad;
+        public boolean micSent, micMuted;
+        public boolean hudShown;
+    }
+
+    /**
+     * A tile with the labels both clients use (workshop: « Quitter la session » and « Clavier » as
+     * the Ludique dock's short labels; « Micro non envoyé », greyed, while the micro is not sent)
+     */
+    public static Tile tile(Context ctx, StreamMenu.Tile kind, State s, Runnable action) {
+        switch (kind) {
+            case RESUME:
+                return new Tile(ctx.getString(R.string.v2_resume), ctx.getString(R.string.v2_resume), "", "",
+                        R.drawable.v2_ic_m_resume, false, 0, action);
+            case DISCONNECT:
+                return new Tile(ctx.getString(R.string.v2_menu_disconnect), ctx.getString(R.string.v2_menu_disconnect), "", "",
+                        R.drawable.v2_ic_m_disconnect, false, 7, action);
+            case QUIT_GAME:
+                return new Tile(ctx.getString(R.string.v2_menu_quit, s.title), ctx.getString(R.string.v2_short_quit), "",
+                        ctx.getString(R.string.v2_menu_quit_playnite_sub), R.drawable.v2_ic_m_quit, false, 8, action);
+            case QUIT_SESSION:
+                return new Tile(ctx.getString(R.string.v2_more_quit_session), ctx.getString(R.string.v2_more_quit_session), "", "",
+                        R.drawable.v2_ic_m_quit_session, false, 1, action);
+            case TOUCH_MODE:
+                return new Tile(ctx.getString(s.toTrackpad ? R.string.v2_menu_touch_to_trackpad : R.string.v2_menu_touch_to_multitouch),
+                        ctx.getString(s.toTrackpad ? R.string.v2_short_trackpad : R.string.v2_short_multitouch), "", "",
+                        R.drawable.v2_ic_m_touch, false, 1, action);
+            case KEYBOARD:
+                return new Tile(ctx.getString(R.string.v2_menu_open_keyboard), ctx.getString(R.string.v2_short_keyboard), "", "",
+                        R.drawable.v2_ic_m_keyboard, false, 1, action);
+            case MIC:
+                if (!s.micSent) {
+                    return new Tile(ctx.getString(R.string.v2_more_mic_not_sent), ctx.getString(R.string.v2_more_mic),
+                            ctx.getString(R.string.v2_more_mic_not_sent_value), "", R.drawable.v2_ic_m_mic, true, 1, action);
+                }
+                return new Tile(ctx.getString(R.string.v2_more_mic), ctx.getString(R.string.v2_more_mic),
+                        ctx.getString(s.micMuted ? R.string.v2_more_mic_off : R.string.v2_more_mic_on), "",
+                        R.drawable.v2_ic_m_mic, false, 1, action);
+            case STATS:
+                return new Tile(ctx.getString(R.string.v2_menu_stats), ctx.getString(R.string.v2_short_stats),
+                        ctx.getString(s.hudShown ? R.string.v2_stats_shown : R.string.v2_stats_hidden), "",
+                        R.drawable.v2_ic_m_stats, false, 1, action);
+            case MORE:
+            default:
+                return new Tile(ctx.getString(R.string.v2_menu_more), ctx.getString(R.string.v2_menu_more), "›", "",
+                        R.drawable.v2_ic_m_more, false, 1, action);
+        }
+    }
+
+    /** The icon of an entry of « Plus » (workshop ICON) */
+    public static int icon(StreamMenu.More m) {
+        switch (m) {
+            case CLIPBOARD: return R.drawable.v2_ic_m_clip;
+            case SERVER_COMMANDS: return R.drawable.v2_ic_m_cmds;
+            case ZOOM: return R.drawable.v2_ic_m_zoom;
+            case VOICE: return R.drawable.v2_ic_m_mic;
+            case VOICE_MOVE: return R.drawable.v2_ic_m_voice_move;
+            case ROTATE: return R.drawable.v2_ic_m_rotate;
+            case ON_SCREEN_CONTROLLER: return R.drawable.v2_ic_m_osc;
+            case SPECIAL_KEYS: return R.drawable.v2_ic_m_special_keys;
+            case FULL_KEYBOARD: return R.drawable.v2_ic_m_keyboard;
+            case TOUCH_SENSITIVITY: return R.drawable.v2_ic_m_sens;
+            case MENU_PILL: return R.drawable.v2_ic_m_menu;
+            default: return R.drawable.v2_ic_m_custom;
+        }
+    }
 
     public static Dialog show(Activity activity, V2Theme th, String title, String host, String via, List<Tile> tiles,
                               Runnable onCancel) {
@@ -174,7 +247,7 @@ public final class V2GameMenu {
                 }
                 row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 TextView val = HomeParts.text(ctx, th, l, 14, 600, th.lit.onBand, false);
-                val.setText(tile.value);
+                val.setText(tile.dim ? "" : tile.value);
                 row.addView(val);
                 b.addView(row, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
                 b.setMinimumHeight(Math.max(px(ctx, l, 54), Ui.dp(ctx, 44)));
@@ -243,6 +316,8 @@ public final class V2GameMenu {
                 TextView lab = HomeParts.text(ctx, th, l, 13, 800, th.fg, false);
                 lab.setText(tile.shortLabel);
                 lab.setGravity(Gravity.CENTER);
+                // « Quitter la session » (workshop) takes two lines in a 96 px tile
+                lab.setMaxLines(2);
                 col.addView(lab, tlpTop(ctx, l, 6));
                 TextView val = HomeParts.text(ctx, th, l, 11, 600, th.lit.muted2, false);
                 val.setText(tile.value.isEmpty() && tile.danger && !tile.sub.isEmpty() ? ctx.getString(R.string.v2_menu_back_playnite) : tile.value);
@@ -278,6 +353,9 @@ public final class V2GameMenu {
             head.addView(w);
             section.addView(head);
             int cols = 3;
+            // Room for a tile's label and value (section width as laid out below, 3 columns, padding 18)
+            int sectionW = Math.min(px(ctx, l, 740), Ui.dp(ctx, l.widthDp - 32));
+            int innerW = (sectionW - 2 * px(ctx, l, 12)) / cols - 2 * px(ctx, l, 18);
             LinearLayout row = null;
             for (int i = 0; i < tiles.size(); i++) {
                 if (i % cols == 0) {
@@ -313,10 +391,21 @@ public final class V2GameMenu {
                     sub.setText(tile.sub);
                     labels.addView(sub, tlpTop(ctx, l, 3));
                 }
-                line.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 TextView val = HomeParts.text(ctx, th, l, 13, 400, th.lit.muted2, false);
-                val.setText(tile.value);
-                line.addView(val, tlp(ctx, l, 8));
+                // Workshop: a greyed tile (« Micro non envoyé ») says it in its label, no value
+                val.setText(tile.dim ? "" : tile.value);
+                if (!val.getText().toString().isEmpty()
+                        && longestWord(lab) + val.getPaint().measureText(val.getText().toString()) + px(ctx, l, 8) > innerW) {
+                    // A phone: « Statistiques » and « Masquées » side by side would cut the word in two,
+                    // the value goes under the label
+                    line.setOrientation(LinearLayout.VERTICAL);
+                    line.setGravity(Gravity.START);
+                    line.addView(labels, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    line.addView(val, tlpTop(ctx, l, 4));
+                } else {
+                    line.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                    line.addView(val, tlp(ctx, l, 8));
+                }
                 LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 llp.topMargin = px(ctx, l, 10);
                 col.addView(line, llp);
@@ -388,6 +477,15 @@ public final class V2GameMenu {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.setMarginStart(px(ctx, l, start));
         return lp;
+    }
+
+    /** Width of the longest word of a label (a word is never cut in two) */
+    private static float longestWord(TextView t) {
+        float max = 0;
+        for (String w : t.getText().toString().split("\\s+")) {
+            max = Math.max(max, t.getPaint().measureText(w));
+        }
+        return max;
     }
 
     private static LinearLayout.LayoutParams tlpTop(Context ctx, HomeLayout l, float top) {

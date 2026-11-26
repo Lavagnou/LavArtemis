@@ -616,6 +616,11 @@
     <string name="v2_menu_quit">Quitter %1$s</string>
     <string name="v2_menu_quit_playnite_sub">Retour à Playnite, le stream continue</string>
     <string name="v2_menu_back_playnite">Retour à Playnite</string>
+    <!-- Menu en jeu: the soft keyboard of the device (ex « Afficher le clavier logiciel »), workshop 2026-11-26 -->
+    <string name="v2_menu_open_keyboard">Ouvrir le clavier</string>
+    <string name="v2_menu_disconnect">Déconnecter</string>
+    <string name="v2_menu_zoom_on">Activer le mode Zoom/Panoramique</string>
+    <string name="v2_menu_zoom_off">Désactiver le mode Zoom/Panoramique</string>
     <string name="v2_short_keyboard">Clavier</string>
     <string name="v2_short_keys">Touches</string>
     <string name="v2_short_clip">Copier</string>

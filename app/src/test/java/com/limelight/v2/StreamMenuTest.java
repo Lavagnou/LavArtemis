@@ -11,26 +11,63 @@ import java.util.List;
 
 /** « Plus » of the in-game menu and the « Menu » pill (prototype MORE_AN, moreIds, pill rule). */
 public class StreamMenuTest {
+    /** Menu en jeu (atelier du 2026-11-26): the tiles in the PC's order, Quitter {jeu} for a Playnite game only */
     @Test
-    public void plusListsThePrototypeEntriesInItsOrder() {
-        // V8-29: voice button shown, a game inside Playnite
-        List<StreamMenu.More> all = StreamMenu.more(true, true, true, true);
-        assertEquals(Arrays.asList(StreamMenu.More.MIC, StreamMenu.More.VOICE, StreamMenu.More.VOICE_MOVE,
-                StreamMenu.More.ROTATE, StreamMenu.More.ON_SCREEN_CONTROLLER, StreamMenu.More.SPECIAL_KEYS,
-                StreamMenu.More.FULL_KEYBOARD, StreamMenu.More.TOUCH_SENSITIVITY, StreamMenu.More.QUIT_SESSION,
-                StreamMenu.More.MENU_PILL), all);
+    public void tilesFollowTheWorkshopOrder() {
+        assertEquals(Arrays.asList(StreamMenu.Tile.RESUME, StreamMenu.Tile.DISCONNECT, StreamMenu.Tile.QUIT_GAME,
+                StreamMenu.Tile.QUIT_SESSION, StreamMenu.Tile.TOUCH_MODE, StreamMenu.Tile.KEYBOARD, StreamMenu.Tile.MIC,
+                StreamMenu.Tile.STATS, StreamMenu.Tile.MORE), StreamMenu.tiles(true, true));
+    }
+
+    @Test
+    public void noQuitGameTileOutsidePlaynite() {
+        // Bureau or Playnite Fullscreen: « Quitter la session » is the only way out (no duplicate)
+        List<StreamMenu.Tile> desktop = StreamMenu.tiles(false, true);
+        assertFalse(desktop.contains(StreamMenu.Tile.QUIT_GAME));
+        assertEquals(Arrays.asList(StreamMenu.Tile.RESUME, StreamMenu.Tile.DISCONNECT, StreamMenu.Tile.QUIT_SESSION,
+                StreamMenu.Tile.TOUCH_MODE, StreamMenu.Tile.KEYBOARD, StreamMenu.Tile.MIC, StreamMenu.Tile.STATS,
+                StreamMenu.Tile.MORE), desktop);
+        // External display: the touch mode is imposed (Trackpad), no tile to switch it
+        assertFalse(StreamMenu.tiles(false, false).contains(StreamMenu.Tile.TOUCH_MODE));
+    }
+
+    @Test
+    public void plusStartsWithTheCommonEntriesThenAndroidOnes() {
+        List<StreamMenu.More> all = StreamMenu.more(true, true, true);
+        assertEquals(Arrays.asList(StreamMenu.More.CLIPBOARD, StreamMenu.More.SERVER_COMMANDS, StreamMenu.More.ZOOM,
+                StreamMenu.More.VOICE, StreamMenu.More.VOICE_MOVE, StreamMenu.More.ROTATE,
+                StreamMenu.More.ON_SCREEN_CONTROLLER, StreamMenu.More.SPECIAL_KEYS, StreamMenu.More.FULL_KEYBOARD,
+                StreamMenu.More.TOUCH_SENSITIVITY, StreamMenu.More.MENU_PILL), all);
     }
 
     @Test
     public void plusDropsWhatDoesNotApply() {
-        List<StreamMenu.More> few = StreamMenu.more(false, false, false, false);
+        List<StreamMenu.More> few = StreamMenu.more(false, false, false);
         assertFalse(few.contains(StreamMenu.More.VOICE_MOVE));
         assertFalse(few.contains(StreamMenu.More.ROTATE));
         assertFalse(few.contains(StreamMenu.More.ON_SCREEN_CONTROLLER));
-        // « Quitter » already quits the session when no game runs inside Playnite
-        assertFalse(few.contains(StreamMenu.More.QUIT_SESSION));
-        assertTrue(few.contains(StreamMenu.More.MIC));
         assertTrue(few.contains(StreamMenu.More.VOICE));
+        assertTrue(few.contains(StreamMenu.More.CLIPBOARD));
+    }
+
+    @Test
+    public void sendKeysIsGoneAndNothingIsInBothPlaces() {
+        for (StreamMenu.More m : StreamMenu.More.values()) {
+            // The micro and « Quitter la session » are tiles now; « Envoyer des touches » is retired
+            assertFalse(m.name(), m.name().equals("MIC") || m.name().equals("QUIT_SESSION") || m.name().contains("KEYS") && !m.name().equals("SPECIAL_KEYS"));
+        }
+        for (StreamMenu.Tile t : StreamMenu.Tile.values()) {
+            assertFalse(t.name(), t.name().contains("KEYS") || t.name().equals("ZOOM") || t.name().equals("CLIPBOARD"));
+        }
+    }
+
+    /** Workshop: an icon before every entry of « Plus », as on the tiles */
+    @Test
+    public void everyPlusEntryHasItsIcon() {
+        for (StreamMenu.More m : StreamMenu.More.values()) {
+            int icon = V2GameMenu.icon(m);
+            assertTrue(m.name(), icon != 0 && icon != com.limelight.R.drawable.v2_ic_m_custom);
+        }
     }
 
     @Test

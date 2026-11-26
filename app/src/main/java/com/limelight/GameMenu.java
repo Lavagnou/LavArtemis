@@ -181,39 +181,11 @@ public class GameMenu implements Game.GameMenuCallbacks {
         }
     }
 
-    /**
-     * LavArtemis Dev: the built-in shortcuts of the desktop client (KeyMacroManager presets), in its
-     * order and with its labels, so « Envoyer des touches » is the same list on both clients.
-     */
-    private static final short VK_LCONTROL = 0xA2, VK_LMENU = 0xA4, VK_LSHIFT = 0xA0, VK_LWIN = 0x5B,
-            VK_DELETE = 0x2E;
-    private static final Object[][] DEV_SEND_KEYS = {
-            {R.string.v2_keys_esc, new short[]{0x1B}},
-            {R.string.v2_keys_f11, new short[]{0x7A}},
-            {R.string.v2_keys_alt_f4, new short[]{VK_LMENU, 0x73}},
-            {R.string.v2_keys_alt_enter, new short[]{VK_LMENU, 0x0D}},
-            {R.string.v2_keys_ctrl_v, new short[]{VK_LCONTROL, 0x56}},
-            {R.string.v2_keys_win, new short[]{VK_LWIN}},
-            {R.string.v2_keys_win_d, new short[]{VK_LWIN, 0x44}},
-            {R.string.v2_keys_win_g, new short[]{VK_LWIN, 0x47}},
-            {R.string.v2_keys_ctrl_alt_del, new short[]{VK_LCONTROL, VK_LMENU, VK_DELETE}},
-            {R.string.v2_keys_ctrl_shift_esc, new short[]{VK_LCONTROL, VK_LSHIFT, 0x1B}},
-            {R.string.v2_keys_ctrl_alt_tab, new short[]{VK_LCONTROL, VK_LMENU, 0x09}},
-            {R.string.v2_keys_shift_tab, new short[]{VK_LSHIFT, 0x09}},
-            {R.string.v2_keys_win_shift_left, new short[]{VK_LWIN, VK_LSHIFT, 0x25}},
-            {R.string.v2_keys_ctrl_alt_shift_f1, new short[]{VK_LCONTROL, VK_LMENU, VK_LSHIFT, 0x70}},
-            {R.string.v2_keys_ctrl_alt_shift_f12, new short[]{VK_LCONTROL, VK_LMENU, VK_LSHIFT, 0x7B}},
-    };
-
     private void showSpecialKeysMenu() {
         List<MenuOption> options = new ArrayList<>();
 
-        if (BuildConfig.LAV_DEV && !PreferenceConfiguration.readPreferences(game).disableDefaultExtraKeys) {
-            for (Object[] key : DEV_SEND_KEYS) {
-                short[] codes = (short[]) key[1];
-                options.add(new MenuOption(getString((Integer) key[0]), () -> sendKeys(codes)));
-            }
-        } else if(!PreferenceConfiguration.readPreferences(game).disableDefaultExtraKeys){
+        // Stable only: the Dev retired « Envoyer des touches » (menu workshop, 2026-11-26)
+        if(!PreferenceConfiguration.readPreferences(game).disableDefaultExtraKeys){
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_esc),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_ESCAPE})));
 
@@ -294,11 +266,6 @@ public class GameMenu implements Game.GameMenuCallbacks {
                 e.printStackTrace();
                 Toast.makeText(game,getString(R.string.wrong_import_format),Toast.LENGTH_SHORT).show();
             }
-        }
-        if (BuildConfig.LAV_DEV) {
-            // Prototype « keys »: the 15 shortcuts (and the imported ones) in the centred dialog
-            showOptionsSheet(R.string.v2_menu_send_keys, getString(R.string.v2_keys_note), options);
-            return;
         }
         options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
 
@@ -434,10 +401,6 @@ public class GameMenu implements Game.GameMenuCallbacks {
                 }));
 
         if (BuildConfig.LAV_DEV) {
-            options.add(new MenuOption(getString(R.string.v2_menu_send_keys), () -> {
-                hideMenu();
-                showSpecialKeysMenu();
-            }));
             options.add(uploadClipboard);
             options.add(fetchClipboard);
             options.add(new MenuOption(getString(R.string.v2_menu_stats), true, game::toggleHUD));
@@ -514,10 +477,10 @@ public class GameMenu implements Game.GameMenuCallbacks {
         return getString(R.string.v2_via_game);
     }
 
-    /**
-     * Reprendre, the nine most useful entries, « Plus » (decision of 2026-11-26): clavier, mode
-     * tactile, zoom, touches, presse-papiers, commandes du PC hôte, statistiques, Plus, Déconnecter,
-     * Quitter. The rest (micro, bouton vocal, rotation, menu avancé, Quitter la session) is in « Plus ».
+    /*
+     * LavArtemis Dev: the tiles of the menu workshop (2026-11-26, StreamMenu.tiles): Reprendre,
+     * Déconnecter, Quitter {jeu} (a Playnite game only), Quitter la session, mode tactile, Ouvrir le
+     * clavier, Micro, Statistiques, Plus. « Envoyer des touches » is retired.
      */
     /** The tile a sub-dialog was opened from (prototype ret): closing the sub-dialog focuses it again */
     private int subTile = -1;
@@ -561,43 +524,51 @@ public class GameMenu implements Game.GameMenuCallbacks {
     private void showTileMenu(GameInputDevice device, int focus) {
         subDevice = device;
         V2Theme th = V2Theme.load(game);
-        boolean lu = th.isLudique();
-        List<com.limelight.v2.V2GameMenu.Tile> tiles = new ArrayList<>();
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_resume), getString(R.string.v2_resume), "", "",
-                R.drawable.v2_ic_m_resume, false, 0, this::hideMenu));
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.game_menu_toggle_keyboard), getString(R.string.v2_short_keyboard), "", "",
-                R.drawable.v2_ic_m_keyboard, false, 1, () -> runWithGameFocus(game::toggleKeyboard)));
         String touch = game.touchModeSwitchLabel();
-        boolean toTrackpad = touch != null && touch.toLowerCase(java.util.Locale.ROOT).contains("trackpad");
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(touch, getString(toTrackpad ? R.string.v2_short_trackpad : R.string.v2_short_multitouch), "", "",
-                R.drawable.v2_ic_m_touch, false, 1, () -> runWithGameFocus(game::switchTouchMode)));
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(game.isZoomModeEnabled() ? R.string.game_menu_disable_zoom_mode : R.string.game_menu_enable_zoom_mode),
-                getString(R.string.v2_short_zoom), "", "", R.drawable.v2_ic_m_zoom, false, 1, () -> runWithGameFocus(game::toggleZoomMode)));
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_send_keys), getString(R.string.v2_short_keys), "›", "",
-                R.drawable.v2_ic_m_keys, false, 1, sub(4, this::showSpecialKeysMenu)));
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_clipboard), getString(R.string.v2_short_clip), "›", "",
-                R.drawable.v2_ic_m_clip, false, 1, sub(5, this::showClipboardSheet)));
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_server_cmd), getString(R.string.v2_short_cmds), "›", "",
-                R.drawable.v2_ic_m_cmds, false, 1, sub(6, () -> {
-                    ArrayList<String> serverCmds = game.getServerCmds();
-                    if (serverCmds.isEmpty()) {
-                        showNoCommandsSheet();
-                    } else {
-                        showServerCmd(serverCmds);
-                    }
-                })));
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_stats), getString(R.string.v2_short_stats),
-                getString(game.isHudShown() ? R.string.v2_stats_shown : R.string.v2_stats_hidden), "",
-                R.drawable.v2_ic_m_stats, false, 1, () -> runWithGameFocus(game::toggleHUD)));
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_more), getString(R.string.v2_menu_more), "›", "",
-                R.drawable.v2_ic_m_more, false, 1, sub(8, () -> showMoreSheet(device))));
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.game_menu_disconnect), getString(R.string.game_menu_disconnect), "", "",
-                R.drawable.v2_ic_m_disconnect, false, 7, game::disconnect));
-        String pg = game.getPlayniteGameName();
-        String quit = game.getResources().getString(R.string.v2_menu_quit, playingTitle());
-        tiles.add(new com.limelight.v2.V2GameMenu.Tile(quit, getString(R.string.v2_short_quit), "",
-                pg != null ? getString(R.string.v2_menu_quit_playnite_sub) : "", R.drawable.v2_ic_m_quit, false, 8,
-                pg != null ? game::quitPlayniteGame : game::quit));
+        com.limelight.v2.V2GameMenu.State st = new com.limelight.v2.V2GameMenu.State();
+        st.title = playingTitle();
+        st.playniteGame = game.getPlayniteGameName() != null;
+        st.toTrackpad = touch != null && touch.equals(getString(R.string.v2_menu_touch_to_trackpad));
+        st.micSent = game.isMicrophoneActive();
+        st.micMuted = game.isMicrophoneMuted();
+        st.hudShown = game.isHudShown();
+        List<com.limelight.v2.V2GameMenu.Tile> tiles = new ArrayList<>();
+        for (com.limelight.v2.StreamMenu.Tile kind : com.limelight.v2.StreamMenu.tiles(st.playniteGame, touch != null)) {
+            int index = tiles.size();
+            Runnable action;
+            switch (kind) {
+                case RESUME:
+                    action = this::hideMenu;
+                    break;
+                case DISCONNECT:
+                    action = game::disconnect;
+                    break;
+                case QUIT_GAME:
+                    action = game::quitPlayniteGame;
+                    break;
+                case QUIT_SESSION:
+                    action = game::quit;
+                    break;
+                case TOUCH_MODE:
+                    action = () -> runWithGameFocus(game::switchTouchMode);
+                    break;
+                case KEYBOARD:
+                    action = () -> runWithGameFocus(game::toggleKeyboard);
+                    break;
+                case MIC:
+                    action = st.micSent ? () -> runWithGameFocus(game::toggleMicrophoneMute)
+                            : () -> com.limelight.v2.ui.V2Toast.show(game, V2Theme.load(game), getString(R.string.v2_more_mic_not_sent_toast));
+                    break;
+                case STATS:
+                    action = () -> runWithGameFocus(game::toggleHUD);
+                    break;
+                case MORE:
+                default:
+                    action = sub(index, () -> showMoreSheet(device));
+                    break;
+            }
+            tiles.add(com.limelight.v2.V2GameMenu.tile(game, kind, st, action));
+        }
         if (currentDialog != null) {
             currentDialog.dismiss();
         }
@@ -648,61 +619,70 @@ public class GameMenu implements Game.GameMenuCallbacks {
         showSubSheet(spec);
     }
 
+    /** The host's commands, or « Aucune commande » */
+    private void showServerCommands() {
+        ArrayList<String> serverCmds = game.getServerCmds();
+        if (serverCmds.isEmpty()) {
+            showNoCommandsSheet();
+        } else {
+            showServerCmd(serverCmds);
+        }
+    }
+
     /**
-     * Plus: what did not make the nine tiles, as the prototype lists it (MORE_AN, moreIds): Micro,
-     * bouton vocal, Pivoter l’écran, contrôleur à l’écran, touches spéciales, clavier complet,
-     * sensibilité tactile, Quitter la session (a game inside Playnite); then what only the app has
-     * (the « Menu » pill, the controller's own entries).
+     * Plus (menu workshop, StreamMenu.more): Presse-papiers, Commandes du PC hôte, Zoom/Panoramique,
+     * then what only Android has (bouton vocal, le déplacer, pivoter, contrôleur à l’écran, touches
+     * spéciales, clavier virtuel complet, sensibilité, la pastille « Menu », the gamepad's entries),
+     * each with its icon. Presse-papiers and Commandes open their dialog; closing it comes back to the
+     * menu on « Plus ».
      */
     private void showMoreSheet(GameInputDevice device) {
+        final int moreTile = subTile;
         com.limelight.v2.V2Sheet.Spec spec = streamSpec(R.string.v2_menu_more);
         // Prototype: « {jeu} · {via} », Affiche « {jeu} — {VIA} »
         boolean af = V2Theme.load(game).isAffiche();
         spec.note = playingTitle() + (af ? " — " + playingVia().toUpperCase(java.util.Locale.FRENCH) : " · " + playingVia());
         boolean canRotate = dialogScreenContext == game && !game.isFollowingDeviceRotation() && !game.isOnExternalDisplay();
         java.util.List<com.limelight.v2.StreamMenu.More> more = com.limelight.v2.StreamMenu.more(game.isVoicePttButtonShown(),
-                canRotate, !game.isOnExternalDisplay(), game.getPlayniteGameName() != null);
+                canRotate, !game.isOnExternalDisplay());
         for (com.limelight.v2.StreamMenu.More m : more) {
+            int icon = com.limelight.v2.V2GameMenu.icon(m);
             switch (m) {
-                case MIC:
-                    if (game.isMicrophoneActive()) {
-                        spec.option(com.limelight.v2.StreamMenu.withValue(getString(R.string.v2_more_mic),
-                                getString(game.isMicrophoneMuted() ? R.string.v2_more_mic_off : R.string.v2_more_mic_on)),
-                                false, false, () -> runWithGameFocus(game::toggleMicrophoneMute));
-                    } else {
-                        spec.option(com.limelight.v2.StreamMenu.withValue(getString(R.string.v2_more_mic_not_sent),
-                                getString(R.string.v2_more_mic_not_sent_value)), false, false,
-                                () -> com.limelight.v2.ui.V2Toast.show(game, V2Theme.load(game), getString(R.string.v2_more_mic_not_sent_toast)));
-                    }
+                case CLIPBOARD:
+                    spec.option(getString(R.string.v2_menu_clipboard), icon, sub(moreTile, this::showClipboardSheet));
+                    break;
+                case SERVER_COMMANDS:
+                    spec.option(getString(R.string.v2_menu_server_cmd), icon, sub(moreTile, this::showServerCommands));
+                    break;
+                case ZOOM:
+                    spec.option(getString(game.isZoomModeEnabled() ? R.string.v2_menu_zoom_off : R.string.v2_menu_zoom_on),
+                            icon, () -> runWithGameFocus(game::toggleZoomMode));
                     break;
                 case VOICE:
                     spec.option(getString(game.isVoicePttButtonShown() ? R.string.v2_more_voice_hide : R.string.v2_more_voice_show),
-                            false, false, () -> runWithGameFocus(game::toggleVoicePttButton));
+                            icon, () -> runWithGameFocus(game::toggleVoicePttButton));
                     break;
                 case VOICE_MOVE:
-                    spec.option(getString(R.string.v2_more_voice_move), false, false, () -> runWithGameFocus(game::startMovingVoicePttButton));
+                    spec.option(getString(R.string.v2_more_voice_move), icon, () -> runWithGameFocus(game::startMovingVoicePttButton));
                     break;
                 case ROTATE:
-                    spec.option(getString(R.string.v2_more_rotate), false, false, () -> runWithGameFocus(game::rotateScreen));
+                    spec.option(getString(R.string.v2_more_rotate), icon, () -> runWithGameFocus(game::rotateScreen));
                     break;
                 case ON_SCREEN_CONTROLLER:
-                    spec.option(getString(R.string.v2_more_osc), false, false, () -> runWithGameFocus(game::toggleVirtualController));
+                    spec.option(getString(R.string.v2_more_osc), icon, () -> runWithGameFocus(game::toggleVirtualController));
                     break;
                 case SPECIAL_KEYS:
-                    spec.option(getString(R.string.v2_more_special_keys), false, false, () -> runWithGameFocus(game::toggleKeyboardController));
+                    spec.option(getString(R.string.v2_more_special_keys), icon, () -> runWithGameFocus(game::toggleKeyboardController));
                     break;
                 case FULL_KEYBOARD:
-                    spec.option(getString(R.string.v2_more_full_keyboard), false, false, () -> runWithGameFocus(game::toggleFullKeyboard));
+                    spec.option(getString(R.string.v2_more_full_keyboard), icon, () -> runWithGameFocus(game::toggleFullKeyboard));
                     break;
                 case TOUCH_SENSITIVITY:
-                    spec.option(getString(R.string.v2_more_sensitivity), false, false, () -> runWithGameFocus(game::switchTouchSensitivity));
-                    break;
-                case QUIT_SESSION:
-                    spec.option(getString(R.string.v2_more_quit_session), false, false, game::quit);
+                    spec.option(getString(R.string.v2_more_sensitivity), icon, () -> runWithGameFocus(game::switchTouchSensitivity));
                     break;
                 case MENU_PILL:
                     spec.option(getString(game.isMenuPillWanted() ? R.string.v2_more_pill_hide : R.string.v2_more_pill_show),
-                            false, false, () -> runWithGameFocus(game::toggleFloatingButtonVisibility));
+                            icon, () -> runWithGameFocus(game::toggleFloatingButtonVisibility));
                     break;
                 default:
                     break;
@@ -711,7 +691,7 @@ public class GameMenu implements Game.GameMenuCallbacks {
         if (device != null) {
             for (MenuOption o : device.getGameMenuOptions()) {
                 if (o.runnable != null) {
-                    spec.option(o.label, false, false, () -> run(o));
+                    spec.option(o.label, R.drawable.v2_ic_m_custom, () -> run(o));
                 }
             }
         }

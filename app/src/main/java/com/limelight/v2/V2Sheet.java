@@ -42,12 +42,19 @@ public final class V2Sheet {
         final boolean main;
         final boolean play;
         final Runnable action;
+        /** An icon before the label (« Plus » of the in-game menu), 0: none; Affiche never draws it */
+        final int icon;
 
         public Option(String label, boolean main, boolean play, Runnable action) {
+            this(label, main, play, action, 0);
+        }
+
+        public Option(String label, boolean main, boolean play, Runnable action, int icon) {
             this.label = label;
             this.main = main;
             this.play = play;
             this.action = action;
+            this.icon = icon;
         }
     }
 
@@ -109,6 +116,15 @@ public final class V2Sheet {
 
         public Spec option(String label, boolean main, boolean play, Runnable action) {
             options.add(new Option(label, main, play, action));
+            return this;
+        }
+
+        /**
+         * An entry with its icon, as on the tiles (menu workshop, 2026-11-26): the accent's stroke in
+         * Braise, a round chip in Ludique, none in Affiche (its menu has no icons)
+         */
+        public Spec option(String label, int icon, Runnable action) {
+            options.add(new Option(label, false, false, action, icon));
             return this;
         }
     }
@@ -400,9 +416,32 @@ public final class V2Sheet {
                 t.setText(o.label);
                 t.setMaxLines(2);
                 t.setGravity(Gravity.CENTER);
-                View inner = o.main && o.play ? HomeParts.iconLabel(ctx, l, R.drawable.v2_ic_p_play, 16, 10, t, fg) : t;
-                if (inner instanceof LinearLayout) {
+                View inner;
+                if (o.main && o.play) {
+                    inner = HomeParts.iconLabel(ctx, l, R.drawable.v2_ic_p_play, 16, 10, t, fg);
                     ((LinearLayout) inner).setGravity(Gravity.CENTER);
+                } else if (o.icon != 0 && !o.main) {
+                    // Workshop: icon then the label, from the start of the row
+                    t.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+                    LinearLayout row = new LinearLayout(ctx);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+                    if (lu) {
+                        FrameLayout chip = new FrameLayout(ctx);
+                        int cs = px(ctx, l, 32), is = px(ctx, l, 17);
+                        chip.setBackground(rect(th.dark ? 0xFF2E2650 : 0xFFE4DEFF, pxf(ctx, l, 16), 0, 0));
+                        chip.addView(HomeParts.icon(ctx, o.icon, th.dark ? 0xFFF3EEFF : 0xFF1B1530), new FrameLayout.LayoutParams(is, is, Gravity.CENTER));
+                        row.addView(chip, new LinearLayout.LayoutParams(cs, cs));
+                    } else {
+                        int is = px(ctx, l, 20);
+                        row.addView(HomeParts.icon(ctx, o.icon, th.lit.accentText), new LinearLayout.LayoutParams(is, is));
+                    }
+                    LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                    tl.setMarginStart(px(ctx, l, 12));
+                    row.addView(t, tl);
+                    inner = row;
+                } else {
+                    inner = t;
                 }
                 inner.setPadding(px(ctx, l, o.main ? (lu ? 22 : 16) : 16), 0, px(ctx, l, o.main ? (lu ? 22 : 16) : 16), 0);
                 b.addView(inner, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_VERTICAL));

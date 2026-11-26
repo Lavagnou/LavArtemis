@@ -62,13 +62,26 @@ s'ajoute ici comme écart.
   les performances (CSV).
 - **Mise à jour** : « Ignorer cette version » dans le dialogue ; la vérification automatique ne la propose
   plus, « Vérifier » dans les réglages si.
-- **Menu en jeu**, entrées communes dans cet ordre : Quitter <jeu Playnite>, Déconnecter, Quitter la
-  session (confirmée : « Tu veux vraiment quitter ? » ; ferme l'appli sur le PC distant et revient à l'accueil
-  du client, qui reste ouvert), Commandes du PC hôte (la liste `ServerCommand` de l'hôte ; vide : « Aucune
-  commande de serveur » et le même texte d'explication qu'Android), Envoyer des touches (les **15** mêmes raccourcis, mêmes libellés ; plus de
-  raccourci HDR), Envoyer / Récupérer le presse-papiers, Statistiques de performance, Couper / Réactiver le
-  micro (seulement quand le micro est envoyé), Passer en trackpad / multitouch (pour ce stream, retenu
-  avec « Retenir le mode tactile choisi en jeu »).
+- **Menu en jeu** — disposition de l'atelier du 2026-11-26 (`docs/superpowers/verif-2026-11-25/decisions-design.md`,
+  « Menu en jeu », fait foi ; remplace « 9 entrées + Reprendre + Plus ») :
+  - **Tuiles communes, dans cet ordre** : Reprendre · Déconnecter · Quitter {jeu} (**jeu lancé dans Playnite
+    seulement** : pas de tuile pour le Bureau ni Playnite Fullscreen) · Quitter la session (confirmée : « Tu veux
+    vraiment quitter ? » ; ferme l'appli sur le PC distant et revient à l'accueil du client) · Passer en trackpad /
+    multitouch (pour ce stream, retenu avec « Retenir le mode tactile choisi en jeu ») · Micro (Activé / Coupé ;
+    **grisé « Micro non envoyé »** quand le micro n'est pas envoyé) · Statistiques de performance · Plus.
+    Libellés courts du dock Ludique : « Quitter la session », « Clavier ».
+  - Propre à une plateforme dans les tuiles : **Android** « Ouvrir le clavier » (le clavier de l'appareil, entre
+    le mode tactile et Micro) ; **PC** « Libérer la souris et le clavier » (dans Plus depuis la version 87 de
+    l'atelier, voir decisions-design.md).
+  - **Plus**, entrées communes d'abord : Presse-papiers · Commandes du PC hôte (la liste `ServerCommand` de l'hôte ;
+    vide : « Aucune commande de serveur » et le même texte d'explication) · Zoom (Android : mode Zoom/Panoramique).
+    Puis Android : bouton vocal, le déplacer, pivoter, contrôleur à l'écran, touches spéciales, clavier virtuel
+    complet, sensibilité, pastille « Menu », entrées de la manette ; PC : ses entrées (plein écran, réduire,
+    capturer le clavier, comportement de la souris…). **Une icône devant chaque entrée de Plus**, comme les
+    tuiles : trait de l'accent en Braise, pastille ronde en Ludique, aucune en Affiche.
+  - **Retiré des deux** : Envoyer des touches.
+  - État : **Android fait** (2026-11-26, `StreamMenu.tiles()` / `more()`, `V2GameMenu.tile()` / `icon()`) ; le PC
+    est aligné par un autre passage.
 - **Stream** (vague 2 de la vérification, 2026-11-25) : nom des étapes de connexion traduits comme
   `utils/StreamStages` (« Démarrage : négociation RTSP », « Échec au démarrage : … (erreur n) ») ; « Connexion
   lente au PC / Baisse le débit », « Mauvaise connexion au PC » ; statistiques à l'écran avec les formulations
@@ -100,7 +113,7 @@ s'ajoute ici comme écart.
 | Manettes : mapper SDL, deviner la disposition, manette en arrière-plan | Manettes : vibrations (+ repli sur l'appareil), Joy-Con, pilote USB, zone morte, capteurs, batterie… |
 | — | Débit sur réseau limité |
 | PC : trouver les PC (mDNS), détecter les connexions bloquées | **Zoom au pincement** (décision de l'utilisateur : pas sur PC), gestes à plusieurs doigts, sensibilités tactiles, pavé tactile Samsung |
-| Menu en jeu : Libérer la souris et le clavier, Capturer le clavier, Plein écran / fenêtre ; descriptions sous chaque entrée ; « Fermer (Échap) » | Menu en jeu : clavier logiciel, zoom, pivoter, Menu avancé ; « Annuler » |
+| Menu en jeu : Libérer la souris et le clavier, Capturer le clavier, Plein écran / fenêtre, Réduire la fenêtre, Comportement de la souris | Menu en jeu : Ouvrir le clavier (tuile) ; dans Plus : bouton vocal, pivoter, contrôleur à l'écran, touches spéciales, clavier virtuel complet, sensibilité, pastille « Menu » |
 | Créer un raccourci .art (menu d'une appli) | Image dans l'image, latence moyenne en fin de stream |
 | Avertissements de configuration | Retenir le zoom |
 | Mise à jour : pastille « Mise à jour » dans l'en-tête (pas de dialogue au démarrage) | Mise à jour : dialogue au démarrage |
@@ -327,13 +340,10 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   thème + puce DEV ; « 25 min jouées » sous une heure (« 25 min » dans la liste Affiche). Android : fait.
 - **Écarts de la nuit** : le desktop n'a pas
   le « Créer un raccourci sur le bureau (.art) » côté Android (PC seulement, voulu). Android a le menu en jeu en
-  tuiles (Reprendre + 9 + Plus) et la pastille « Menu » ; le desktop garde `QuickMenu` pour l'instant.
-- **Écart ouvert (2026-11-26, Android)** : les 15 raccourcis d'« Envoyer des touches » sont écrits comme le prototype
-  (« Échap », « Alt + F4 », « Windows », « Windows + D », « Ctrl + Alt + Suppr », « Ctrl + Maj + Échap »,
-  « Windows + Maj + Gauche », « Ctrl + Alt + Maj + F12 »…, sans parenthèses) ; le desktop (`KeyMacroManager`) garde
-  « Alt+F4 », « Win+D (afficher le bureau) »… et doit suivre. Sous-menus du menu en jeu Android au style du prototype
-  (« Menu du stream », « Envoyées au PC comme si tu les tapais là-bas. », « Accéder aux commandes de contrôle du PC
-  hôte », « Commande envoyée : … ») : à reprendre au desktop avec son menu en tuiles.
+  tuiles (disposition de l'atelier du 2026-11-26, voir « Menu en jeu » plus haut) et la pastille « Menu ».
+- **Écart ouvert (2026-11-26, Android)** : sous-menus du menu en jeu Android au style du prototype (« Menu du
+  stream », « Accéder aux commandes de contrôle du PC hôte », « Commande envoyée : … ») : à reprendre au desktop
+  avec son menu en tuiles. (« Envoyer des touches » et ses 15 raccourcis : retirés du menu des deux côtés.)
 
 - **Écart ouvert (2026-11-26, Android, Réglages V8)** : textes choisis appliqués côté Android, à reprendre au desktop :
   description du débit « Suit la résolution et les images/s tant que tu ne le changes pas. » (choix 49, le desktop dit

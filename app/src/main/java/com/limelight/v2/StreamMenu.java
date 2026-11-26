@@ -4,17 +4,61 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Rules of the in-game menu that are not views (LavArtemis Dev, prototype V8): what « Plus » lists
- * (prototype MORE_AN and moreIds()) and when the « Menu » pill shows. Pure logic, tested by
- * StreamMenuTest; GameMenu and Game apply it.
+ * Rules of the in-game menu that are not views (LavArtemis Dev): which tiles it shows and in what
+ * order, what « Plus » lists, and when the « Menu » pill shows. The layout is the user's (workshop of
+ * 2026-11-26, docs/superpowers/verif-2026-11-25/decisions-design.md « Menu en jeu »): the entries both
+ * clients have, in the PC's order and with its labels. Pure logic, tested by StreamMenuTest; GameMenu
+ * and Game apply it.
  */
 public final class StreamMenu {
     private StreamMenu() {}
 
-    /** The entries of « Plus », prototype order, then what only the app has */
-    public enum More {
-        /** Micro · Activé / Coupé, or « Micro non envoyé » */
+    /** The tiles, in the order shown (the PC's, without its « Libérer la souris et le clavier ») */
+    public enum Tile {
+        RESUME,
+        DISCONNECT,
+        /** Quitter {jeu}: only a game launched inside Playnite (closes the game, the stream goes back to Playnite) */
+        QUIT_GAME,
+        QUIT_SESSION,
+        /** Passer en trackpad / multitouch: not on an external display (Trackpad is imposed there) */
+        TOUCH_MODE,
+        /** Ouvrir le clavier: the soft keyboard */
+        KEYBOARD,
+        /** Micro · Activé / Coupé, greyed « Micro non envoyé » when the microphone is not sent */
         MIC,
+        STATS,
+        MORE
+    }
+
+    /**
+     * @param playniteGame a game runs inside Playnite: no Quitter {jeu} for the Bureau or Playnite
+     *                     Fullscreen, where it would only repeat « Quitter la session »
+     * @param touchSwitch  the touch mode can be switched (not on an external display)
+     */
+    public static List<Tile> tiles(boolean playniteGame, boolean touchSwitch) {
+        List<Tile> out = new ArrayList<>();
+        out.add(Tile.RESUME);
+        out.add(Tile.DISCONNECT);
+        if (playniteGame) {
+            out.add(Tile.QUIT_GAME);
+        }
+        out.add(Tile.QUIT_SESSION);
+        if (touchSwitch) {
+            out.add(Tile.TOUCH_MODE);
+        }
+        out.add(Tile.KEYBOARD);
+        out.add(Tile.MIC);
+        out.add(Tile.STATS);
+        out.add(Tile.MORE);
+        return out;
+    }
+
+    /** The entries of « Plus »: the common ones first (the PC's order), then what only Android has */
+    public enum More {
+        CLIPBOARD,
+        SERVER_COMMANDS,
+        /** Activer / Désactiver le mode Zoom/Panoramique */
+        ZOOM,
         /** Afficher / Masquer le bouton vocal */
         VOICE,
         /** Déplacer le bouton vocal: only while it shows */
@@ -29,15 +73,15 @@ public final class StreamMenu {
         FULL_KEYBOARD,
         /** Changer la sensibilité tactile */
         TOUCH_SENSITIVITY,
-        /** Quitter la session: only when a game runs inside Playnite (the « Quitter » tile then closes the game alone) */
-        QUIT_SESSION,
-        /** Afficher / Masquer la pastille « Menu »: the app's own (the prototype has none) */
+        /** Afficher / Masquer la pastille « Menu »; the gamepad's own entries follow it */
         MENU_PILL
     }
 
-    public static List<More> more(boolean voiceShown, boolean canRotate, boolean onScreenController, boolean playniteGame) {
+    public static List<More> more(boolean voiceShown, boolean canRotate, boolean onScreenController) {
         List<More> out = new ArrayList<>();
-        out.add(More.MIC);
+        out.add(More.CLIPBOARD);
+        out.add(More.SERVER_COMMANDS);
+        out.add(More.ZOOM);
         out.add(More.VOICE);
         if (voiceShown) {
             out.add(More.VOICE_MOVE);
@@ -51,9 +95,6 @@ public final class StreamMenu {
         out.add(More.SPECIAL_KEYS);
         out.add(More.FULL_KEYBOARD);
         out.add(More.TOUCH_SENSITIVITY);
-        if (playniteGame) {
-            out.add(More.QUIT_SESSION);
-        }
         out.add(More.MENU_PILL);
         return out;
     }

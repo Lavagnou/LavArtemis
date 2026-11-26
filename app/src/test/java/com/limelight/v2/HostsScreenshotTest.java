@@ -322,48 +322,44 @@ public class HostsScreenshotTest {
         return b;
     }
 
-    /** The labels of GameMenu.showMenu(), in its order, for a session inside Playnite */
-    private static List<String> quickMenu(Context c) {
-        List<String> l = new ArrayList<>();
-        l.add(c.getString(R.string.game_menu_quit_playnite_game, "Hades II"));
-        l.add(c.getString(R.string.game_menu_disconnect));
-        l.add(c.getString(R.string.game_menu_quit_session));
-        // Dev: the desktop's order for the common entries (GameMenu.showMenu)
-        l.add(c.getString(R.string.v2_menu_server_cmd));
-        l.add(c.getString(R.string.v2_menu_send_keys));
-        l.add(c.getString(R.string.game_menu_upload_clipboard));
-        l.add(c.getString(R.string.game_menu_fetch_clipboard));
-        l.add(c.getString(R.string.v2_menu_stats));
-        l.add(c.getString(R.string.game_menu_mute_microphone));
-        l.add(c.getString(R.string.game_menu_toggle_keyboard));
-        l.add(c.getString(R.string.game_menu_show_voice_ptt_button));
-        l.add(c.getString(R.string.game_menu_enable_zoom_mode));
-        l.add(c.getString(R.string.game_menu_rotate_screen));
-        l.add(c.getString(R.string.game_menu_advanced));
-        l.add(c.getString(R.string.game_menu_cancel));
-        return l;
-    }
-
+    /** The tile menu (GameMenu.showTileMenu: StreamMenu.tiles + V2GameMenu.tile) over the stream */
     private void gameMenu(String file, String themeId, boolean dark, int wDp, int hDp, V2Input.Kind input) throws Exception {
-        qualifiers(wDp, hDp, "fr");
-        useTheme(themeId, dark);
-        V2Input.reset(input);
-        HostsActivity a = Robolectric.buildActivity(HostsActivity.class).setup().get();
-        List<String> labels = quickMenu(a);
-        Dialog d = V2ListDialog.show(a, V2Theme.load(a), a.getString(R.string.quick_menu_title), labels, labels.size() - 1, null, null);
-        if (input != V2Input.Kind.TOUCH) {
-            focusFirst(d);
+        for (boolean playnite : new boolean[]{true, false}) {
+            qualifiers(wDp, hDp, "fr");
+            useTheme(themeId, dark);
+            V2Input.reset(input);
+            HostsActivity a = Robolectric.buildActivity(HostsActivity.class).setup().get();
+            String title = playnite ? "Hades II" : a.getString(R.string.v2_desktop);
+            String via = a.getString(playnite ? R.string.v2_via_inside : R.string.v2_via_desktop);
+            Dialog d = V2GameMenu.show(a, V2Theme.load(a), title, "ATLAS-PC", via,
+                    HomeScreenshotTest.menuTiles(a, playnite, title), null);
+            // The menu fills the screen (its veil, its dock at the bottom): measured exactly, not AT_MOST
+            ShadowLooper.idleMainLooper();
+            View content = d.findViewById(android.R.id.content);
+            assertNotNull(content);
+            int w = wDp * DENSITY, h = hDp * DENSITY;
+            Bitmap out = stream(w, h);
+            for (int pass = 0; pass < 2; pass++) {
+                content.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY));
+                content.layout(0, 0, w, h);
+                ShadowLooper.idleMainLooper();
+            }
+            content.draw(new Canvas(out));
+            save(out, file + (playnite ? "-playnite" : "-bureau"));
+            d.dismiss();
         }
-        save(overlay(stream(wDp * DENSITY, hDp * DENSITY), d, 0.5f), file);
-        d.dismiss();
     }
 
     @Test
     public void themedGameMenu() throws Exception {
         gameMenu("gamemenu-phone-braise-dark", "braise", true, 915, 412, V2Input.Kind.TOUCH);
+        gameMenu("gamemenu-phone-braise-light", "braise", false, 915, 412, V2Input.Kind.TOUCH);
         gameMenu("gamemenu-console-braise-dark", "braise", true, 960, 540, V2Input.Kind.PAD);
         gameMenu("gamemenu-phone-affiche-light", "affiche", false, 915, 412, V2Input.Kind.PAD);
+        gameMenu("gamemenu-phone-affiche-dark", "affiche", true, 915, 412, V2Input.Kind.TOUCH);
         gameMenu("gamemenu-console-ludique-dark", "ludique", true, 960, 540, V2Input.Kind.KEYS);
+        gameMenu("gamemenu-phone-ludique-light", "ludique", false, 915, 412, V2Input.Kind.TOUCH);
         gameMenu("gamemenu-portrait-ludique-dark", "ludique", true, 412, 915, V2Input.Kind.TOUCH);
     }
 
