@@ -608,4 +608,27 @@
     <string name="v2_relaunch_note_two">Playnite Fullscreen et %1$s seront fermés sur %2$s, puis relancés avec un écran virtuel à la taille de cet appareil (%3$s). Ce qui n\'est pas sauvegardé dans le jeu sera perdu.</string>
     <string name="v2_session_joined">Session rejointe</string>
     <string name="v2_launched_inside">%1$s lancé dans Playnite : le stream continue</string>
+    <!-- Menu en jeu en tuiles (prototype V8, MENU_AN) -->
+    <string name="v2_menu_kind">Menu du stream</string>
+    <string name="v2_menu_clipboard">Presse-papiers</string>
+    <string name="v2_menu_more">Plus</string>
+    <string name="v2_menu_quit">Quitter %1$s</string>
+    <string name="v2_menu_quit_playnite_sub">Retour à Playnite, le stream continue</string>
+    <string name="v2_menu_back_playnite">Retour à Playnite</string>
+    <string name="v2_short_keyboard">Clavier</string>
+    <string name="v2_short_keys">Touches</string>
+    <string name="v2_short_clip">Copier</string>
+    <string name="v2_short_cmds">Commandes</string>
+    <string name="v2_short_stats">Stats</string>
+    <string name="v2_short_zoom">Zoom</string>
+    <string name="v2_short_quit">Quitter</string>
+    <string name="v2_short_trackpad">Trackpad</string>
+    <string name="v2_short_multitouch">Multitouch</string>
+    <string name="v2_stats_shown">Affichées</string>
+    <string name="v2_stats_hidden">Masquées</string>
+    <string name="v2_clip_note">Copier-coller entre ce PC et %1$s.</string>
+    <string name="v2_clip_send">Envoyer au PC ce que j\'ai copié</string>
+    <string name="v2_clip_fetch">Récupérer ce qui est copié sur le PC</string>
+    <string name="v2_menu_pill">Menu</string>
+    <string name="v2_hint_close_menu">Fermer le menu</string>
 </resources>

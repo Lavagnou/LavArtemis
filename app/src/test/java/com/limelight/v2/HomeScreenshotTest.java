@@ -315,6 +315,68 @@ public class HomeScreenshotTest {
         }
     }
 
+    /** The in-game tile menu over a stream (prototype V8-27: a Playnite game, focus on the 3rd tile) */
+    @Test
+    public void gameMenu() throws Exception {
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                RuntimeEnvironment.setQualifiers("w1280dp-h720dp-land-mdpi");
+                V2Input.reset(V2Input.Kind.PAD);
+                Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+                V2Theme theme = V2Theme.of(t, dark);
+                List<NvApp> apps = apps();
+                FakeCovers covers = new FakeCovers(apps);
+                Bitmap bmp = Bitmap.createBitmap(1280, 720, Bitmap.Config.ARGB_8888);
+                Canvas c = new Canvas(bmp);
+                Bitmap stream = covers.peek(apps.get(4));
+                if (stream != null) {
+                    c.drawBitmap(stream, null, new android.graphics.Rect(0, 0, 1280, 720), new Paint(Paint.FILTER_BITMAP_FLAG));
+                }
+                java.util.List<V2GameMenu.Tile> tiles = new java.util.ArrayList<>();
+                tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_resume), ctx.getString(R.string.v2_resume), "", "", R.drawable.v2_ic_m_resume, false, 0, null));
+                tiles.add(new V2GameMenu.Tile("Afficher le clavier logiciel", ctx.getString(R.string.v2_short_keyboard), "", "", R.drawable.v2_ic_m_keyboard, false, 1, null));
+                tiles.add(new V2GameMenu.Tile("Passer en trackpad", ctx.getString(R.string.v2_short_trackpad), "", "", R.drawable.v2_ic_m_touch, false, 1, null));
+                tiles.add(new V2GameMenu.Tile("Activer le mode Zoom/Panoramique", ctx.getString(R.string.v2_short_zoom), "", "", R.drawable.v2_ic_m_zoom, false, 1, null));
+                tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_menu_send_keys), ctx.getString(R.string.v2_short_keys), "›", "", R.drawable.v2_ic_m_keys, false, 1, null));
+                tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_menu_clipboard), ctx.getString(R.string.v2_short_clip), "›", "", R.drawable.v2_ic_m_clip, false, 1, null));
+                tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_menu_server_cmd), ctx.getString(R.string.v2_short_cmds), "›", "", R.drawable.v2_ic_m_cmds, false, 1, null));
+                tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_menu_stats), ctx.getString(R.string.v2_short_stats), ctx.getString(R.string.v2_stats_hidden), "", R.drawable.v2_ic_m_stats, false, 1, null));
+                tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_menu_more), ctx.getString(R.string.v2_menu_more), "›", "", R.drawable.v2_ic_m_more, false, 1, null));
+                tiles.add(new V2GameMenu.Tile("Déconnecter", "Déconnecter", "", "", R.drawable.v2_ic_m_disconnect, false, 7, null));
+                tiles.add(new V2GameMenu.Tile(ctx.getString(R.string.v2_menu_quit, GAMES[0]), ctx.getString(R.string.v2_short_quit), "",
+                        ctx.getString(R.string.v2_menu_quit_playnite_sub), R.drawable.v2_ic_m_quit, false, 8, null));
+                View menu = V2GameMenu.build(ctx, theme, HomeLayout.forSize(1280, 720), GAMES[0], "ATLAS-PC",
+                        ctx.getString(R.string.v2_via_inside), tiles, null);
+                draw(menu, 1280, 720);
+                View third = nthButton(menu, 2);
+                if (third != null) {
+                    third.requestFocus();
+                }
+                c.drawBitmap(draw(menu, 1280, 720), 0, 0, null);
+                save(bmp, "menu-" + t + "-" + (dark ? "sombre" : "clair") + "-manette");
+            }
+        }
+    }
+
+    private static View nthButton(View root, int n) {
+        java.util.List<View> found = new java.util.ArrayList<>();
+        collectButtons(root, found);
+        return n < found.size() ? found.get(n) : null;
+    }
+
+    private static void collectButtons(View v, java.util.List<View> out) {
+        if (v.getClass().getSimpleName().equals("Button")) {
+            out.add(v);
+            return;
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                collectButtons(g.getChildAt(i), out);
+            }
+        }
+    }
+
     private static View firstFocusable(View v) {
         if (v.isFocusable() && !(v instanceof android.view.ViewGroup && ((android.view.ViewGroup) v).getChildCount() == 0 && false)) {
             if (v.getClass().getSimpleName().equals("Button")) {

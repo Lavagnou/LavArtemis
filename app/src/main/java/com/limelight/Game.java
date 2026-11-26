@@ -332,7 +332,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     /** The mouse_mode_list mode applied last (applyMouseMode), what the Dev menu switches from */
     private int currentTouchMode = PreferenceConfiguration.TOUCH_MODE_MULTITOUCH;
     private boolean onExternelDisplay = false;
-    private ImageButton floatingMenuButton;
+    /** The floating menu button; in LavArtemis Dev the prototype's « Menu » pill (MenuPill) */
+    private View floatingMenuButton;
     private VoicePttButton voicePttButton;
     // The key left of 1, as a US-normalized VK (VK_OEM_3): the host turns it into scancode 0x29,
     // which its own layout reads as ² on AZERTY. VK_OEM_7, what a French Android keyboard
@@ -971,8 +972,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         gameMenuCallbacks = new GameMenu(this);
 
         floatingMenuButton = findViewById(R.id.floatingMenuButton);
-        updateFloatingButtonVisibility(prefConfig.enableBackMenu && prefConfig.enableFloatingButton);
-        initFloatingButton();
+        if (BuildConfig.LAV_DEV && floatingMenuButton != null && floatingMenuButton.getParent() instanceof FrameLayout) {
+            // The prototype's « Menu » pill replaces the floating button (decision of 2026-11-25)
+            FrameLayout parent = (FrameLayout) floatingMenuButton.getParent();
+            floatingMenuButton.setVisibility(View.GONE);
+            View pill = com.limelight.v2.ui.MenuPill.create(this, com.limelight.v2.V2Theme.load(this));
+            pill.setOnClickListener(v -> showGameMenu(null));
+            parent.addView(pill, com.limelight.v2.ui.MenuPill.layoutParams(this));
+            floatingMenuButton = pill;
+            updateFloatingButtonVisibility(true);
+        } else {
+            updateFloatingButtonVisibility(prefConfig.enableBackMenu && prefConfig.enableFloatingButton);
+            initFloatingButton();
+        }
         initVoicePttButton();
 
         overlayToggleButton = findViewById(R.id.overlayToggleZoomButton);
@@ -4692,6 +4704,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Always exit zoom mode if mouse mode has changed
         isPanZoomMode = false;
         updateZoomButtonAppearance();
+    }
+
+    /** The performance overlay is shown (in-game menu « Statistiques de performance ») */
+    public boolean isHudShown() {
+        return prefConfig.enablePerfOverlay;
+    }
+
+    public String getPcName() {
+        return pcName;
+    }
+
+    /** The app the stream was started with (« Desktop », « Playnite »…) */
+    public String getStreamAppName() {
+        return appName;
     }
 
     public void toggleHUD() {

@@ -367,6 +367,10 @@ public class GameMenu implements Game.GameMenuCallbacks {
     }
 
     public void showMenu(GameInputDevice device) {
+        if (BuildConfig.LAV_DEV) {
+            showTileMenu(device);
+            return;
+        }
         List<MenuOption> options = new ArrayList<>();
 
         // LavApollo Link: a game runs inside Playnite -> close it, the stream goes back to Playnite
@@ -452,6 +456,141 @@ public class GameMenu implements Game.GameMenuCallbacks {
         options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
 
         showMenuDialog(getString(R.string.quick_menu_title), options.toArray(new MenuOption[options.size()]));
+    }
+
+    // ---- LavArtemis Dev: the prototype's tile menu (V8, MENU_AN) ---------------------------------
+
+    private android.app.Activity menuActivity() {
+        return dialogScreenContext instanceof android.app.Activity ? (android.app.Activity) dialogScreenContext : game;
+    }
+
+    /** The game or app the stream shows (prototype playingTitle) */
+    private String playingTitle() {
+        String pg = game.getPlayniteGameName();
+        if (pg != null) {
+            return pg;
+        }
+        String app = game.getStreamAppName();
+        if (app == null) {
+            return "";
+        }
+        if (app.equalsIgnoreCase("Desktop")) {
+            return getString(R.string.v2_desktop);
+        }
+        return app.toLowerCase(java.util.Locale.ROOT).contains("playnite") ? getString(R.string.v2_playnite) : app;
+    }
+
+    /** Prototype sessionVia */
+    private String playingVia() {
+        if (game.getPlayniteGameName() != null) {
+            return getString(R.string.v2_via_inside);
+        }
+        String app = game.getStreamAppName();
+        if (app != null && app.equalsIgnoreCase("Desktop")) {
+            return getString(R.string.v2_via_desktop);
+        }
+        if (app != null && app.toLowerCase(java.util.Locale.ROOT).contains("playnite")) {
+            return getString(R.string.v2_via_playnite);
+        }
+        return getString(R.string.v2_via_game);
+    }
+
+    /**
+     * Reprendre, the nine most useful entries, « Plus » (decision of 2026-11-26): clavier, mode
+     * tactile, zoom, touches, presse-papiers, commandes du PC hôte, statistiques, Plus, Déconnecter,
+     * Quitter. The rest (micro, bouton vocal, rotation, menu avancé, Quitter la session) is in « Plus ».
+     */
+    private void showTileMenu(GameInputDevice device) {
+        V2Theme th = V2Theme.load(game);
+        boolean lu = th.isLudique();
+        List<com.limelight.v2.V2GameMenu.Tile> tiles = new ArrayList<>();
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_resume), getString(R.string.v2_resume), "", "",
+                R.drawable.v2_ic_m_resume, false, 0, this::hideMenu));
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.game_menu_toggle_keyboard), getString(R.string.v2_short_keyboard), "", "",
+                R.drawable.v2_ic_m_keyboard, false, 1, () -> runWithGameFocus(game::toggleKeyboard)));
+        String touch = game.touchModeSwitchLabel();
+        boolean toTrackpad = touch != null && touch.toLowerCase(java.util.Locale.ROOT).contains("trackpad");
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(touch, getString(toTrackpad ? R.string.v2_short_trackpad : R.string.v2_short_multitouch), "", "",
+                R.drawable.v2_ic_m_touch, false, 1, () -> runWithGameFocus(game::switchTouchMode)));
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(game.isZoomModeEnabled() ? R.string.game_menu_disable_zoom_mode : R.string.game_menu_enable_zoom_mode),
+                getString(R.string.v2_short_zoom), "", "", R.drawable.v2_ic_m_zoom, false, 1, () -> runWithGameFocus(game::toggleZoomMode)));
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_send_keys), getString(R.string.v2_short_keys), "›", "",
+                R.drawable.v2_ic_m_keys, false, 1, this::showSpecialKeysMenu));
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_clipboard), getString(R.string.v2_short_clip), "›", "",
+                R.drawable.v2_ic_m_clip, false, 1, this::showClipboardSheet));
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_server_cmd), getString(R.string.v2_short_cmds), "›", "",
+                R.drawable.v2_ic_m_cmds, false, 1, () -> {
+                    ArrayList<String> serverCmds = game.getServerCmds();
+                    if (serverCmds.isEmpty()) {
+                        V2ListDialog.message(dialogScreenContext, V2Theme.load(game),
+                                getString(R.string.game_dialog_title_server_cmd_empty),
+                                getString(R.string.game_dialog_message_server_cmd_empty), getString(R.string.v2_ok));
+                    } else {
+                        showServerCmd(serverCmds);
+                    }
+                }));
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_stats), getString(R.string.v2_short_stats),
+                getString(game.isHudShown() ? R.string.v2_stats_shown : R.string.v2_stats_hidden), "",
+                R.drawable.v2_ic_m_stats, false, 1, () -> runWithGameFocus(game::toggleHUD)));
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.v2_menu_more), getString(R.string.v2_menu_more), "›", "",
+                R.drawable.v2_ic_m_more, false, 1, () -> showMoreSheet(device)));
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(getString(R.string.game_menu_disconnect), getString(R.string.game_menu_disconnect), "", "",
+                R.drawable.v2_ic_m_disconnect, false, 7, game::disconnect));
+        String pg = game.getPlayniteGameName();
+        String quit = game.getResources().getString(R.string.v2_menu_quit, playingTitle());
+        tiles.add(new com.limelight.v2.V2GameMenu.Tile(quit, getString(R.string.v2_short_quit), "",
+                pg != null ? getString(R.string.v2_menu_quit_playnite_sub) : "", R.drawable.v2_ic_m_quit, false, 8,
+                pg != null ? game::quitPlayniteGame : game::quit));
+        if (currentDialog != null) {
+            currentDialog.dismiss();
+        }
+        currentDialog = com.limelight.v2.V2GameMenu.show(menuActivity(), th, playingTitle(),
+                game.getPcName() == null ? "" : game.getPcName(), playingVia(), tiles, this::hideMenu);
+    }
+
+    private com.limelight.v2.V2Sheet.Spec streamSpec(int title) {
+        com.limelight.v2.V2Sheet.Spec spec = new com.limelight.v2.V2Sheet.Spec();
+        spec.kind = getString(R.string.v2_menu_kind);
+        spec.where = game.getPcName() == null ? "" : game.getPcName();
+        spec.title = getString(title);
+        spec.info = true;
+        return spec;
+    }
+
+    /** Presse-papiers: send what was copied here, or fetch what was copied on the PC */
+    private void showClipboardSheet() {
+        com.limelight.v2.V2Sheet.Spec spec = streamSpec(R.string.v2_menu_clipboard);
+        spec.note = game.getResources().getString(R.string.v2_clip_note, spec.where);
+        spec.option(getString(R.string.v2_clip_send), true, false, () -> runWithGameFocus(() -> game.sendClipboard(true)));
+        spec.option(getString(R.string.v2_clip_fetch), false, false, () -> runWithGameFocus(() -> game.getClipboard(0)));
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        currentDialog = com.limelight.v2.V2Sheet.show(menuActivity(), V2Theme.load(game), spec);
+    }
+
+    /** Plus: what did not make the nine tiles (prototype MORE_AN) */
+    private void showMoreSheet(GameInputDevice device) {
+        com.limelight.v2.V2Sheet.Spec spec = streamSpec(R.string.v2_menu_more);
+        spec.note = playingTitle() + " · " + playingVia();
+        boolean first = true;
+        if (game.isMicrophoneActive()) {
+            spec.option(getString(game.isMicrophoneMuted() ? R.string.game_menu_unmute_microphone : R.string.game_menu_mute_microphone),
+                    first, false, () -> runWithGameFocus(game::toggleMicrophoneMute));
+            first = false;
+        }
+        spec.option(getString(game.isVoicePttButtonShown() ? R.string.game_menu_hide_voice_ptt_button : R.string.game_menu_show_voice_ptt_button),
+                first, false, () -> runWithGameFocus(game::toggleVoicePttButton));
+        if (game.isVoicePttButtonShown()) {
+            spec.option(getString(R.string.game_menu_move_voice_ptt_button), false, false, () -> runWithGameFocus(game::startMovingVoicePttButton));
+        }
+        if (dialogScreenContext == game && !game.isFollowingDeviceRotation()) {
+            spec.option(getString(R.string.game_menu_rotate_screen), false, false, () -> runWithGameFocus(game::rotateScreen));
+        }
+        spec.option(getString(R.string.game_menu_advanced), false, false, () -> showAdvancedMenu(device));
+        if (game.getPlayniteGameName() != null) {
+            spec.option(getString(R.string.game_menu_quit_session), false, false, game::quit);
+        }
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        currentDialog = com.limelight.v2.V2Sheet.show(menuActivity(), V2Theme.load(game), spec);
     }
 
     @Override

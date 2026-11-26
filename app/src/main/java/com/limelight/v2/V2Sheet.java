@@ -59,6 +59,8 @@ public final class V2Sheet {
         public boolean hasCover;
         public String note;
         public boolean warn;
+        /** A calm note, in the muted colour (sub-menus of the stream, Mes PC) */
+        public boolean info;
         public final List<Option> options = new ArrayList<>();
 
         public Spec option(String label, boolean main, boolean play, Runnable action) {
@@ -193,6 +195,16 @@ public final class V2Sheet {
             }
             LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             nlp.bottomMargin = px(ctx, l, af ? 14 : 12);
+            box.addView(note, nlp);
+        }
+
+        if (!spec.warn && spec.info && spec.note != null && !spec.note.isEmpty()) {
+            TextView note = HomeParts.text(ctx, th, l, 15, 400, th.muted, false);
+            note.setMaxLines(6);
+            note.setText(spec.note);
+            HomeParts.lineHeight(note, ctx, l, 15, 1.5f);
+            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            nlp.bottomMargin = px(ctx, l, 12);
             box.addView(note, nlp);
         }
 
