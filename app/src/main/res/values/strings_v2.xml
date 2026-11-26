@@ -545,6 +545,7 @@
     <!-- Accueil V8 (prototype) -->
     <string name="v2_never_played">Jamais lancé</string>
     <string name="v2_hours_played">%1$d h jouées</string>
+    <string name="v2_minutes_played">%1$d min jouées</string>
     <string name="v2_just_now">à l\'instant</string>
     <string name="v2_live_on">EN COURS SUR %1$s · %2$s</string>
     <string name="v2_live_dash">En cours — %1$s — %2$s — %3$s</string>
@@ -671,6 +672,7 @@
     <string name="v2_lib_state_not_installed">Pas installé</string>
     <string name="v2_lib_played">joué %1$s</string>
     <string name="v2_lib_hours_short">%1$d h</string>
+    <string name="v2_lib_minutes_short">%1$d min</string>
     <string name="v2_lib_via">via Playnite</string>
     <string name="v2_lib_help_pad">Se lance par Playnite sur %1$s. A pour jouer tout de suite, Y ou A maintenu pour les options et les réglages.</string>
     <string name="v2_lib_help_keys">Se lance par Playnite sur %1$s. Entrée pour jouer tout de suite, touche Menu ou Entrée maintenue pour les options et les réglages.</string>

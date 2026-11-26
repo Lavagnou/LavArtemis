@@ -815,8 +815,10 @@ public final class LibraryScreen {
                 ((TextView) line.getChildAt(0)).setText(String.format(Locale.ROOT, "%02d", index + 1));
                 ((TextView) line.getChildAt(1)).setText(g.getAppName());
                 long secs = g.getPlaynitePlaytime();
-                long h = secs <= 0 ? 0 : Math.max(1, Math.round(secs / 3600.0));
-                ((TextView) line.getChildAt(2)).setText(h > 0 ? ctx.getString(R.string.v2_lib_hours_short, (int) h) : "—");
+                PlayTime.Unit unit = PlayTime.unit(secs);
+                ((TextView) line.getChildAt(2)).setText(unit == PlayTime.Unit.NEVER ? "—"
+                        : ctx.getString(unit == PlayTime.Unit.MINUTES ? R.string.v2_lib_minutes_short : R.string.v2_lib_hours_short,
+                        PlayTime.amount(secs)));
                 line.getChildAt(3).setOnClickListener(x -> actions.options(g));
                 b.setTag(R.id.v2_tag_app, g);
                 b.setAlpha(hiddenFilter ? 0.45f : 1f);

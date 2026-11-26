@@ -265,7 +265,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 `setContentView` ; la stable garde l'ancienne interface, intacte.
 
 > 🧭 **Portage exact du prototype V8 (branche `port-v8`, 2026-11-26, pas encore fusionné)** — notes, écarts et
-> reste : `docs/superpowers/verif-2026-11-25/port-notes.md` (hors git). Fait : fondations, accueil, options, menu en jeu.
+> reste : `docs/superpowers/verif-2026-11-25/port-notes.md` (hors git). Fait : fondations, accueil, options, détails, bibliothèque, menu en jeu.
 > - **Jetons du prototype** dans `V2Theme` : `warnBg/warnLine`, `popR/popRow/thumbR`, anneau par thème
 >   (`focusGap/focusOuter/focusColor`, Affiche `focusFill` : remplissage jaune + encre ; le contour 4 px n'est que sur
 >   les jaquettes, `V2Frame.setFocusFill(false)`), lueur par thème (`glowColor/glowPeriodMs…` : braise 2,6 s, prune
@@ -295,6 +295,15 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   avec **fenêtre de 8 lignes** à la manette, Ludique grille 8 + barre), RecyclerView (jaquettes chargées à
 >   l'affichage), D-pad par `V2Activity.onV2Move` ; filtres et « joué hier » dans `LibraryModel` (= desktop), LB / RB
 >   = filtre suivant.
+> - **Écran de détails** (« Afficher les détails » des options, V8-68) : `DetailsActivity` + `DetailsScreen` (3 mises en
+>   page), règles dans `LaunchRows` (note, verrou de l'Écran quand on rejoint, pas des rangées). Les rangées « Réglages
+>   de ce lancement » changent les **vrais** réglages (profil actif, écran virtuel, codec, débit), comme le desktop.
+>   Gauche / droite sur une rangée : `V2Activity.onV2Horizontal`.
+> - **Décisions du 2026-11-26** : l'en-tête garde l'**icône de la Dev** (« plan d'atelier », `ui/AppIconDrawable` =
+>   calques `ic_launcher_bg/fg` recadrés), plus de logo du thème ni de puce DEV ; temps de jeu sous une heure en
+>   minutes (« 25 min jouées », `PlayTime`, testé), au-delà « N h jouées ».
+> - Captures comparables : `V2_SHOT_COVERS` = dossier des images et de `shots-data.json` du prototype (jamais dans
+>   git) → `ShotData` charge les mêmes jeux, heures, états et jaquettes ; sans la variable, jaquettes dessinées.
 > - Captures : `HomeScreenshotTest` (1280 × 720 = prototype, 1280 × 800, 915 × 412, 960 × 540, 3 thèmes × clair /
 >   sombre × tactile / manette, hors ligne, options, menu en jeu) ; tests `FocusGridTest`, `HomeLayoutTest`,
 >   `SessionChoiceTest`.

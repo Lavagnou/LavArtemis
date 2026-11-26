@@ -127,11 +127,14 @@ final class HomeParts {
     /** "N h jouées" / "Jamais lancé" (prototype hours()) */
     static String hours(Context ctx, com.limelight.nvstream.http.NvApp app) {
         long s = app.getPlaynitePlaytime();
-        if (s <= 0) {
-            return ctx.getString(R.string.v2_never_played);
+        switch (PlayTime.unit(s)) {
+            case MINUTES:
+                return ctx.getString(R.string.v2_minutes_played, PlayTime.amount(s));
+            case HOURS:
+                return ctx.getString(R.string.v2_hours_played, PlayTime.amount(s));
+            default:
+                return ctx.getString(R.string.v2_never_played);
         }
-        long h = Math.max(1, Math.round(s / 3600.0));
-        return ctx.getString(R.string.v2_hours_played, (int) h);
     }
 
     // ---- a button with a background and content ------------------------------------------------

@@ -23,7 +23,7 @@ import com.limelight.v2.HomeParts.LibTile;
 import com.limelight.v2.HomeParts.StateCard;
 import com.limelight.v2.ui.CoverView;
 import com.limelight.v2.ui.HintsBar;
-import com.limelight.v2.ui.LogoDrawable;
+import com.limelight.v2.ui.AppIconDrawable;
 import com.limelight.v2.ui.Ui;
 
 import java.util.ArrayList;
@@ -403,7 +403,8 @@ public final class HomeScreen {
     private void buildBrand(LinearLayout left) {
         boolean af = th.isAffiche(), lu = th.isLudique();
         View logo = new View(ctx);
-        logo.setBackground(new LogoDrawable(th));
+        // The Dev keeps its own icon (decision of 2026-11-26), not the theme's logo + DEV chip
+        logo.setBackground(new AppIconDrawable(ctx));
         int ls = l.phone() ? Ui.dp(ctx, 30) : px(ctx, l, lu ? 52 : (af ? 30 : 34));
         left.addView(logo, new LinearLayout.LayoutParams(ls, ls));
         if (l.phone()) {
@@ -418,9 +419,8 @@ public final class HomeScreen {
             TextView hello = HomeParts.text(ctx, th, l, 16, 600, th.lit.muted2, false);
             hello.setText(R.string.v2_hello);
             line.addView(hello);
-            line.addView(devChip(), marginStart(8));
             updatePill = updatePill();
-            line.addView(updatePill, sized(updatePill, 8));
+            line.addView(updatePill, sized(updatePill, 10));
             col.addView(line);
             TextView what = HomeParts.text(ctx, th, l, 34, 800, th.fg, true);
             what.setLetterSpacing(-0.03f);
@@ -436,7 +436,6 @@ public final class HomeScreen {
         word.setLetterSpacing(af ? 0 : -0.4f / 22f);
         word.setText(R.string.v2_brand);
         left.addView(word, marginStart(10));
-        left.addView(devChip(), marginStart(10));
         updatePill = updatePill();
         left.addView(updatePill, sized(updatePill, af ? 10 : 14));
     }
@@ -444,15 +443,6 @@ public final class HomeScreen {
     /** The wordmark is Space Grotesk in every theme (prototype headers) */
     private android.graphics.Typeface spaceGrotesk(int weight) {
         return V2Theme.of(V2Theme.BRAISE, th.dark).displayFont(ctx, weight);
-    }
-
-    private TextView devChip() {
-        TextView dev = HomeParts.text(ctx, th, l, 11, 800, th.badgeFg, false);
-        dev.setLetterSpacing(0.04f);
-        dev.setText(R.string.v2_dev);
-        dev.setPadding(px(ctx, l, 7), px(ctx, l, 3), px(ctx, l, 7), px(ctx, l, 3));
-        dev.setBackground(rect(th.badgeBg, pxf(ctx, l, th.pill), 0, 0));
-        return dev;
     }
 
     private View updatePill() {
