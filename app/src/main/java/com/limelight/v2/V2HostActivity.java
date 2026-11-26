@@ -602,11 +602,11 @@ public abstract class V2HostActivity extends V2Activity {
     }
 
     /**
-     * Choice 23: « Rejoindre » when another device is connected to the host, « Reprendre » otherwise.
-     * The host does not say yet: always Reprendre (port-notes, manques).
+     * Choice 23: « Rejoindre » when another device is connected to the host, « Reprendre » otherwise
+     * (LavApollo OtherClientsConnected; a host that does not send it: Reprendre).
      */
-    protected boolean otherDeviceConnected(ComputerDetails c) {
-        return false;
+    protected static boolean otherDeviceConnected(ComputerDetails c) {
+        return c != null && c.otherClientsConnected > 0;
     }
 
     /** "Desktop" is shown as Bureau, Playnite's own app as Playnite Fullscreen */

@@ -188,6 +188,7 @@ public class HomeActivity extends V2HostActivity {
                 since = c.sessionStartedAt;
             }
             s.sessionMinutes = SessionClock.minutes(since, System.currentTimeMillis());
+            s.otherDevice = otherDeviceConnected(c);
         }
         screen.bind(s);
         if (!initialFocusDone && s.model != null && c != null && HostList.isOnline(c)

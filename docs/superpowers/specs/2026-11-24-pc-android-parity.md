@@ -314,7 +314,15 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   pour un jeu, « Lancer » pour une appli, « Fermer X et lancer », « Fermer X et jouer dans Playnite », Reprendre,
   Relancer la session, Quitter, Masquer, Annuler) dans un dialogue centré, avertissement de fermeture au lieu de
   « %1 est en cours. Le quitter pour lancer %2 ? ».
-- **Écarts de la nuit** : Android n'a pas « Afficher les détails » (écran de détails pas porté) ; le desktop n'a pas
+- **Écran de détails** (« Afficher les détails ») : les deux clients l'ont ; les rangées « Réglages de ce lancement »
+  changent les vrais réglages des deux côtés. Écart : Android écrit la taille de l'écran de cet appareil (« Écran de
+  cet appareil · 1920 × 1080 · 120 Hz », comme le prototype), le desktop « Écran de cet appareil » seul.
+- **Rejoindre / Reprendre** (choix 23) : les deux clients lisent `OtherClientsConnected` (LavApollo) et disent
+  « Rejoindre » / « tu rejoins la session telle qu’elle est » quand un autre appareil streame. Android n'a pas encore
+  les toasts « Session rejointe » / « Session reprise ».
+- **Décisions du 2026-11-26** : l'en-tête montre l'icône de l'appli (Dev : « plan d'atelier ») au lieu du logo du
+  thème + puce DEV ; « 25 min jouées » sous une heure (« 25 min » dans la liste Affiche). Android : fait.
+- **Écarts de la nuit** : le desktop n'a pas
   le « Créer un raccourci sur le bureau (.art) » côté Android (PC seulement, voulu). Android a le menu en jeu en
   tuiles (Reprendre + 9 + Plus) et la pastille « Menu » ; le desktop garde `QuickMenu` pour l'instant.
 - **Écart ouvert (2026-11-26, Android)** : les 15 raccourcis d'« Envoyer des touches » sont écrits comme le prototype

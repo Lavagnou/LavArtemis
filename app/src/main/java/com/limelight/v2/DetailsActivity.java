@@ -168,9 +168,10 @@ public class DetailsActivity extends V2HostActivity {
         LaunchRows.Note note = LaunchRows.note(m, app);
         switch (note) {
             case RUNNING:
-                // Choice 23: Rejoindre when another device is connected (the host does not say yet)
-                s.note = ctx.getString(R.string.v2_note_running_resume, s.title, c.name);
-                s.goLabel = ctx.getString(R.string.v2_resume);
+                // Choice 23: Rejoindre when another device streams this session
+                boolean other = otherDeviceConnected(c);
+                s.note = ctx.getString(other ? R.string.v2_note_running_join : R.string.v2_note_running_resume, s.title, c.name);
+                s.goLabel = ctx.getString(other ? R.string.v2_join : R.string.v2_resume);
                 break;
             case INSIDE:
                 s.note = m.playniteGame.isEmpty() ? ctx.getString(R.string.v2_note_inside_alone, s.title)

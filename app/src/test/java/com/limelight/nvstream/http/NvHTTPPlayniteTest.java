@@ -85,6 +85,12 @@ public class NvHTTPPlayniteTest {
         assertEquals("wifi", NvHTTP.oneOf(" wifi ", "wired", "wifi"));
         org.junit.Assert.assertNull(NvHTTP.oneOf("server", "tower", "mini", "laptop"));
         org.junit.Assert.assertNull(NvHTTP.oneOf(null, "wired", "wifi"));
+        // OtherClientsConnected: someone else streams the session (« Rejoindre »); absent or bad = 0
+        assertEquals(2, NvHTTP.count("2"));
+        assertEquals(1, NvHTTP.count(" 1 "));
+        assertEquals(0, NvHTTP.count(null));
+        assertEquals(0, NvHTTP.count("-3"));
+        assertEquals(0, NvHTTP.count("many"));
         // A start recomputed at each poll does not jitter; another session replaces it
         assertEquals(10_000L, ComputerDetails.stableStart(10_000L, 12_000L));
         assertEquals(60_000L, ComputerDetails.stableStart(10_000L, 60_000L));

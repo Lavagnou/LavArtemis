@@ -318,6 +318,9 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   page), règles dans `LaunchRows` (note, verrou de l'Écran quand on rejoint, pas des rangées). Les rangées « Réglages
 >   de ce lancement » changent les **vrais** réglages (profil actif, écran virtuel, codec, débit), comme le desktop.
 >   Gauche / droite sur une rangée : `V2Activity.onV2Horizontal`.
+> - **Rejoindre / Reprendre** (choix 23) : `ComputerDetails.otherClientsConnected` (LavApollo `OtherClientsConnected`,
+>   absent = 0, `NvHTTP.count`) → `V2HostActivity.otherDeviceConnected()` : « Rejoindre » sur la Scène, la carte en
+>   cours, les options et les détails quand un autre appareil streame la session ; « Reprendre » sinon.
 > - **Décisions du 2026-11-26** : l'en-tête garde l'**icône de la Dev** (« plan d'atelier », `ui/AppIconDrawable` =
 >   calques `ic_launcher_bg/fg` recadrés), plus de logo du thème ni de puce DEV ; temps de jeu sous une heure en
 >   minutes (« 25 min jouées », `PlayTime`, testé), au-delà « N h jouées ».

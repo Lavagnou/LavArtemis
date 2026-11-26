@@ -461,6 +461,7 @@ public class NvHTTP {
                 : startFromElapsed(getXmlString(serverInfo, "PlayniteGameElapsed", false), now);
         details.hostFormFactor = oneOf(getXmlString(serverInfo, "HostFormFactor", false), "tower", "mini", "laptop");
         details.hostLink = oneOf(getXmlString(serverInfo, "HostLink", false), "wired", "wifi");
+        details.otherClientsConnected = count(getXmlString(serverInfo, "OtherClientsConnected", false));
         // Apollo / LavApollo version, shown on the « Mes PC » cards of the v2 interface
         details.apolloVersion = getXmlString(serverInfo, "ApolloVersion", false);
         details.serverAppVersion = getXmlString(serverInfo, "appversion", false);
@@ -486,6 +487,18 @@ public class NvHTTP {
     }
 
     /** value when it is one of allowed, else null */
+    /** A count sent by the host (OtherClientsConnected): absent, negative or not a number = 0 */
+    static int count(String value) {
+        if (value == null) {
+            return 0;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(value.trim()));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     static String oneOf(String value, String... allowed) {
         if (value == null) {
             return null;

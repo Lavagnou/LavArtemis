@@ -106,6 +106,9 @@ public class ComputerDetails {
     public String hostLink;
     // Round trip to the host in ms (TCP connect of the latest poll, HostLatency), -1 when unknown
     public int latencyMs = -1;
+    // Stream sessions of other devices on this host (LavApollo OtherClientsConnected; 0 = none or
+    // unknown): the clients say « Rejoindre » instead of « Reprendre » when it is not 0 (choice 23)
+    public int otherClientsConnected;
     // ApolloVersion of serverinfo (Apollo / LavApollo), null on other hosts
     public String apolloVersion;
     // appversion of serverinfo (the protocol generation), null until the PC answered:
@@ -209,6 +212,7 @@ public class ComputerDetails {
         this.hostFormFactor = details.hostFormFactor;
         this.hostLink = details.hostLink;
         this.latencyMs = details.latencyMs;
+        this.otherClientsConnected = details.otherClientsConnected;
         this.apolloVersion = details.apolloVersion;
         this.serverAppVersion = details.serverAppVersion;
         this.serverCodecModeSupport = details.serverCodecModeSupport;

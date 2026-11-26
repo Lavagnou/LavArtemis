@@ -79,4 +79,14 @@ public class LaunchRowsTest {
         assertEquals(2, LaunchRows.wrap(0, 3, -1));
         assertEquals(0, LaunchRows.wrap(0, 0, 1));
     }
+
+    /** Choice 23: Rejoindre when another device streams the session (LavApollo OtherClientsConnected) */
+    @Test
+    public void joinWhenAnotherDeviceStreams() {
+        com.limelight.nvstream.http.ComputerDetails c = new com.limelight.nvstream.http.ComputerDetails();
+        assertFalse(V2HostActivity.otherDeviceConnected(c));
+        c.otherClientsConnected = 1;
+        assertTrue(V2HostActivity.otherDeviceConnected(c));
+        assertFalse(V2HostActivity.otherDeviceConnected(null));
+    }
 }
