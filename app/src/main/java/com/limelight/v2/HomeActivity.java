@@ -199,6 +199,14 @@ public class HomeActivity extends V2HostActivity {
     }
 
     @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (screen != null) {
+            screen.setDialogOpen(!hasFocus);
+        }
+    }
+
+    @Override
     protected void onInputChanged() {
         if (screen != null) {
             screen.refreshInput();

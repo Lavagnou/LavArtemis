@@ -588,4 +588,24 @@
     <string name="v2_mode_toast_system">Clair ou sombre : suit le système</string>
     <string name="v2_mode_toast_light">Thème clair</string>
     <string name="v2_mode_toast_dark">Thème sombre</string>
+    <!-- Options et avertissements (prototype ctxOpts) -->
+    <string name="v2_kind_game">Jeu Playnite</string>
+    <string name="v2_kind_app">Application</string>
+    <string name="v2_details">Afficher les détails</string>
+    <string name="v2_the_desktop">le Bureau</string>
+    <string name="v2_session_desktop">Le Bureau</string>
+    <string name="v2_close_and_launch">Fermer %1$s et lancer</string>
+    <string name="v2_close_and_play_inside">Fermer %1$s et jouer dans Playnite</string>
+    <string name="v2_play_inside">Jouer dans Playnite</string>
+    <string name="v2_relaunch_go">Fermer et relancer la session</string>
+    <string name="v2_note_closes_one">%1$s tourne sur %2$s : il sera fermé.</string>
+    <string name="v2_note_closes_two">Playnite Fullscreen et %1$s tournent sur %2$s : ils seront fermés.</string>
+    <string name="v2_note_inside">%1$s sera fermé, puis %2$s se lance dans Playnite Fullscreen, déjà ouvert. Le stream continue.</string>
+    <string name="v2_quit_title">Quitter %1$s ?</string>
+    <string name="v2_quit_note_one">%1$s sera fermé sur %2$s. Ce qui n\'est pas sauvegardé sera perdu.</string>
+    <string name="v2_quit_note_two">Playnite Fullscreen et %1$s seront fermés sur %2$s. Ce qui n\'est pas sauvegardé sera perdu.</string>
+    <string name="v2_relaunch_note_one">%1$s sera fermé sur %2$s, puis relancé avec un écran virtuel à la taille de cet appareil (%3$s). Ce qui n\'est pas sauvegardé dans le jeu sera perdu.</string>
+    <string name="v2_relaunch_note_two">Playnite Fullscreen et %1$s seront fermés sur %2$s, puis relancés avec un écran virtuel à la taille de cet appareil (%3$s). Ce qui n\'est pas sauvegardé dans le jeu sera perdu.</string>
+    <string name="v2_session_joined">Session rejointe</string>
+    <string name="v2_launched_inside">%1$s lancé dans Playnite : le stream continue</string>
 </resources>

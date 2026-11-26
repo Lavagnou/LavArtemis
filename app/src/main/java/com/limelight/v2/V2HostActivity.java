@@ -337,23 +337,30 @@ public abstract class V2HostActivity extends V2Activity {
                     getString(R.string.v2_host_unsupported, c.name, c.serverAppVersion), getString(R.string.v2_ok));
             return;
         }
+        // Prototype quick(): what would close something opens the options with the warning
+        if (SessionChoice.of(m, app).closes) {
+            showOptions(app);
+            return;
+        }
+        startNow(app);
+    }
+
+    /** Launch, join or start inside Playnite, without asking (the warning was shown, or nothing closes) */
+    protected void startNow(final NvApp app) {
+        final ComputerDetails c = currentComputer();
+        final HomeModel m = currentModel();
+        if (c == null || m == null || managerBinder == null) {
+            return;
+        }
         final PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(this);
-        switch (m.decide(app)) {
-            case RESUME:
-            case INSIDE_PLAYNITE:
-                ServerHelper.doStart(this, app, c, managerBinder, prefs.useVirtualDisplay);
-                break;
-            case ASK_QUIT: {
-                String running = runningLabel(m);
-                V2Dialogs.confirm(this, theme, null,
-                        getString(R.string.v2_quit_to_launch, running, labelOf(app)),
-                        getString(R.string.v2_yes), getString(R.string.v2_no),
-                        () -> startWithDisplayGate(app, c, prefs), null);
-                break;
-            }
-            default:
-                startWithDisplayGate(app, c, prefs);
-                break;
+        SessionChoice sc = SessionChoice.of(m, app);
+        if (sc.running) {
+            NvApp running = m.runningApp();
+            ServerHelper.doStart(this, running != null ? running : app, c, managerBinder, prefs.useVirtualDisplay);
+        } else if (sc.inPlaynite) {
+            ServerHelper.doStart(this, app, c, managerBinder, prefs.useVirtualDisplay);
+        } else {
+            startWithDisplayGate(app, c, prefs);
         }
     }
 
@@ -391,9 +398,16 @@ public abstract class V2HostActivity extends V2Activity {
         if (c == null || m == null || !m.sessionRunning()) {
             return;
         }
-        V2Dialogs.confirm(this, theme, null, getString(R.string.v2_quit_confirm, runningLabel(m)),
-                getString(R.string.v2_quit), getString(R.string.v2_cancel),
-                () -> doQuit(c, m, null), null);
+        NvApp shown = m.backdropApp();
+        V2Sheet.Spec spec = targetSpec(shown != null ? shown : m.runningApp(), m, c);
+        spec.title = getString(R.string.v2_quit_title, spec.title);
+        spec.warn = true;
+        boolean two = m.runningKind() == HomeModel.Kind.PLAYNITE && !m.playniteGame.isEmpty();
+        spec.note = two ? getString(R.string.v2_quit_note_two, m.playniteGame, c.name)
+                : getString(R.string.v2_quit_note_one, sessionName(m), c.name);
+        spec.option(getString(R.string.v2_quit), true, false, () -> doQuit(c, m, null));
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        V2Sheet.show(this, theme, spec);
     }
 
     /** Quits then starts the same app again, so the host recreates its display for this device */
@@ -403,13 +417,57 @@ public abstract class V2HostActivity extends V2Activity {
         if (c == null || m == null) {
             return;
         }
-        V2Dialogs.confirm(this, theme, null, getString(R.string.v2_relaunch_confirm, runningLabel(m)),
-                getString(R.string.v2_relaunch), getString(R.string.v2_cancel),
-                () -> doQuit(c, m, () -> runOnUiThread(() -> {
-                    if (!isFinishing()) {
-                        startWithDisplayGate(app, c, PreferenceConfiguration.readPreferences(this));
-                    }
-                })), null);
+        V2Sheet.Spec spec = targetSpec(app, m, c);
+        spec.warn = true;
+        boolean two = m.runningKind() == HomeModel.Kind.PLAYNITE && !m.playniteGame.isEmpty();
+        spec.note = two ? getString(R.string.v2_relaunch_note_two, m.playniteGame, c.name, deviceScreen())
+                : getString(R.string.v2_relaunch_note_one, spec.title, c.name, deviceScreen());
+        final NvApp toStart = m.runningApp() != null ? m.runningApp() : app;
+        spec.option(getString(R.string.v2_relaunch_go), true, true, () -> doQuit(c, m, () -> runOnUiThread(() -> {
+            if (!isFinishing()) {
+                startWithDisplayGate(toStart, c, PreferenceConfiguration.readPreferences(this));
+            }
+        })));
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        V2Sheet.show(this, theme, spec);
+    }
+
+    /** "2400 × 1080": the size of this device's screen, for the relaunch note */
+    private String deviceScreen() {
+        android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+        return Math.max(dm.widthPixels, dm.heightPixels) + " × " + Math.min(dm.widthPixels, dm.heightPixels);
+    }
+
+    /** Prototype sessionName(): what runs, as the warnings name it */
+    protected String sessionName(HomeModel m) {
+        HomeModel.Kind k = m.runningKind();
+        if (k == HomeModel.Kind.DESKTOP) {
+            return getString(R.string.v2_session_desktop);
+        }
+        if (k == HomeModel.Kind.PLAYNITE) {
+            return getString(R.string.v2_playnite);
+        }
+        NvApp r = m.runningApp();
+        return r != null ? r.getAppName() : getString(R.string.v2_live);
+    }
+
+    /** The header of a dialog about an app: cover, "Jeu Playnite · PC" or "Application · PC", title */
+    protected V2Sheet.Spec targetSpec(NvApp app, HomeModel m, ComputerDetails c) {
+        V2Sheet.Spec spec = new V2Sheet.Spec();
+        if (app == null) {
+            spec.title = sessionName(m);
+            spec.kind = getString(R.string.v2_kind_app);
+            spec.where = c.name;
+            return spec;
+        }
+        boolean game = HomeModel.kindOf(app) == HomeModel.Kind.GAME;
+        spec.kind = getString(game ? R.string.v2_kind_game : R.string.v2_kind_app);
+        spec.where = c.name;
+        spec.title = labelOf(app);
+        spec.hasCover = true;
+        spec.cover = covers != null ? covers.peek(app) : null;
+        return spec;
     }
 
     private void doQuit(ComputerDetails c, HomeModel m, Runnable then) {
@@ -456,27 +514,59 @@ public abstract class V2HostActivity extends V2Activity {
         refresh();
     }
 
-    /** The options menu (long press, "…", Y, Menu) */
+    /**
+     * The options of an app or a game (prototype ctxOpts, "target"): what runs gives Reprendre (or
+     * Rejoindre), Relancer la session, Quitter; anything else gives Jouer / Lancer, or "Fermer X et
+     * lancer" with the warning when it would close the session; games add Masquer; Annuler last.
+     */
     protected void showOptions(final NvApp app) {
-        HomeModel m = currentModel();
-        if (app == null || m == null) {
+        final ComputerDetails c = currentComputer();
+        final HomeModel m = currentModel();
+        if (app == null || m == null || c == null) {
             return;
         }
-        boolean running = m.isRunning(app) && app.getAppId() == m.runningId;
-        List<V2Dialogs.Entry> entries = new ArrayList<>();
-        entries.add(new V2Dialogs.Entry(getString(running ? R.string.v2_resume : R.string.v2_launch),
-                R.drawable.v2_ic_play, true, () -> launch(app)));
-        if (running) {
-            entries.add(new V2Dialogs.Entry(getString(R.string.v2_quit), R.drawable.v2_ic_stop, false, this::quitRunning));
-            entries.add(new V2Dialogs.Entry(getString(R.string.v2_relaunch), R.drawable.v2_ic_refresh, false, () -> relaunch(app)));
+        SessionChoice sc = SessionChoice.of(m, app);
+        V2Sheet.Spec spec = targetSpec(app, m, c);
+        boolean game = HomeModel.kindOf(app) == HomeModel.Kind.GAME;
+        if (sc.running) {
+            spec.option(getString(otherDeviceConnected(c) ? R.string.v2_join : R.string.v2_resume), true, true, () -> startNow(app));
+            spec.option(getString(R.string.v2_relaunch), false, false, () -> relaunch(app));
+            spec.option(getString(R.string.v2_quit), false, false, this::quitRunning);
+        } else {
+            String first;
+            if (sc.inPlaynite) {
+                first = m.playniteGame.isEmpty() ? getString(R.string.v2_play_inside)
+                        : getString(R.string.v2_close_and_play_inside, m.playniteGame);
+            } else if (m.sessionRunning()) {
+                first = getString(R.string.v2_close_and_launch,
+                        m.runningKind() == HomeModel.Kind.DESKTOP ? getString(R.string.v2_the_desktop) : sessionName(m));
+            } else {
+                first = getString(game ? R.string.v2_play : R.string.v2_launch);
+            }
+            spec.option(first, true, true, () -> startNow(app));
+            spec.warn = sc.closes;
+            if (sc.inPlaynite) {
+                spec.note = getString(R.string.v2_note_inside, m.playniteGame, labelOf(app));
+            } else if (m.sessionRunning()) {
+                spec.note = m.runningKind() == HomeModel.Kind.PLAYNITE && !m.playniteGame.isEmpty()
+                        ? getString(R.string.v2_note_closes_two, m.playniteGame, c.name)
+                        : getString(R.string.v2_note_closes_one, sessionName(m), c.name);
+            }
         }
-        if (HomeModel.kindOf(app) == HomeModel.Kind.GAME) {
-            boolean isHidden = m.isHidden(app);
-            entries.add(new V2Dialogs.Entry(getString(isHidden ? R.string.v2_unhide : R.string.v2_hide),
-                    isHidden ? R.drawable.v2_ic_eye : R.drawable.v2_ic_eye_off, false, () -> setHidden(app, !isHidden)));
+        if (game) {
+            final boolean isHidden = m.isHidden(app);
+            spec.option(getString(isHidden ? R.string.v2_unhide : R.string.v2_hide), false, false, () -> setHidden(app, !isHidden));
         }
-        Bitmap cover = covers != null ? covers.peek(app) : null;
-        V2Dialogs.showMenu(this, theme, labelOf(app), cover, entries);
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        V2Sheet.show(this, theme, spec);
+    }
+
+    /**
+     * Choice 23: « Rejoindre » when another device is connected to the host, « Reprendre » otherwise.
+     * The host does not say yet: always Reprendre (port-notes, manques).
+     */
+    protected boolean otherDeviceConnected(ComputerDetails c) {
+        return false;
     }
 
     /** "Desktop" is shown as Bureau, Playnite's own app as Playnite Fullscreen */
@@ -489,11 +579,6 @@ public abstract class V2HostActivity extends V2Activity {
             default:
                 return app.getAppName();
         }
-    }
-
-    private String runningLabel(HomeModel m) {
-        String title = m.sceneTitle(getString(R.string.v2_desktop), getString(R.string.v2_playnite));
-        return title.isEmpty() ? getString(R.string.v2_live) : title;
     }
 
     protected List<ComputerDetails> safeHosts() {

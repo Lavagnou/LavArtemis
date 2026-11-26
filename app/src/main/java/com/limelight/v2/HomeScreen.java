@@ -1196,13 +1196,23 @@ public final class HomeScreen {
         applyInput();
     }
 
+    private boolean dialogOpen;
+
+    /** A dialog is open over the home: its own hints replace the home's (prototype) */
+    public void setDialogOpen(boolean open) {
+        if (dialogOpen != open) {
+            dialogOpen = open;
+            applyInput();
+        }
+    }
+
     private void applyInput() {
         V2Input.Kind k = V2Input.get(ctx);
         boolean pad = k == V2Input.Kind.PAD, keys = k == V2Input.Kind.KEYS;
         prevLabel.setText(pad ? "LB" : (keys ? "Q" : "‹"));
         nextLabel.setText(pad ? "RB" : (keys ? "E" : "›"));
         hints.clear();
-        if (pad || keys) {
+        if ((pad || keys) && !dialogOpen) {
             hints.setVisibility(View.VISIBLE);
             String a = pad ? "A" : ctx.getString(R.string.v2_key_enter);
             String lbrb = pad ? "LB RB" : "Q E";

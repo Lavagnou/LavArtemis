@@ -268,6 +268,71 @@ public class HomeScreenshotTest {
         }
     }
 
+    /** The options of a game while another one runs inside Playnite (prototype: home, pad, Y on the 2nd cover) */
+    @Test
+    public void optionsDialog() throws Exception {
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                RuntimeEnvironment.setQualifiers("w1280dp-h720dp-land-mdpi");
+                V2Input.reset(V2Input.Kind.PAD);
+                Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+                V2Theme theme = V2Theme.of(t, dark);
+                List<NvApp> apps = apps();
+                FakeCovers covers = new FakeCovers(apps);
+                HomeScreen.State s = new HomeScreen.State();
+                s.hosts = Arrays.asList(pc("ATLAS-PC", true), pc("BUREAU-PAPA", false));
+                s.updateAvailable = true;
+                s.model = HomeModel.build(apps, 2, GAMES[0], true, null, false);
+                s.sessionMinutes = 42;
+                HomeLayout l = HomeLayout.forSize(1280, 720);
+                HomeScreen screen = new HomeScreen(ctx, theme, l, new NoActions(), covers);
+                screen.bind(s);
+                screen.setDialogOpen(true);
+                Bitmap bmp = draw(screen.getView(), 1280, 720);
+
+                NvApp game = apps.get(4);
+                V2Sheet.Spec spec = new V2Sheet.Spec();
+                spec.kind = ctx.getString(R.string.v2_kind_game);
+                spec.where = "ATLAS-PC";
+                spec.title = game.getAppName();
+                spec.hasCover = true;
+                spec.cover = covers.peek(game);
+                spec.warn = true;
+                spec.note = ctx.getString(R.string.v2_note_inside, GAMES[0], game.getAppName());
+                spec.option(ctx.getString(R.string.v2_close_and_play_inside, GAMES[0]), true, true, null);
+                spec.option(ctx.getString(R.string.v2_hide), false, false, null);
+                spec.option(ctx.getString(R.string.v2_cancel), false, false, null);
+                View sheet = V2Sheet.build(ctx, theme, l, spec, null);
+                draw(sheet, 1280, 720);
+                View first = firstFocusable(sheet);
+                if (first != null) {
+                    first.requestFocus();
+                }
+                Bitmap over = draw(sheet, 1280, 720);
+                new Canvas(bmp).drawBitmap(over, 0, 0, null);
+                save(bmp, "options-" + t + "-" + (dark ? "sombre" : "clair") + "-manette");
+            }
+        }
+    }
+
+    private static View firstFocusable(View v) {
+        if (v.isFocusable() && !(v instanceof android.view.ViewGroup && ((android.view.ViewGroup) v).getChildCount() == 0 && false)) {
+            if (v.getClass().getSimpleName().equals("Button")) {
+                return v;
+            }
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View f = firstFocusable(g.getChildAt(i));
+                if (f != null) {
+                    return f;
+                }
+            }
+        }
+        return null;
+    }
+
     @Test
     public void portraitPhone() throws Exception {
         home("portrait-braise-dark-session", "braise", true, 412, 915, Scene.PLAYNITE_GAME, V2Input.Kind.TOUCH);
