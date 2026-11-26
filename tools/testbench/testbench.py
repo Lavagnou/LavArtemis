@@ -1,5 +1,5 @@
 """Testbench CLI:  python tools/testbench/testbench.py run [--suite desktop] [-k expr] | up [fixtures...] | down |
-logs <pc> [input|commands|events] | client <cmd> [json] | shot <path> | mark-client-built"""
+logs <pc> [input|commands|events] | client <cmd> [json] | shot <path> | shots <folder> | mark-client-built"""
 import argparse
 import json
 import os
@@ -110,11 +110,22 @@ def main(argv=None):
                    help="rerun each failed scenario once (the release gate uses it); both results stay in the "
                         "report, a pass on the rerun is shown as a FLAKE")
     s.add_argument("pytest_args", nargs="*", help="extra pytest arguments (after --)")
+    s = sub.add_parser("shots", help="offscreen captures of the interface (no display needed), to compare with "
+                                     "the prototype; never a release gate (see shots.py)")
+    s.add_argument("out", type=pathlib.Path)
+    s.add_argument("--screens", default=None, help="comma-separated screens (default: all)")
+    s.add_argument("--themes", default="braise,affiche,ludique")
+    s.add_argument("--inputs", default="mouse", help="comma-separated inputs: mouse, keys, pad")
+    s.add_argument("--keep", action="store_true", help="leave the client and the fake PCs running")
     sub.add_parser("mark-client-built", help="record the current sources as the ones the client exe was built "
                                              "from (after checking the newer mtimes are comment-only edits)")
     a = ap.parse_args(argv)
     if a.cmd == "run":
         sys.exit(run_suite(a.keyword, a.report_dir, a.rerun_failed_once, a.pytest_args))
+    if a.cmd == "shots":
+        import shots
+        sys.exit(shots.run(a.out, a.screens.split(",") if a.screens else None, a.themes.split(","),
+                           a.inputs.split(","), keep=a.keep))
     if a.cmd == "mark-client-built":
         import client
         client.mark_built()
