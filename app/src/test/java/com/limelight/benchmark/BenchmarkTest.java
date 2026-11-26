@@ -400,4 +400,17 @@ public class BenchmarkTest {
         assertTrue(history.remove(all.get(0).id));
         assertEquals(BenchmarkReport.History.MAX_REPORTS - 1, history.load(null).size());
     }
+
+    /** « Essai 4 sur 6 » and the bar of the running benchmark (prototype bench.step / bench.pct, V8-44) */
+    @Test
+    public void progressAsThePrototype() {
+        assertEquals(4, BenchmarkProgress.step(3, 6));
+        assertEquals(50, BenchmarkProgress.percent(3, 6));
+        assertEquals(1, BenchmarkProgress.step(0, 6));
+        assertEquals(0, BenchmarkProgress.percent(0, 6));
+        // The adaptive mode can run past its estimate: never « Essai 7 sur 6 », never past the bar
+        assertEquals(6, BenchmarkProgress.step(6, 6));
+        assertEquals(100, BenchmarkProgress.percent(7, 6));
+        assertEquals(1, BenchmarkProgress.step(0, 0));
+    }
 }

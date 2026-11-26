@@ -89,6 +89,8 @@ public class BenchmarkActivity extends Activity {
     private Goal goal = Goal.BALANCED;
     private BenchmarkReport shownReport;   // a finished or opened report, when not setting up
     private String message = "";
+    /** Label of the run being measured (« HEVC · 80 Mbit/s · Latence la plus basse »), for the Dev screen */
+    private String currentRun = "";
 
     private LinearLayout content;
     // LavArtemis Dev: the screen in the v2 theme (null in the stable, which keeps its widgets)
@@ -283,6 +285,7 @@ public class BenchmarkActivity extends Activity {
 
         int number = controller.report.runs.size() + 1;
         message = getString(R.string.benchmark_run_progress, number, controller.runEstimate(), runLabel(run.role, run.config));
+        currentRun = runLabel(run.role, run.config);
         render();
 
         NvApp app = new NvApp("Benchmark", computer.benchmarkAppUuid, computer.benchmarkAppId, false);
@@ -631,6 +634,10 @@ public class BenchmarkActivity extends Activity {
     }
 
     private void renderRunning(BenchmarkController controller) {
+        if (page != null) {
+            renderRunningV8(controller);
+            return;
+        }
         ProgressBar progress = new ProgressBar(this);
         if (page != null) {
             progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(page.theme.accent));
@@ -651,6 +658,81 @@ public class BenchmarkActivity extends Activity {
         if (!controller.report.runs.isEmpty()) {
             renderReport(controller.report, true);
         }
+    }
+
+    /**
+     * LavArtemis Dev, prototype V8-44 (bench.running): « ● ESSAI 4 SUR 6 », the run in the theme's
+     * display font, a 520 x 10 bar on the switch colours, the note, « Arrêter ». The partial report
+     * shows at the end, as the prototype.
+     */
+    private void renderRunningV8(BenchmarkController controller) {
+        com.limelight.v2.V2Theme th = page.theme;
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        com.limelight.v2.ui.Ui.noClip(box);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        blp.topMargin = dp(140);
+        content.addView(box, blp);
+
+        int done = controller.report.runs.size();
+        int estimate = controller.runEstimate();
+        TextView step = com.limelight.v2.ui.Ui.text(this, th, 14, 700, th.muted);
+        step.setLetterSpacing(0.06f);
+        step.setAllCaps(true);
+        step.setText(getString(R.string.v2_bench_step, com.limelight.benchmark.BenchmarkProgress.step(done, estimate), Math.max(1, estimate)));
+        step.setCompoundDrawablesRelativeWithIntrinsicBounds(new com.limelight.v2.ui.DotDrawable(th.accent, dp(8)), null, null, null);
+        step.setCompoundDrawablePadding(dp(8));
+        box.addView(step, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        TextView run = com.limelight.v2.ui.Ui.text(this, th, 40, th.displayWeight, th.fg);
+        run.setTypeface(th.displayFont(this, th.displayWeight));
+        run.setGravity(android.view.Gravity.CENTER);
+        run.setMaxLines(3);
+        BenchmarkController.Run pending = controller.pending();
+        String label = pending != null ? runLabel(pending.role, pending.config) : (!currentRun.isEmpty() ? currentRun : message);
+        if (label.isEmpty() && !controller.report.runs.isEmpty()) {
+            // Between two runs, before the next one is known: the run just measured
+            RunResult last = controller.report.runs.get(controller.report.runs.size() - 1);
+            label = runLabel(last.role, last.requested);
+        }
+        run.setText(th.displayText(label));
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(Math.min(dp(720), getResources().getDisplayMetrics().widthPixels - dp(80)),
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        rlp.topMargin = dp(16);
+        box.addView(run, rlp);
+
+        int pct = com.limelight.benchmark.BenchmarkProgress.percent(done, estimate);
+        LinearLayout track = new LinearLayout(this);
+        track.setBackground(com.limelight.v2.ui.Ui.roundRect(th.off, dp(5), 0, 0));
+        android.view.View fill = new android.view.View(this);
+        fill.setBackground(com.limelight.v2.ui.Ui.roundRect(th.on, dp(5), 0, 0));
+        track.addView(fill, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, pct));
+        track.addView(new android.widget.Space(this), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 100 - pct));
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(Math.min(dp(520), getResources().getDisplayMetrics().widthPixels - dp(80)), dp(10));
+        tlp.topMargin = dp(16);
+        box.addView(track, tlp);
+
+        TextView note = com.limelight.v2.ui.Ui.text(this, th, 15, 400, th.muted);
+        note.setGravity(android.view.Gravity.CENTER);
+        note.setMaxLines(4);
+        note.setLineSpacing(0, 1.5f);
+        note.setText(getString(R.string.v2_bench_note, pcName == null ? "" : pcName));
+        LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(Math.min(dp(560), getResources().getDisplayMetrics().widthPixels - dp(80)),
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        nlp.topMargin = dp(16);
+        box.addView(note, nlp);
+
+        View stop = page.button(box, getString(R.string.benchmark_stop), false, v -> {
+            controller.cancel();
+            if (controller.pending() == null) {
+                finishBenchmark(controller);
+            }
+        });
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        slp.topMargin = dp(24);
+        stop.setLayoutParams(slp);
+        stop.requestFocus();
     }
 
     private static RunResult bestRun(BenchmarkReport report) {

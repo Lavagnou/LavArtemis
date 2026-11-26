@@ -318,6 +318,11 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   page), règles dans `LaunchRows` (note, verrou de l'Écran quand on rejoint, pas des rangées). Les rangées « Réglages
 >   de ce lancement » changent les **vrais** réglages (profil actif, écran virtuel, codec, débit), comme le desktop.
 >   Gauche / droite sur une rangée : `V2Activity.onV2Horizontal`.
+> - **Segue avant le stream** (V8-24 / V8-71) : `V2HostActivity.prepareSegue()` → `PendingSegue` (passage dans le
+>   processus, images comprises) → `Game` (Dev) l'affiche **à la place du spinner de connexion** et l'enlève quand le
+>   stream est là et que 1,5 s sont passées, avec le toast du prototype (« Connecté à … », « Session reprise »…).
+>   ⚠️ Un nouveau chemin d'échec de connexion dans `Game` doit appeler `removeSegue()` comme il ferme le spinner, et
+>   tout `spinner.` doit tester `null` (pas de spinner sous une segue). Benchmark en cours : `renderRunningV8`.
 > - **Rejoindre / Reprendre** (choix 23) : `ComputerDetails.otherClientsConnected` (LavApollo `OtherClientsConnected`,
 >   absent = 0, `NvHTTP.count`) → `V2HostActivity.otherDeviceConnected()` : « Rejoindre » sur la Scène, la carte en
 >   cours, les options et les détails quand un autre appareil streame la session ; « Reprendre » sinon.

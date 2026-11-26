@@ -318,8 +318,11 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   changent les vrais réglages des deux côtés. Écart : Android écrit la taille de l'écran de cet appareil (« Écran de
   cet appareil · 1920 × 1080 · 120 Hz », comme le prototype), le desktop « Écran de cet appareil » seul.
 - **Rejoindre / Reprendre** (choix 23) : les deux clients lisent `OtherClientsConnected` (LavApollo) et disent
-  « Rejoindre » / « tu rejoins la session telle qu’elle est » quand un autre appareil streame. Android n'a pas encore
-  les toasts « Session rejointe » / « Session reprise ».
+  « Rejoindre » / « tu rejoins la session telle qu’elle est » quand un autre appareil streame. Android a aussi
+  la segue avant le stream (« Lancement sur {PC}… », « Reprise sur {PC}… », « Connexion à la session de {PC}… ») et
+  les toasts « Connecté à {PC} » / « Session reprise » / « Session rejointe » / « {jeu} lancé dans Playnite : le
+  stream continue » / « Session relancée : {écran} ». Benchmark en cours (V8-44) : « Essai N sur M », barre, note,
+  « Arrêter » (Android, Dev).
 - **Décisions du 2026-11-26** : l'en-tête montre l'icône de l'appli (Dev : « plan d'atelier ») au lieu du logo du
   thème + puce DEV ; « 25 min jouées » sous une heure (« 25 min » dans la liste Affiche). Android : fait.
 - **Écarts de la nuit** : le desktop n'a pas

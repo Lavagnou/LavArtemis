@@ -533,4 +533,50 @@ public class HostsScreenshotTest {
         @Override public void options(String uuid) {}
         @Override public void add() {}
     }
+
+    /**
+     * The running benchmark (prototype V8-44): a real BenchmarkActivity over a controller with three
+     * runs done and the fourth pending, « Essai 4 sur … », at 1280 x 720 dp.
+     */
+    @Test
+    public void benchRunning() throws Exception {
+        for (String t : new String[]{"braise", "affiche", "ludique"}) {
+            for (boolean dark : new boolean[]{false, true}) {
+                qualifiers(1280, 720, "fr");
+                useTheme(t, dark);
+                V2Input.reset(V2Input.Kind.PAD);
+                com.limelight.benchmark.BenchmarkTypes.RunConfig guess =
+                        new com.limelight.benchmark.BenchmarkTypes.RunConfig(com.limelight.benchmark.BenchmarkTypes.Codec.HEVC, 50000, "default");
+                com.limelight.benchmark.BenchmarkController c = new com.limelight.benchmark.BenchmarkController(
+                        new com.limelight.benchmark.BenchmarkReport(),
+                        com.limelight.benchmark.BenchmarkController.plannerInput(com.limelight.benchmark.BenchmarkTypes.Mode.QUICK,
+                                com.limelight.benchmark.BenchmarkTypes.Goal.LATENCY, guess, 0x00000100L | 0x00010000L, 50000));
+                for (int i = 0; i < 3; i++) {
+                    com.limelight.benchmark.BenchmarkController.Run run = c.next();
+                    if (run == null) {
+                        break;
+                    }
+                    com.limelight.benchmark.BenchmarkTypes.RunResult r = new com.limelight.benchmark.BenchmarkTypes.RunResult();
+                    r.status = com.limelight.benchmark.BenchmarkTypes.Status.OK;
+                    r.requested = run.config.copy();
+                    r.effective = run.config.copy();
+                    r.scores.balanced = 50;
+                    c.complete(r);
+                }
+                c.next();
+                com.limelight.benchmark.BenchmarkController.setCurrent(c);
+                try {
+                    android.content.Intent intent = new android.content.Intent(ApplicationProvider.getApplicationContext(),
+                            com.limelight.BenchmarkActivity.class);
+                    intent.putExtra(com.limelight.BenchmarkActivity.EXTRA_PC_UUID, "uuid-ATLAS-PC");
+                    intent.putExtra(com.limelight.BenchmarkActivity.EXTRA_PC_NAME, "ATLAS-PC");
+                    com.limelight.BenchmarkActivity a = Robolectric.buildActivity(com.limelight.BenchmarkActivity.class, intent).setup().get();
+                    View root = a.findViewById(android.R.id.content);
+                    save(draw(root, 2560, 1440), "bench-" + t + "-" + (dark ? "sombre" : "clair") + "-manette");
+                } finally {
+                    com.limelight.benchmark.BenchmarkController.setCurrent(null);
+                }
+            }
+        }
+    }
 }
