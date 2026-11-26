@@ -308,8 +308,9 @@ public final class V2GameMenu {
             }
             FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(Math.min(px(ctx, l, 740), Ui.dp(ctx, l.widthDp - 32)),
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-            slp.bottomMargin = px(ctx, l, 58);
             root.addView(section, slp);
+            // Prototype: translate(-50%, -54%), i.e. 4 % of its own height above the centre
+            section.addOnLayoutChangeListener((v, a, top, c, bottom, e, f, g, h) -> v.setTranslationY(-0.04f * (bottom - top)));
         }
         if (!items.isEmpty()) {
             items.get(0).setTag(FIRST);
