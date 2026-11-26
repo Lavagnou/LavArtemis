@@ -30,6 +30,42 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
     protected final Handler handler = new Handler(Looper.getMainLooper());
     private boolean aPressed;
     private boolean aHeldFired;
+    /** Held direction: moves at once, again after 380 ms, then every 110 ms (prototype pollPads) */
+    private final DirRepeat dirRepeat = new DirRepeat();
+    private KeyEvent dirDown;
+    private boolean dirRepeating;
+    private final Runnable dirTick = new Runnable() {
+        @Override
+        public void run() {
+            long now = android.os.SystemClock.uptimeMillis();
+            if (dirDown == null || dirRepeat.held() != dirDown.getKeyCode()) {
+                return;
+            }
+            if (dirRepeat.due(now)) {
+                // The held key again, as a fresh press from the same device (the input kind stays)
+                dirRepeating = true;
+                boolean handled;
+                try {
+                    handled = dispatchKeyEvent(KeyEvent.changeTimeRepeat(dirDown, now, 0));
+                } finally {
+                    dirRepeating = false;
+                }
+                if (!handled) {
+                    // Android's own focus search runs after a real key only: do it for ours
+                    View f = getCurrentFocus();
+                    int dir = focusDirection(dirDown.getKeyCode());
+                    View next = f == null ? null : f.focusSearch(dir);
+                    if (next != null) {
+                        next.requestFocus(dir);
+                    }
+                }
+            }
+            long d = dirRepeat.delay(now);
+            if (d >= 0) {
+                handler.postDelayed(this, d);
+            }
+        }
+    };
     private final Runnable aHeld = () -> {
         if (aPressed) {
             aHeldFired = true;
@@ -95,6 +131,35 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
         V2Input.removeListener(this);
         handler.removeCallbacks(aHeld);
         aPressed = false;
+        stopDirRepeat();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (!hasFocus) {
+            // A dialog took the keys: its release will not come here
+            stopDirRepeat();
+        }
+    }
+
+    private static int focusDirection(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+                return View.FOCUS_UP;
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                return View.FOCUS_DOWN;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                return View.FOCUS_LEFT;
+            default:
+                return View.FOCUS_RIGHT;
+        }
+    }
+
+    private void stopDirRepeat() {
+        dirRepeat.cancel();
+        dirDown = null;
+        handler.removeCallbacks(dirTick);
     }
 
     @Override
@@ -264,6 +329,26 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
             case KeyEvent.KEYCODE_DPAD_DOWN:
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT:
+                if (down && !dirRepeating) {
+                    // The system's repeat is ignored: the prototype's 380 / 110 ms one is ours
+                    if (event.getRepeatCount() > 0) {
+                        return true;
+                    }
+                    long now = android.os.SystemClock.uptimeMillis();
+                    if (!dirRepeat.press(code, now)) {
+                        return true;
+                    }
+                    dirDown = event;
+                    handler.removeCallbacks(dirTick);
+                    handler.postDelayed(dirTick, dirRepeat.delay(now));
+                }
+                if (up) {
+                    dirRepeat.release(code);
+                    if (dirRepeat.held() == 0) {
+                        dirDown = null;
+                        handler.removeCallbacks(dirTick);
+                    }
+                }
                 if (down) {
                     int mx = code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : (code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0);
                     int my = code == KeyEvent.KEYCODE_DPAD_UP ? -1 : (code == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : 0);
