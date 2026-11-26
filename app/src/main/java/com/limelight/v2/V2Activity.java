@@ -269,6 +269,9 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
                     if (rows != null && !rows.isEmpty()) {
                         int dx = code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : (code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0);
                         int dy = code == KeyEvent.KEYCODE_DPAD_UP ? -1 : (code == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : 0);
+                        if (dx != 0 && onV2Horizontal(focused, dx)) {
+                            return true;
+                        }
                         View target = FocusGrid.move(rows, focusedItem(rows, focused), dx, dy);
                         if (target != null && target != focused) {
                             target.requestFocus();
@@ -304,6 +307,11 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
      */
     protected List<List<View>> focusRows() {
         return null;
+    }
+
+    /** Left / right on the focused view before the grid moves (a choice row steps its value); true when handled */
+    protected boolean onV2Horizontal(View focused, int dx) {
+        return false;
     }
 
     /** The focus moved to a grid item (scroll it into view, update captions...) */

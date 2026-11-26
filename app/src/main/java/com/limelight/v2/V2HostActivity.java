@@ -532,6 +532,7 @@ public abstract class V2HostActivity extends V2Activity {
             spec.option(getString(otherDeviceConnected(c) ? R.string.v2_join : R.string.v2_resume), true, true, () -> startNow(app));
             spec.option(getString(R.string.v2_relaunch), false, false, () -> relaunch(app));
             spec.option(getString(R.string.v2_quit), false, false, this::quitRunning);
+            spec.option(getString(R.string.v2_show_details), false, false, () -> DetailsActivity.open(this, currentUuid, app));
         } else {
             String first;
             if (sc.inPlaynite) {
@@ -544,6 +545,7 @@ public abstract class V2HostActivity extends V2Activity {
                 first = getString(game ? R.string.v2_play : R.string.v2_launch);
             }
             spec.option(first, true, true, () -> startNow(app));
+            spec.option(getString(R.string.v2_show_details), false, false, () -> DetailsActivity.open(this, currentUuid, app));
             spec.warn = sc.closes;
             if (sc.inPlaynite) {
                 spec.note = getString(R.string.v2_note_inside, m.playniteGame, labelOf(app));

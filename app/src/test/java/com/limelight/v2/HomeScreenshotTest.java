@@ -216,6 +216,7 @@ public class HomeScreenshotTest {
                 spec.warn = true;
                 spec.note = ctx.getString(R.string.v2_note_inside, GAMES[0], game.getAppName());
                 spec.option(ctx.getString(R.string.v2_close_and_play_inside, GAMES[0]), true, true, null);
+                spec.option(ctx.getString(R.string.v2_show_details), false, false, null);
                 spec.option(ctx.getString(R.string.v2_hide), false, false, null);
                 spec.option(ctx.getString(R.string.v2_cancel), false, false, null);
                 View sheet = V2Sheet.build(ctx, theme, l, spec, null);
@@ -244,7 +245,11 @@ public class HomeScreenshotTest {
                 CoverSource covers = covers(apps);
                 Bitmap bmp = Bitmap.createBitmap(1280, 720, Bitmap.Config.ARGB_8888);
                 Canvas c = new Canvas(bmp);
-                Bitmap stream = covers.peek(apps.get(4));
+                // The stream: the running game's background (prototype), else a cover
+                Bitmap stream = covers.peekBackground(apps.get(3));
+                if (stream == null) {
+                    stream = covers.peek(apps.get(4));
+                }
                 if (stream != null) {
                     c.drawBitmap(stream, null, new android.graphics.Rect(0, 0, 1280, 720), new Paint(Paint.FILTER_BITMAP_FLAG));
                 }
@@ -309,6 +314,51 @@ public class HomeScreenshotTest {
             }
         }
         return null;
+    }
+
+    /**
+     * The details screen (prototype V8-68): Split Fiction picked while Red Dead Redemption 2 runs
+     * inside Playnite (warning note), focus on the launch button at the gamepad. The profile and the
+     * bitrate show the prototype's values (Wi-Fi maison, 50 Mbit/s) so the captures line up.
+     */
+    @Test
+    public void details() throws Exception {
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                for (V2Input.Kind input : new V2Input.Kind[]{V2Input.Kind.PAD, V2Input.Kind.TOUCH}) {
+                    RuntimeEnvironment.setQualifiers("w1280dp-h720dp-land-mdpi");
+                    V2Input.reset(input);
+                    Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+                    V2Theme theme = V2Theme.of(t, dark);
+                    List<NvApp> apps = apps();
+                    CoverSource covers = covers(apps);
+                    HomeModel m = HomeModel.build(apps, 2, GAMES[0], true, DATA.hidden(apps), false);
+                    NvApp split = apps.get(3 + 4);
+                    DetailsScreen.State st = DetailsActivity.state(ctx, split, pc("ATLAS-PC", true), m, theme.isAffiche(),
+                            new com.limelight.v2.settings.SettingsStore(ctx));
+                    st.values[0] = "Wi-Fi maison";
+                    st.values[3] = "50 Mbit/s";
+                    st.cover = covers.peek(split);
+                    st.background = covers.peekBackground(split);
+                    st.blurBackground = st.background == null;
+                    DetailsScreen screen = new DetailsScreen(ctx, theme, HomeLayout.forSize(1280, 720), new DetailsScreen.Actions() {
+                        @Override public void back() {}
+                        @Override public void change(int row, int d) {}
+                        @Override public void go() {}
+                    });
+                    screen.bind(st);
+                    View root = screen.getView();
+                    draw(root, 1280, 720);
+                    if (input != V2Input.Kind.TOUCH) {
+                        for (List<View> fr : screen.focusRows()) { for (View fv : fr) { fv.setFocusableInTouchMode(true); } }
+                        screen.requestInitialFocus();
+                        screen.onFocusMoved();
+                    }
+                    save(draw(root, 1280, 720), "details-" + t + "-" + (dark ? "sombre" : "clair") + "-"
+                            + (input == V2Input.Kind.TOUCH ? "tactile" : "manette"));
+                }
+            }
+        }
     }
 
     @Test

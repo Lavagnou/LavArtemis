@@ -631,4 +631,29 @@
     <string name="v2_clip_fetch">Récupérer ce qui est copié sur le PC</string>
     <string name="v2_menu_pill">Menu</string>
     <string name="v2_hint_close_menu">Fermer le menu</string>
+    <!-- Details screen (prototype « launch », V8-67 / V8-68) -->
+    <string name="v2_show_details">Afficher les détails</string>
+    <string name="v2_details_settings">Réglages de ce lancement</string>
+    <string name="v2_details_how">Comment tu veux jouer ?</string>
+    <string name="v2_details_profile">Profil</string>
+    <string name="v2_details_screen">Écran</string>
+    <string name="v2_details_codec">Codec</string>
+    <string name="v2_details_bitrate">Débit</string>
+    <string name="v2_details_back_arrow">← Retour</string>
+    <string name="v2_details_prev">Valeur précédente</string>
+    <string name="v2_details_next">Valeur suivante</string>
+    <string name="v2_details_change">Changer</string>
+    <string name="v2_details_installed">installé</string>
+    <string name="v2_details_not_installed">pas installé</string>
+    <string name="v2_details_display_device">Écran de cet appareil · %1$s</string>
+    <string name="v2_details_display_pc">Écran du PC</string>
+    <string name="v2_details_display_locked">Session en cours : le format suit l’écran du PC</string>
+    <string name="v2_details_rate">%1$d Mbit/s</string>
+    <string name="v2_details_codec_auto">Automatique (HEVC)</string>
+    <string name="v2_note_running_join">%1$s tourne déjà sur %2$s : tu rejoins la session telle qu’elle est.</string>
+    <string name="v2_note_running_resume">%1$s tourne déjà sur %2$s : tu reprends la session telle qu’elle est.</string>
+    <string name="v2_note_inside_alone">%1$s se lance dans Playnite Fullscreen, déjà ouvert. Le stream continue.</string>
+    <string name="v2_note_game_idle">Le jeu démarre directement sur %1$s.</string>
+    <string name="v2_note_app_idle">Rien ne tourne sur %1$s pour l’instant.</string>
+    <string name="v2_note_not_installed">Pas installé : Playnite proposera de l’installer.</string>
 </resources>
