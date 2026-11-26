@@ -162,10 +162,19 @@ def write_pc_files(pc, fixture, pcdir):
     (pn / "covers").mkdir(parents=True, exist_ok=True)
     lib = json.loads((src / "playnite" / "library.json").read_text(encoding="utf-8"))
     for g in lib["games"]:
+        # coverFrom / backgroundFrom: an image to copy (testbench.py shots --covers, kept out of git), else generated
+        cover_from, background_from = g.pop("coverFrom", None), g.pop("backgroundFrom", None)
         if g.get("cover"):
-            covers.make_cover(g["name"], pn / "covers" / g["cover"])
+            if cover_from:
+                shutil.copyfile(cover_from, pn / "covers" / g["cover"])
+            else:
+                covers.make_cover(g["name"], pn / "covers" / g["cover"])
         if g.get("background"):
-            covers.make_background(g["name"], pn / "backgrounds" / g["background"])
+            (pn / "backgrounds").mkdir(parents=True, exist_ok=True)
+            if background_from:
+                shutil.copyfile(background_from, pn / "backgrounds" / g["background"])
+            else:
+                covers.make_background(g["name"], pn / "backgrounds" / g["background"])
     (pn / "library.json").write_text(json.dumps(lib, ensure_ascii=False, indent=2), encoding="utf-8")
     running = bool(pc.get("playnite_running"))
     state = {"version": 1, "playniteRunning": running, "mode": "fullscreen",
@@ -433,7 +442,7 @@ def up(fixtures, workdir=None, force_instances=(), overrides=None):
             raise RuntimeError(f"{f}: port {base} should stay closed but is in use")
     result, records = [], []
     for f, pc in pcs.items():
-        pcdir = workdir / f
+        pcdir = workdir / pathlib.Path(f).name  # a fixture may be an absolute folder (shots --covers)
         if not pc.get("instance", True):
             result.append(Host(pc["name"], pc["port"], None, pcdir, f, display_mode(pc)))
             continue
@@ -526,6 +535,32 @@ def fail_next(host, what):
     if not r.get("status"):
         raise RuntimeError(f"{host.name}: fail_next({what}) refused ({r})")
     return r
+
+
+def set_session(host, other_clients=0, elapsed_offset=0):
+    """Pretend `other_clients` other devices stream from the fake PC (serverinfo OtherClientsConnected: the client
+    says « Rejoindre ») and that the running app started `elapsed_offset` seconds earlier (CurrentGameElapsed:
+    « depuis 42 min »).  0, 0 = back to the real values."""
+    r = _test_request(host, "/api/test/session", {"other_clients": other_clients, "elapsed_offset": elapsed_offset})
+    if not r.get("status"):
+        raise RuntimeError(f"{host.name}: set_session refused ({r})")
+    return r
+
+
+def set_playnite_game(host, game_id, name, started_seconds_ago=0):
+    """The fake PC's Playnite runs this game (state.json, as LavApollo Link writes it), started that long ago;
+    game_id None = no game."""
+    import datetime
+    state = {"version": 1, "playniteRunning": True, "mode": "fullscreen", "pid": 4242, "game": None,
+             "updatedAt": "2026-11-24T09:00:00Z"}
+    if game_id:
+        at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=started_seconds_ago)
+        state["game"] = {"id": game_id.lower(), "name": name, "starting": False,
+                         "startedAt": at.strftime("%Y-%m-%dT%H:%M:%SZ")}
+    f = host.dir / "pd" / "LavApollo" / "playnite" / "state.json"
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state), encoding="utf-8")
+    os.replace(tmp, f)
 
 
 def terminate(host):

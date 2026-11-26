@@ -95,7 +95,7 @@ def test_playnite_game_inside_running_playnite(bench):
     # session runs is scenario 15)
     qm = helpers.open_quick_menu(c)
     helpers.quick_menu_click(c, "Quitter la session", qm)
-    helpers.wait_any_text(c, ["Tu veux vraiment quitter ?"])
+    helpers.wait_any_text(c, [helpers.QUIT_CONFIRM])
     helpers.quick_menu_click(c, "Quitter la session", qm)
     c.wait_for(lambda s: not s["session"]["active"] and s["page"] == "HomeView", 30)
     assert c.proc.poll() is None, f"the client exited (code {c.proc.returncode})"

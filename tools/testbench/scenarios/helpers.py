@@ -351,11 +351,26 @@ def open_quick_menu(c):
     deadline = time.time() + 10
     while True:
         idx = quick_menu_window(c)
-        if idx is not None and find(c, "Menu rapide", window=idx):
+        # the V8 menu in tiles: its first tile is « Reprendre » (Ludique: the same short label)
+        if idx is not None and find(c, "Reprendre", window=idx):
             time.sleep(0.4)  # opening animation
             return idx
         assert time.time() < deadline, "the quick menu did not show"
         time.sleep(0.2)
+
+
+# The confirmation of « Quitter la session » in the V8 menu (its note; the title is « Quitter <app> ? »)
+QUIT_CONFIRM = "Assure-toi d’avoir sauvegardé"
+# The V8 menu's tiles that are always there (PC: Reprendre, the 9 entries, Plus)
+QUICK_MENU_TILES = ["Reprendre", "Envoyer des touches", "Presse-papiers", "Commandes du PC hôte",
+                    "Statistiques de performance", "Zoom", "Libérer la souris et le clavier", "Plus", "Déconnecter"]
+
+
+def assert_quick_menu_tiles(c, window):
+    """The V8 in-game menu shows its tiles (Braise labels; Ludique has short ones)."""
+    shown = texts(c, window=window)
+    missing = [t for t in QUICK_MENU_TILES if t not in shown]
+    assert not missing, f"tiles missing from the in-game menu: {missing}; texts {shown}"
 
 
 def assert_quick_menu_footer_clear(c, window):
@@ -379,8 +394,26 @@ def assert_quick_menu_footer_clear(c, window):
 
 
 def quick_menu_click(c, text, window):
+    """Click an entry of the in-game menu or of its dialog.  « Quitter la session » is no tile of the V8 menu: the
+    first call opens its confirmation (the « Quitter <app> » tile; or « Plus › Quitter la session » when that tile
+    quits the game inside Playnite), a second call confirms."""
+    if text == "Quitter la session" and not find(c, text, window=window):
+        if find(c, "Retour à Playnite, le stream continue", window=window):
+            c.call("click", text="Plus", window=window)
+            wait_quick_text(c, "Quitter la session", window)
+        else:
+            quit_tile = [t for t in texts(c, window=window) if t.startswith("Quitter ") and t != text]
+            assert quit_tile, f"no « Quitter … » tile in the in-game menu: {texts(c, window=window)}"
+            text = quit_tile[0]
     c.call("click", text=text, window=window)
     time.sleep(0.4)
+
+
+def wait_quick_text(c, text, window, timeout=10.0):
+    deadline = time.time() + timeout
+    while not find(c, text, window=window):
+        assert time.time() < deadline, f"no {text!r} in the in-game menu: {texts(c, window=window)}"
+        time.sleep(0.2)
 
 
 def host_events(host, stream, key=None):
@@ -391,7 +424,11 @@ def host_events(host, stream, key=None):
 # ---------------------------------------------------------------- covers
 
 def tiles(c):
-    return [i for i in c.tree() if i["type"] == "CoverTile"]
+    """Cover tiles of the screen (V8: HomeTile items taller than wide, « Tout voir » left out)."""
+    items = c.tree()
+    tout_voir = [i for i in items if i.get("text") == "Tout voir"]
+    return [t for t in items if t["type"] == "HomeTile" and t["h"] >= t["w"] * 1.2 and
+            not any(t["x"] <= v["x"] < t["x"] + t["w"] and t["y"] <= v["y"] < t["y"] + t["h"] for v in tout_voir)]
 
 
 def reading_order(item):
@@ -424,9 +461,9 @@ def click_item(c, item, button="left"):
 
 
 def popup_texts(c):
-    """Texts inside the open popup menu (AppMenu), in tree order; [] when none is open."""
+    """Texts inside the open options (LavOptions: popover or dialog), in tree order; [] when none is open."""
     items = c.tree()
-    pop = next((i for i in items if i["type"] == "PopupItem" and i.get("objectName") == "AppMenu"), None)
+    pop = next((i for i in items if i["type"] == "PopupItem" and i.get("objectName") == "LavOptions"), None)
     if pop is None:
         return []
     return [i["text"] for i in items if i.get("text") and i["type"] == "Text"

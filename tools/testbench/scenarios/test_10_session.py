@@ -80,6 +80,9 @@ def close_dialog(c):
 
 def menu_click(c, text, qm):
     """Click an entry of the open in-game menu, scrolling its list down to it when it is below the fold."""
+    if text == "Quitter la session":
+        helpers.quick_menu_click(c, text, qm)  # V8: through the « Quitter <app> » tile
+        return
     # The list keeps its scroll position from one opening to the next: down, then back up
     for dy in [0] + [-2] * 6 + [2] * 12:
         if dy:
@@ -272,7 +275,7 @@ def test_s3_refused_launch_and_refused_quit(bench):
     # The host refuses to quit (another device started the game): said in French, the client stays
     hosts.fail_next(atlas, "cancel")
     qm = menu_entry(c, "Quitter la session")
-    helpers.wait_any_text(c, ["Tu veux vraiment quitter ?"])
+    helpers.wait_any_text(c, [helpers.QUIT_CONFIRM])
     helpers.quick_menu_click(c, "Quitter la session", qm)
     found = helpers.wait_any_text(c, ["Le jeu en cours n'a pas été lancé par ce PC"], timeout=30)
     bench.shot("02-quit-refused")
@@ -287,7 +290,7 @@ def test_s3_refused_launch_and_refused_quit(bench):
     stream_runs(c, 2, "after a refused quit")
     hosts.fail_next(atlas, "cancel_error")
     qm = menu_entry(c, "Quitter la session")
-    helpers.wait_any_text(c, ["Tu veux vraiment quitter ?"])
+    helpers.wait_any_text(c, [helpers.QUIT_CONFIRM])
     helpers.quick_menu_click(c, "Quitter la session", qm)
     found = helpers.wait_any_text(c, ["Impossible de quitter"], timeout=30)
     bench.shot("03-quit-error")
@@ -337,7 +340,7 @@ def test_s5_quit_confirmed_twice(bench):
     atlas, c = setup(bench)
     helpers.launch(c, "Bureau")
     qm = menu_entry(c, "Quitter la session")
-    helpers.wait_any_text(c, ["Tu veux vraiment quitter ?"])
+    helpers.wait_any_text(c, [helpers.QUIT_CONFIRM])
     c.call("click", text="Quitter la session", window=qm)
     c.cmd("click", text="Quitter la session", window=qm)  # the second one may find the menu gone: fine
     wait_home(c, "after « Quitter la session » twice")

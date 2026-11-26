@@ -68,12 +68,10 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     # In-game menu › Envoyer des touches › Alt+Entrée: the host gets Alt down, Enter down/up, Alt up
     qm = helpers.open_quick_menu(c)
     bench.shot("04-quick-menu", window=qm)
-    helpers.assert_quick_menu_footer_clear(c, qm)
+    helpers.assert_quick_menu_tiles(c, qm)
     helpers.quick_menu_click(c, "Envoyer des touches", qm)
     helpers.wait_any_text(c, ["Alt+Entrée"])
     bench.shot("05-send-keys", window=qm)
-    # 15 shortcuts: the list overflows and scrolls above « ← Retour », never under it
-    helpers.assert_quick_menu_footer_clear(c, qm)
     before = len(helpers.host_events(atlas, "input"))
     helpers.quick_menu_click(c, "Alt+Entrée", qm)
     c.wait_for(lambda s: not s.get("quickMenu"), 10)
@@ -93,7 +91,7 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     # In-game menu › Quitter la session › confirm: the app quits on the host
     qm = helpers.open_quick_menu(c)
     helpers.quick_menu_click(c, "Quitter la session", qm)
-    helpers.wait_any_text(c, ["Tu veux vraiment quitter ?"])
+    helpers.wait_any_text(c, [helpers.QUIT_CONFIRM])
     bench.shot("06-confirm-quit", window=qm)
     helpers.quick_menu_click(c, "Quitter la session", qm)
     # The client must stay alive all along: an exit or a crash is a failure with its exit code, never a pass

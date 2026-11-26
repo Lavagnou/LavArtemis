@@ -107,12 +107,27 @@ Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce q
   n'est jamais tué et fait aussi échouer. Le client meurt pendant le
   scénario : échec, avec son code de sortie. Deux clients à la fois : refusé au lancement.
 
+## Captures hors écran (`shots`)
+
+`python tools\testbench\testbench.py shots <dossier> [--screens home,home-join,home-session,options,details,library,ingame,hosts,settings]
+[--themes …] [--inputs mouse,keys] [--covers <dossier>] [--keep] [--no-build]` : le client de test sur la plateforme Qt
+`offscreen` (rien à l'écran, marche écran éteint), PNG 1600 × 900 par écran × thème × clair / sombre × entrée, à comparer
+aux rendus du prototype. **Jamais une porte de release.** Les effets (`MultiEffect` : flou, masques, lueurs) ne sont pas
+dessinés par le rendu logiciel. `ingame` capture la fenêtre transparente du menu en jeu posée sur un fond (l'image du
+faux PC est une mire).
+
+`--covers <dossier>` : les faux PC prennent **les données du prototype** au lieu des fixtures (PC, jeux, heures, dernière
+partie, installé, jeu masqué, session « depuis 42 min » de Playnite Fullscreen + un jeu), décrites par
+`<dossier>/shots-data.json` (format : `covers_fixtures()` de `shots.py`), avec les images de ce dossier comme jaquettes,
+fonds et images d'applis. Ce sont de vraies images de jeux : **le dossier et son fichier restent hors git** ; rien n'en est
+écrit ailleurs que dans le dossier de travail des captures.
+
 ## Scénarios (`scenarios/`)
 
 | # | Fichier | Vérifie |
 |---|---|---|
 | 1 | `test_01_pairing.py` | ajout par adresse + PIN lu à l'écran donné à l'hôte ; lien `art://…&passphrase=` (OTP) sans PIN ; aucun secret d'appairage (sel, hash OTP, défis, phrase de passe) dans le journal du client |
-| 2 | `test_02_home.py` | cartes Bureau puis Playnite Fullscreen, jaquettes, ordre de `library.json`, Masquer / réafficher |
+| 2 | `test_02_home.py` | (V8) cartes Bureau puis Playnite Fullscreen, jaquettes des « Récents » dans l'ordre de `library.json` (reconnues à leur couleur : plus de nom sous les jaquettes), « Masquer » par les options d'une jaquette, retour par le filtre « Masqués · 1 » de la bibliothèque et « Ne plus masquer » ; **jamais exécuté** depuis le portage V8 |
 | 3 | `test_03_hosts.py` | Mes PC : PC éteint, version de LavApollo trop ancienne (ouvrir et benchmark refusés), renommer, oublier |
 | 4 | `test_04_settings.py` | chaque page des Réglages en normal et en expert, une écriture relue après redémarrage |
 | 5 | `test_05_stream.py` | stream de Bureau : taille négociée (règle « résolution calée » appliquée à l'écran annoncé par le faux PC, `display` de `pc.json`, défaut 1920×1080 à 60 Hz), images décodées et numérotées, touches du menu en jeu, micro, quitter |
@@ -127,10 +142,14 @@ Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce q
 | 13 | `test_13_cli.py` | ligne de commande et liens : `stream <PC> Bureau`, `quit <PC>` (le processus finit seul, code 0 : `bench.expect_client_exit()`), appli introuvable (message en français) ; jeu Playnite pendant que Playnite tourne → lancé dans Playnite (`resume` + `playnite_launch`), sans question ; fichier `.art` valide → stream ; `.art` mal formé et lien sans appli → accueil + message en français |
 | 14 | `test_14_gamepad.py` | manette inconnue (canal `joystick` : joystick HID générique hors stream) : « Disposition devinée » dans le mapper, encore après « Actualiser », avertissement à chaque lancement (`session.launchWarnings`) ; « Deviner la disposition » coupé → « Non reconnue » et « pas de disposition » au lancement, sans redémarrage ; remis → devinée de nouveau ; mapping enregistré dans le mapper avec la devinette coupée → « Reconnue » tout de suite, aucun avertissement |
 | 15 | `test_15_host_data.py` | données de l'hôte pour le prototype (vague 5) : par jeu installé ou non, heures jouées, dernière activité, image de fond (canal `appasset` : 960 × 540 servie, 404 pour un jeu sans fond, jaquette intacte), ordre de la bibliothèque sur la dernière activité ; par PC type (`form_factor`) et liaison (`link`) de `pc.json`, latence mesurée (≥ 1 ms), début de la session et du jeu lancé dans Playnite (`state.json` écrit par le banc) ; **« Récents »** : un jeu joué pendant que Playnite Fullscreen tourne sur le PC (client déconnecté) passe en tête sans attendre la fin de la session |
+| 16 | `test_16_port_v8_home.py` | (V8, **jamais exécuté**) accueil : grille de focus au clavier, barre d'aide, Menu / Entrée maintenue = options, Q / E = PC précédent / suivant, toast Multi-écran, Bureau repris après « Déconnecter » |
+| 17 | `test_17_port_v8_more.py` | (V8, **jamais exécuté**) « Rejoindre » quand un autre appareil streame (`hosts.set_session`), menu en jeu en tuiles (tuiles, « Micro non envoyé », Plus, Zoom 100 % ↔ 200 %, Reprendre), carte de Mes PC « Tour · réseau filaire », Réglages : « N réglages avancés masqués », « ● », EXPERT |
 
 Les requêtes `launch` / `resume` / `cancel` reçues par un faux PC sont dans son `events.jsonl` (`request`, avec leurs
-paramètres) ; `hosts.set_display`, `fail_next` (`launch`, `resume`, `cancel`, `cancel_error`, `clipboard`), `terminate`, `clipboard`
-pilotent ses routes `/api/test/*` (LavApollo, mode hôte de test, 127.0.0.1 seulement).
+paramètres) ; `hosts.set_display`, `fail_next` (`launch`, `resume`, `cancel`, `cancel_error`, `clipboard`), `terminate`, `clipboard`,
+`set_session` (autres appareils qui streament : `OtherClientsConnected` ; appli lancée « plus tôt » : `CurrentGameElapsed`)
+pilotent ses routes `/api/test/*` (LavApollo, mode hôte de test, 127.0.0.1 seulement) ; `hosts.set_playnite_game` écrit le
+`state.json` de son Playnite (un jeu en cours depuis N secondes).
 
 `bench.start_client(env={...})` / `restart_client(env=...)` ajoutent des variables à l'environnement du client de test
 (rien d'autre ne les lit) : **`LAV_TEST_TOUCHSCREEN=1`** = un écran tactile simulé (lignes tactiles des Réglages, entrée

@@ -11,9 +11,21 @@ Captures land in <out>/<screen>/<theme>-<clair|sombre>-<input>.png, the prototyp
 (`v8-shots/<planche>/<thème>-<clair|sombre>-<entrée>.png`).
 
     python tools/testbench/testbench.py shots <out folder> [--screens home,hosts,...] [--themes braise,...]
+        [--covers <folder>]
+
+`--covers <folder>`: the fake PCs take the prototype's data instead of the bench's fixtures, to compare like with
+like: the PCs, games, hours, last plays, installed state, hidden game and running session that
+`<folder>/shots-data.json` describes (format: `covers_fixtures()`), with the images of that folder as covers,
+backgrounds and app covers.  Those are real game art: the folder and its data file stay out of git, and nothing of
+them is written anywhere but the shots' work dir.  The first PC's session (« depuis 42 min ») is started by the
+client, then left running: every screen shows it, as the prototype does.
 """
+import datetime
+import json
+import uuid
 import os
 import pathlib
+import shutil
 import sys
 import time
 
@@ -101,12 +113,28 @@ def shot_home(sh, ctx):
     sh.themed("home")
 
 
+@screen("home-join")
+def shot_home_join(sh, ctx):
+    """V8-03: another device streams from the PC (serverinfo OtherClientsConnected): « Rejoindre »."""
+    import helpers
+    host = ctx["hosts"][0]
+    hosts.set_session(host, 1, 60 * _session_minutes(ctx))
+    try:
+        helpers.go_home(sh.c)
+        helpers.wait_text(sh.c, "Rejoindre", contains=True, timeout=15)
+        sh.themed("home-join")
+    finally:
+        hosts.set_session(host, 0, 60 * _session_minutes(ctx))
+
+
 @screen("home-session")
 def shot_home_session(sh, ctx):
     """The home with a session running on the PC: Bureau launched, then « Déconnecter » (Ctrl+Alt+Shift+Q), the
     app keeps running on the fake PC.  The stream itself is a real SDL window of the test client (non-activating,
     as in `run`)."""
     import helpers
+    if ctx.get("data"):
+        return  # --covers: every screen already has the prototype's session
     helpers.go_home(sh.c)
     try:
         helpers.launch(sh.c, ctx.get("launch", "Bureau"), timeout=40)
@@ -132,10 +160,14 @@ def shot_library(sh, ctx):
 
 @screen("details")
 def shot_details(sh, ctx):
-    """Details of the first recent game: its options (keyboard: Menu), « Afficher les détails »."""
+    """Details of a recent game: its options (keyboard: Menu), « Afficher les détails ».  --covers: the fifth recent
+    (Split Fiction, the prototype's V8-67), under the Scène of the running session; else the first."""
     import helpers
     helpers.go_home(sh.c)
-    _keys(sh.c, "Up", "Up", "Up", "Down", "Down", "Menu")
+    if ctx.get("data"):
+        _keys(sh.c, "Up", "Up", "Up", "Up", "Down", "Down", "Down", "Right", "Right", "Right", "Right", "Menu")
+    else:
+        _keys(sh.c, "Up", "Up", "Up", "Down", "Down", "Menu")
     helpers.wait_text(sh.c, "Afficher les détails")
     sh.c.click("Afficher les détails")
     helpers.wait_page(sh.c, "DetailsView")
@@ -154,11 +186,83 @@ def shot_options(sh, ctx):
         if helpers.find(c, "Afficher les détails"):  # the dialog of the previous capture
             c.call("key", key="Escape", target="qt")
             helpers.wait_text(c, "Afficher les détails", gone=True)
-        _keys(c, "Up", "Up", "Up", "Down", "Down", "Menu")
+        # the first recent (--covers: under the Scène of the running session, one row more)
+        down = ["Down"] * (3 if ctx.get("data") else 2)
+        _keys(c, "Up", "Up", "Up", "Up", *down, "Menu")
         helpers.wait_text(c, "Afficher les détails")
     sh.themed("options", prepare=prepare, inputs=["keys"])
     sh.c.call("key", key="Escape", target="qt")
     helpers.wait_text(sh.c, "Afficher les détails", gone=True)
+
+
+def _composite(menu_png, backdrop, out_png):
+    """The in-game menu is a transparent window over the stream: put its capture over a backdrop (the stream
+    capture when there is one, else the session game's background, else a dark grey), at the prototype's size."""
+    from PIL import Image
+    menu = Image.open(menu_png).convert("RGBA")
+    size = (1600, 900)
+    base = None
+    if backdrop and pathlib.Path(backdrop).exists():
+        try:
+            base = Image.open(backdrop).convert("RGBA")
+            # cover crop, as the prototype's object-fit: cover
+            r = max(size[0] / base.width, size[1] / base.height)
+            base = base.resize((round(base.width * r), round(base.height * r)))
+            left, top = (base.width - size[0]) // 2, (base.height - size[1]) // 2
+            base = base.crop((left, top, left + size[0], top + size[1]))
+        except OSError:
+            base = None
+    if base is None:
+        base = Image.new("RGBA", size, (40, 40, 44, 255))
+    base.alpha_composite(menu.resize(size))
+    base.convert("RGB").save(out_png)
+
+
+@screen("ingame")
+def shot_ingame(sh, ctx):
+    """The in-game menu (V8-26, 28): the session resumed from the home, Ctrl+Alt+Shift+\\, the menu window
+    captured over the session game's background (the stream of the fake PC is a test pattern)."""
+    import helpers
+    data = ctx.get("data") or {}
+    session = ((data.get("pcs") or [{}])[0].get("session") or {})
+    backdrop = None
+    if session.get("game") and data.get("folder"):
+        g = next((g for g in data.get("games", []) if g["name"] == session["game"]), {})
+        if g.get("background") or g.get("cover"):
+            backdrop = pathlib.Path(data["folder"]) / (g.get("background") or g.get("cover"))
+    helpers.go_home(sh.c)
+    resume = "Reprendre" if helpers.find(sh.c, "Reprendre") else None
+    try:
+        if resume:
+            helpers.launch(sh.c, resume, timeout=40)
+        else:
+            helpers.launch(sh.c, ctx.get("launch", "Bureau"), timeout=40)
+    except AssertionError as e:
+        print(f"shots: ingame skipped, no stream ({e})")
+        return
+    try:
+        for theme in sh.themes:
+            for mode_name, mode in MODES:
+                _set(sh.c, "uiTheme", theme)
+                _set(sh.c, "uiThemeMode", mode)
+                for inp in sh.inputs:
+                    idx = helpers.open_quick_menu(sh.c)
+                    if inp == "keys":
+                        sh.c.call("key", key="Right", target="qt", window=idx)
+                        sh.c.call("key", key="Left", target="qt", window=idx)
+                    time.sleep(0.8)
+                    raw = sh.out / "ingame" / f"_menu-{theme}-{mode_name}-{inp}.png"
+                    raw.parent.mkdir(parents=True, exist_ok=True)
+                    sh.c.screenshot(raw, idx)
+                    out = sh.out / "ingame" / f"{theme}-{mode_name}-{inp}.png"
+                    _composite(raw, backdrop, out)
+                    sh.taken.append(out)
+                    sh.c.call("key", key="Escape", target="qt", window=idx)
+                    sh.c.wait_for(lambda s: not s.get("quickMenu"), 10)
+    finally:
+        sh.c.call("key", key="Q", modifiers="Ctrl+Alt+Shift", target="stream")
+        sh.c.wait_for(lambda st: st["page"] == "HomeView" and not st["session"]["active"], 30)
+        time.sleep(2.0)
 
 
 @screen("hosts")
@@ -173,30 +277,160 @@ def shot_hosts(sh, ctx):
 def shot_settings(sh, ctx):
     import helpers
     helpers.open_settings(sh.c)
+    helpers.open_settings_page(sh.c, "Vidéo")  # the prototype's V8-48
     sh.themed("settings")
     helpers.go_home(sh.c)
 
 
-def run(out, screens=None, themes=THEMES, inputs=("mouse",), fixtures=("atlas-test",), keep=False, build=True):
+# Same game ids as gen_fixtures.py (LavApollo Link's are GUIDs)
+_NS = uuid.UUID("5d0c1c00-0000-4000-8000-000000000000")
+
+
+def _gid(name):
+    return str(uuid.uuid5(_NS, name)).upper()
+
+
+def _png(src, dst):
+    """LavApollo serves an app's image-path only as PNG."""
+    from PIL import Image
+    Image.open(src).convert("RGB").save(dst, "PNG")
+    return dst
+
+
+def covers_fixtures(folder, wd):
+    """Fixture folders (absolute paths: hosts.up() takes them as fixture names) built in the work dir from
+    <folder>/shots-data.json:
+        {"pcs": [{"name", "form_factor", "link", "games": bool, "offline": bool,
+                  "session": {"app", "game", "minutes"}}],
+         "hidden": [game names],
+         "games": [{"name", "hours", "installed", "days_ago" (null = never played), "cover", "background"}],
+         "app_covers": {"Bureau": file, "Playnite Fullscreen": file}}
+    Image names are files of <folder>.  Returns (fixture paths, data)."""
+    folder = pathlib.Path(folder).resolve()
+    data = json.loads((folder / "shots-data.json").read_text(encoding="utf-8"))
+    data["folder"] = str(folder)
+    root = wd / "covers-fixtures"
+    shutil.rmtree(root, ignore_errors=True)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    games = []
+    for g in data.get("games", []):
+        e = {"id": _gid(g["name"]), "name": g["name"], "source": "Steam", "platform": "PC (Windows)",
+             "favorite": False, "playtime": int(g.get("hours", 0) * 3600), "installed": bool(g.get("installed", True)),
+             "lastActivity": None if g.get("days_ago") is None else
+             (now - datetime.timedelta(days=g["days_ago"], minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        if g.get("cover"):
+            # LavApollo Link writes PNG covers: converted, in the work dir
+            imgs = root / "img"
+            imgs.mkdir(parents=True, exist_ok=True)
+            e["cover"] = e["id"] + ".png"
+            e["coverFrom"] = str(_png(folder / g["cover"], imgs / e["cover"]))
+        if g.get("background"):
+            e["background"], e["backgroundFrom"] = e["id"] + ".jpg", str(folder / g["background"])
+        games.append(e)
+    paths = []
+    for i, pc in enumerate(data["pcs"]):
+        d = root / f"pc{i}"
+        (d / "playnite").mkdir(parents=True)
+        conf = {"name": pc["name"], "port": 40989 + 1000 * i, "mac": f"02:00:00:00:a8:0{i + 1}",
+                "playnite_running": bool(pc.get("games")), "form_factor": pc.get("form_factor"),
+                "link": pc.get("link")}
+        if pc.get("offline"):
+            conf["instance"] = False
+        (d / "pc.json").write_text(json.dumps({k: v for k, v in conf.items() if v is not None}), encoding="utf-8")
+        apps = [{"name": "Bureau", "cmd": ""}]
+        if pc.get("games"):
+            apps.append({"name": "Playnite Fullscreen", "cmd": "Playnite.FullscreenApp.exe --hidesplashscreen"})
+        for k, a in enumerate(apps):
+            art = data.get("app_covers", {}).get(a["name"])
+            if art:
+                a["image-path"] = _png(folder / art, d / f"app{k}.png").as_posix()
+        (d / "apps.json").write_text(json.dumps({"env": {}, "apps": apps}, indent=2), encoding="utf-8")
+        lib = {"version": 1, "exportedAt": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "games": games if pc.get("games") else []}
+        (d / "playnite" / "library.json").write_text(json.dumps(lib, ensure_ascii=False, indent=2), encoding="utf-8")
+        paths.append(str(d))
+    return paths, data
+
+
+def start_covers_session(c, host, session):
+    """The prototype's running session on the shown PC: its app launched by the client (a real stream), the
+    Playnite game written in the fake state.json, both started `minutes` ago, then « Déconnecter »: the app keeps
+    running on the PC."""
+    import helpers
+    helpers.go_home(c)
+    helpers.launch(c, session["app"], timeout=40)
+    if session.get("game"):
+        hosts.set_playnite_game(host, _gid(session["game"]), session["game"], 60 * session.get("minutes", 0))
+    hosts.set_session(host, 0, 60 * session.get("minutes", 0))
+    c.call("key", key="Q", modifiers="Ctrl+Alt+Shift", target="stream")
+    c.wait_for(lambda st: st["page"] == "HomeView" and not st["session"]["active"], 30)
+    time.sleep(3.0)  # the next poll says the app still runs
+
+
+def hide_games(c, names):
+    """Hide games as the user would: their options in the library, « Masquer »."""
+    import helpers
+    for name, index in names:
+        helpers.go_home(c)
+        c.click("Tout voir →", index=-1)
+        helpers.wait_page(c, "LibraryView")
+        time.sleep(1.0)
+        try:
+            # covers show their image, not their name: reach the game with the keys (Braise: 6 columns)
+            _keys(c, *(["Down"] * (index // 6) + ["Right"] * (index % 6) + ["Menu"]))
+            helpers.wait_text(c, "Masquer")
+            c.click("Masquer")
+            time.sleep(0.5)
+        except Exception as e:  # noqa: BLE001 - a capture without the hidden game is still useful
+            print(f"shots: could not hide {name} ({e})")
+    helpers.go_home(c)
+
+
+def _session_minutes(ctx):
+    data = ctx.get("data") or {}
+    return ((data.get("pcs") or [{}])[0].get("session") or {}).get("minutes", 0)
+
+
+def run(out, screens=None, themes=THEMES, inputs=("mouse",), fixtures=("atlas-test",), keep=False, build=True,
+        covers=None):
     import helpers
     wd = workdir()
     out = pathlib.Path(out).resolve()
     out.mkdir(parents=True, exist_ok=True)
-    started = hosts.up(list(fixtures), wd)
+    data = None
+    offline = ()
+    if covers:
+        wd.mkdir(parents=True, exist_ok=True)
+        fixtures, data = covers_fixtures(covers, wd)
+        offline = tuple(f for f, pc in zip(fixtures, data["pcs"]) if pc.get("offline"))
+    started = hosts.up(list(fixtures), wd, force_instances=offline)
     c = None
     try:
         env = dict(OFFSCREEN_ENV, QT_QPA_PLATFORM_PLUGIN_PATH=str(qt_platforms_dir()))
         c = clientmod.Client.start(wd, reset=True, build=build, env=env)
         c.wait_idle(timeout=30)
-        for h in started:
+        # The first PC last: the home shows the PC paired last
+        for h in reversed(started):
             if h.pid:
                 helpers.add_and_pair(c, h)
+        for h in started:
+            if h.fixture in offline:
+                hosts.stop(h, wd)
         helpers.go_home(c)
         if started:
             helpers.wait_apps(c, started[0].name)
         time.sleep(4.0)  # covers are fetched from the host, then fade in
         sh = Shooter(c, out, themes, inputs)
-        ctx = {"hosts": started}
+        ctx = {"hosts": started, "data": data}
+        if data:
+            if data.get("hidden"):
+                # position in the library's « Tous » (most recently played first, never played last)
+                order = sorted(data["games"], key=lambda g: (g.get("days_ago") is None, g.get("days_ago") or 0))
+                names = [g["name"] for g in order]
+                _set(c, "uiTheme", "braise")
+                hide_games(c, [(n, names.index(n)) for n in data["hidden"] if n in names])
+            if data["pcs"][0].get("session"):
+                start_covers_session(c, started[0], data["pcs"][0]["session"])
         for name in (screens or list(SCREENS)):
             SCREENS[name](sh, ctx)
         print(f"shots: {len(sh.taken)} captures in {out}")

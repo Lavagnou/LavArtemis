@@ -177,7 +177,7 @@ def test_menu_keeps_its_pc_while_the_list_moves(bench):
 
 
 def test_pairing_errors_and_one_pairing_at_a_time(bench):
-    """A wrong PIN: « Le code entré sur Test-Atlas n'est pas le bon… ».  « C'est fait » only closes the dialog: the
+    """A wrong PIN: « Le code entré sur Test-Atlas n'est pas le bon… ».  « Annuler » (« C'est fait » before the V8 port) only closes the dialog: the
     pairing goes on, and asking again shows the same dialog and code (one pairing at a time).  The PC stops during
     the pairing: a French message that names it, never the host's XML nor an English exception."""
     atlas, = bench.up("atlas-test")
@@ -191,13 +191,13 @@ def test_pairing_errors_and_one_pairing_at_a_time(bench):
     assert text == f"Le code entré sur {atlas.name} n'est pas le bon. Recommence : un nouveau code s'affichera.", text
     _close_error(c)
 
-    # Pair again from « Ajouter un PC »: a new code; « C'est fait » closes the dialog, the pairing goes on
+    # Pair again from « Ajouter un PC »: a new code; « Annuler » closes the dialog, the pairing goes on
     helpers.click(c, "Ajouter un PC", index=0)
     helpers.wait_text(c, f"{atlas.name} · 127.0.0.1:40989")
     time.sleep(0.4)  # the menu's opening animation
     helpers.click(c, f"{atlas.name} · 127.0.0.1:40989")
     pin2 = helpers.read_pin(c, atlas.name)
-    helpers.click(c, "C'est fait : le code est entré")
+    helpers.click(c, "Annuler")  # V8: the pairing dialog's only entry, closes it
     deadline = time.time() + 5
     while any("ce code :" in t for t in helpers.texts(c)):
         assert time.time() < deadline, "the pairing dialog did not close"

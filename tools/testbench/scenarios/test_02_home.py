@@ -1,6 +1,10 @@
-"""Scenario 2: the home of a paired PC: cards « Bureau » then « Playnite Fullscreen », the Playnite library with
-its covers in the host's order (library.json: most recently played first), « Masquer » a game, then show it again
-from the library."""
+"""Scenario 2: the home of a paired PC (prototype V8): cards « Bureau » then « Playnite Fullscreen », the « Récents »
+covers in the host's order (library.json: most recently played first), « Masquer » a game from its options, then
+unhide it from the library's « Masqués · N » filter.
+
+The V8 home has no names under the covers and no « Afficher le jeu masqué » button: hidden games come back only in
+the library (prototype `filters()`: « Masqués · N » after Tous / Récents / Installés).  Written for the V8 port,
+never run yet (port-notes.md)."""
 import json
 import time
 
@@ -15,14 +19,42 @@ def library_order(host):
     return [g["name"] for g in lib["games"]]
 
 
-tiles = helpers.tiles
-tile_names = helpers.tile_names
+def cover_tiles(c, page_items=None):
+    """The cover tiles of the screen (home « Récents » or the library grid): HomeTile items taller than wide,
+    « Tout voir » left out."""
+    items = page_items or c.tree()
+    tout_voir = [i for i in items if i.get("text") == "Tout voir"]
+    out = []
+    for t in items:
+        if t["type"] != "HomeTile" or t["h"] < t["w"] * 1.2:
+            continue
+        if any(t["x"] <= tv["x"] < t["x"] + t["w"] and t["y"] <= tv["y"] < t["y"] + t["h"] for tv in tout_voir):
+            continue
+        out.append(t)
+    return sorted(out, key=helpers.reading_order)
 
 
-def test_home_cards_library_and_hide(bench):
-    """Bureau and Playnite Fullscreen cards (in that order); the 4 library games each show their cover; the library
-    keeps library.json's order; « Masquer » takes a game out of the library and « Afficher le jeu masqué » shows it
-    again, where its menu unhides it."""
+def names_of(c, shot, names):
+    """(name, colour distance, tile) of each cover tile, by its generated colour (covers.py)."""
+    import covers
+    from PIL import Image
+    expected = {n: covers._colour(n) for n in names}
+    out = []
+    with Image.open(shot["path"]) as img:
+        img = img.convert("RGB")
+        for t in cover_tiles(c):
+            x = int((t["x"] + t["w"] / 2) * shot["dpr"])
+            y = int((t["y"] + t["h"] * 0.15) * shot["dpr"])
+            rgb = img.getpixel((x, y))
+            best = min(expected, key=lambda n: sum((a - e) ** 2 for a, e in zip(rgb, expected[n])))
+            out.append((best, round(sum((a - e) ** 2 for a, e in zip(rgb, expected[best])) ** 0.5), t))
+    return out
+
+
+def test_home_cards_recents_and_hide(bench):
+    """Bureau then Playnite Fullscreen on one row; the 4 games in « Récents », each with its cover, in library.json's
+    order; « Masquer » (options of a cover) takes the game out of Récents and adds « Masqués · 1 » to the library,
+    where its options say « Ne plus masquer »."""
     atlas, = bench.up("atlas-test")
     c = bench.start_client()
     helpers.add_and_pair(c, atlas)
@@ -30,65 +62,51 @@ def test_home_cards_library_and_hide(bench):
     helpers.wait_page(c, "HomeView")
     names = library_order(atlas)
     deadline = time.time() + 20
-    while len(tiles(c)) < len(names) and time.time() < deadline:
+    while len(cover_tiles(c)) < len(names) and time.time() < deadline:
         time.sleep(0.3)
 
-    # Cards: Bureau first, then Playnite Fullscreen, on the same row
     bureau = helpers.wait_text(c, "Bureau")[0]
     playnite = helpers.wait_text(c, "Playnite Fullscreen")[0]
     assert bureau["x"] < playnite["x"] and abs(bureau["y"] - playnite["y"]) < 5
-    helpers.wait_text(c, "Bibliothèque Playnite")
     time.sleep(1.0)  # covers fetched from the host fade in
     shot = bench.shot("01-home")
-    found = tile_names(c, shot["path"], names, shot["dpr"])
+    found = names_of(c, shot, names)
     seen = [n for n, _d, _t in found]
-    bench.note(f"tiles: {[(n, d) for n, d, _t in found]}")
+    bench.note(f"récents: {[(n, d) for n, d, _t in found]}")
     assert len(found) == len(names), f"{len(found)} cover tiles for {len(names)} games"
     assert all(d < 40 for _n, d, _t in found), f"a tile does not show its cover: {found}"
-    assert sorted(seen) == sorted(names), f"tiles {seen} != games {names}"
-    bench.note(f"library order on screen {seen}, library.json {names}")
-    assert seen == names, f"the library must keep the host's order (most recently played first): {seen} != {names}"
+    assert seen == names, f"Récents must keep the host's order (most recently played first): {seen} != {names}"
 
-    # « Masquer » from the game's menu (right click on its cover)
+    # « Masquer » from the game's options (right click on its cover: the popover)
     tile = next(t for n, _d, t in found if n == GAME)
-    c.call("click", x=tile["x"] + tile["w"] // 2, y=tile["y"] + tile["h"] // 2, button="right")
+    helpers.click_item(c, tile, "right")
     helpers.wait_text(c, "Masquer")
-    bench.shot("02-menu")
-    # « Créer un raccourci .art » is in this menu too: never clicked (it opens a native file dialog, which activates)
+    bench.shot("02-options")
     c.click("Masquer")
-    helpers.wait_text(c, "Afficher le jeu masqué")
-    bench.shot("03-just-hidden")
-    # Hidden games show only on demand: toggle the hidden games on and off, the library no longer has it
-    c.click("Afficher le jeu masqué")
-    helpers.wait_text(c, "Cacher les jeux masqués")
-    c.click("Cacher les jeux masqués")
-    helpers.wait_text(c, "Afficher le jeu masqué")
-    time.sleep(0.5)
-    shot = bench.shot("04-hidden")
-    after = [n for n, _d, _t in tile_names(c, shot["path"], names, shot["dpr"])]
+    helpers.wait_text(c, "Masquer", gone=True)
+    time.sleep(0.8)
+    shot = bench.shot("03-hidden")
+    after = [n for n, _d, _t in names_of(c, shot, names)]
     assert len(after) == len(names) - 1 and GAME not in after, f"after Masquer: {after}"
 
-    # The library shows it again on demand; its menu unhides it
-    c.click("Afficher le jeu masqué")
-    helpers.wait_text(c, "Cacher les jeux masqués")
-    time.sleep(0.5)
-    shot = bench.shot("05-shown-again")
-    again = tile_names(c, shot["path"], names, shot["dpr"])
-    assert len(again) == len(names), f"hidden game not shown again: {[n for n, _d, _t in again]}"
-    # faded (opacity 0.45): its colour is far from the cover's, the others are not
-    tile = next(t for n, d, t in again if d > 40) if any(d > 40 for _n, d, _t in again) else None
-    assert tile is not None, f"the hidden game should be shown faded: {[(n, d) for n, d, _t in again]}"
-    c.call("click", x=tile["x"] + tile["w"] // 2, y=tile["y"] + tile["h"] // 2, button="right")
-    helpers.wait_text(c, GAME)
-    bench.shot("06-hidden-menu")
-    assert helpers.find(c, "Ne plus masquer"), f"no unhide entry in the hidden game's menu: {helpers.texts(c)}"
+    # The library: « Masqués · 1 », the game there, « Ne plus masquer » in its options
+    c.click("Tout voir →", index=-1)
+    helpers.wait_page(c, "LibraryView")
+    helpers.wait_text(c, "Masqués · 1")
+    c.click("Masqués · 1")
+    time.sleep(0.8)
+    tiles = cover_tiles(c)
+    assert len(tiles) == 1, f"the Masqués filter should hold the hidden game only: {len(tiles)} tiles"
+    helpers.click_item(c, tiles[0], "right")
+    helpers.wait_text(c, "Ne plus masquer")
+    bench.shot("04-hidden-options")
     assert not helpers.find(c, "Masquer")
     c.click("Ne plus masquer")
-    helpers.wait_text(c, "Afficher le jeu masqué", gone=True)
-    helpers.wait_text(c, "Cacher les jeux masqués", gone=True)
-    shot = bench.shot("07-unhidden")
-    final = tile_names(c, shot["path"], names, shot["dpr"])
-    assert len(final) == len(names) and all(d < 40 for _n, d, _t in final), f"after unhide: {final}"
-    # Shown again in the host's order, not appended by name
-    again_names = [n for n, _d, _t in final]
-    assert again_names == names, f"after unhide: {again_names} != {names}"
+    helpers.wait_text(c, "Masqués · 1", gone=True)
+
+    # Back home: the game is in Récents again, at its place
+    helpers.go_home(c)
+    time.sleep(0.8)
+    shot = bench.shot("05-unhidden")
+    final = [n for n, _d, _t in names_of(c, shot, names)]
+    assert final == names, f"after unhide: {final} != {names}"
