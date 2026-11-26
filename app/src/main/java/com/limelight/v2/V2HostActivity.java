@@ -356,16 +356,55 @@ public abstract class V2HostActivity extends V2Activity {
         SessionChoice sc = SessionChoice.of(m, app);
         if (sc.running) {
             NvApp running = m.runningApp();
+            prepareSegue(app, c, m, PendingSegue.Mode.RESUME);
             ServerHelper.doStart(this, running != null ? running : app, c, managerBinder, prefs.useVirtualDisplay);
         } else if (sc.inPlaynite) {
+            prepareSegue(app, c, m, PendingSegue.Mode.INSIDE);
             ServerHelper.doStart(this, app, c, managerBinder, prefs.useVirtualDisplay);
         } else {
-            startWithDisplayGate(app, c, prefs);
+            startWithDisplayGate(app, c, prefs, PendingSegue.Mode.START);
         }
     }
 
+    /**
+     * The segue Game shows while it connects (prototype goSegue): « Lancement sur {PC}… » with what
+     * starts, or « Reprise sur {PC}… » / « Connexion à la session de {PC}… » with what runs, then the
+     * prototype's toast once the stream shows.
+     */
+    private void prepareSegue(NvApp app, ComputerDetails c, HomeModel m, PendingSegue.Mode mode) {
+        boolean other = otherDeviceConnected(c);
+        NvApp shown = app;
+        if (mode == PendingSegue.Mode.RESUME && m != null) {
+            shown = m.backdropApp() != null ? m.backdropApp() : (m.runningApp() != null ? m.runningApp() : app);
+        }
+        PendingSegue s = new PendingSegue();
+        V2Sheet.Spec head = m != null ? targetSpec(shown, m, c) : null;
+        s.title = head != null ? head.title : labelOf(app);
+        s.cover = head != null ? head.cover : null;
+        s.background = shown != null && covers != null ? covers.peekBackground(shown) : null;
+        s.blur = s.background == null;
+        s.line = getString(PendingSegue.lineRes(mode, other), c.name);
+        switch (mode) {
+            case INSIDE:
+                s.toast = getString(PendingSegue.toastRes(mode, other), labelOf(app));
+                break;
+            case RELAUNCH:
+                s.toast = getString(PendingSegue.toastRes(mode, other), deviceScreen());
+                break;
+            case START:
+                s.toast = getString(PendingSegue.toastRes(mode, other), c.name);
+                break;
+            default:
+                s.toast = getString(PendingSegue.toastRes(mode, other));
+                break;
+        }
+        s.tip = getString(R.string.v2_segue_tip);
+        s.createdAt = android.os.SystemClock.elapsedRealtime();
+        PendingSegue.set(s);
+    }
+
     /** As AppView: a virtual display the PC cannot give yet is confirmed first */
-    private void startWithDisplayGate(NvApp app, ComputerDetails c, PreferenceConfiguration prefs) {
+    private void startWithDisplayGate(NvApp app, ComputerDetails c, PreferenceConfiguration prefs, PendingSegue.Mode mode) {
         if (managerBinder == null) {
             return;
         }
@@ -377,12 +416,14 @@ public abstract class V2HostActivity extends V2Activity {
             spec.note = getString(c.vDisplaySupported ? R.string.v2_vdisplay_not_ready : R.string.v2_vdisplay_not_supported);
             spec.option(getString(R.string.v2_launch_anyway), true, true, () -> {
                 if (managerBinder != null) {
+                    prepareSegue(app, c, currentModel(), mode);
                     ServerHelper.doStart(this, app, c, managerBinder, true);
                 }
             });
             spec.option(getString(R.string.v2_cancel), false, false, null);
             V2Sheet.show(this, theme, spec);
         } else {
+            prepareSegue(app, c, currentModel(), mode);
             ServerHelper.doStart(this, app, c, managerBinder, prefs.useVirtualDisplay);
         }
     }
@@ -429,7 +470,7 @@ public abstract class V2HostActivity extends V2Activity {
         final NvApp toStart = m.runningApp() != null ? m.runningApp() : app;
         spec.option(getString(R.string.v2_relaunch_go), true, true, () -> doQuit(c, m, () -> runOnUiThread(() -> {
             if (!isFinishing()) {
-                startWithDisplayGate(toStart, c, PreferenceConfiguration.readPreferences(this));
+                startWithDisplayGate(toStart, c, PreferenceConfiguration.readPreferences(this), PendingSegue.Mode.RELAUNCH);
             }
         })));
         spec.option(getString(R.string.v2_cancel), false, false, null);

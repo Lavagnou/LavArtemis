@@ -96,6 +96,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PersistableBundle;
+import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Rational;
@@ -212,6 +213,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     public NvConnection conn;
     private SpinnerDialog spinner;
+    // LavArtemis Dev: the prototype's segue as the connection screen (v2.PendingSegue), instead of the spinner
+    private com.limelight.v2.PendingSegue segue;
+    private View segueView;
     private boolean displayedFailureDialog = false;
     private boolean connecting = false;
     public boolean connected = false;
@@ -436,9 +440,22 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         clipboardManager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
 
-        // Start the spinner
-        spinner = SpinnerDialog.displayDialog(this, getResources().getString(R.string.conn_establishing_title),
-                getResources().getString(R.string.conn_establishing_msg), true);
+        // Start the spinner (Dev: the segue a v2 screen prepared, « Lancement sur ATLAS-PC… »)
+        segue = ThemedDialogs.enabled() ? com.limelight.v2.PendingSegue.take(SystemClock.elapsedRealtime()) : null;
+        if (segue != null) {
+            segueView = new com.limelight.v2.ui.SegueView(this, com.limelight.v2.V2Theme.load(this), segue.line, segue.title,
+                    segue.cover, segue.background, segue.blur, segue.tip);
+            addContentView(segueView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            // Over what onCreate adds after it (the Menu pill, the voice button)
+            getWindow().getDecorView().post(() -> {
+                if (segueView != null) {
+                    segueView.bringToFront();
+                }
+            });
+        } else {
+            spinner = SpinnerDialog.displayDialog(this, getResources().getString(R.string.conn_establishing_title),
+                    getResources().getString(R.string.conn_establishing_msg), true);
+        }
 
 
         Display currentDisplay = null;
@@ -956,6 +973,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 spinner.dismiss();
                 spinner = null;
             }
+            removeSegue();
 
             // If we can't find an AVC decoder, we can't proceed
             Dialog.displayDialog(this, getResources().getString(R.string.conn_error_title),
@@ -3815,7 +3833,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         final int portTestResult = MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER, 443, portFlags);
 
         if (errorCode == 0 && portFlags != 0 && (portTestResult == MoonBridge.ML_TEST_RESULT_INCONCLUSIVE || portTestResult == 0)) {
-            spinner.setMessage(getResources().getString(R.string.unlocking_or_starting));
+            if (spinner != null) {
+                spinner.setMessage(getResources().getString(R.string.unlocking_or_starting));
+            }
             return true;
         }
 
@@ -3826,6 +3846,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     spinner.dismiss();
                     spinner = null;
                 }
+                removeSegue();
 
                 if (benchmarkRun != null && !benchmarkRun.isDone()) {
                     displayedFailureDialog = true;
@@ -4086,6 +4107,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 if (spinner != null) {
                     spinner.dismiss();
                     spinner = null;
+                }
+                if (segueView != null && segue != null) {
+                    // The prototype shows its segue 1.5 s, then the stream and its toast (« Connecté à ATLAS-PC »)
+                    final String toast = segue.toast;
+                    timerHandler.postDelayed(() -> {
+                        removeSegue();
+                        if (!isFinishing() && toast != null && !toast.isEmpty()) {
+                            com.limelight.v2.ui.V2Toast.show(Game.this, com.limelight.v2.V2Theme.load(Game.this), toast);
+                        }
+                    }, com.limelight.v2.PendingSegue.remaining(segue.createdAt, SystemClock.elapsedRealtime()));
                 }
 
                 connected = true;
@@ -4395,8 +4426,23 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     }
 
+    /** Takes the connection segue down (stream up, or a failure that shows its own dialog) */
+    private void removeSegue() {
+        if (segueView != null) {
+            if (segueView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) segueView.getParent()).removeView(segueView);
+            }
+            segueView = null;
+        }
+    }
+
     @Override
     public void onBackPressed() {
+        if (segueView != null && !connected) {
+            // As the cancelable spinner it replaces: Back while connecting leaves
+            finish();
+            return;
+        }
         if (voicePttButton != null && voicePttButton.isMoving()) {
             voicePttButton.endMove();
             return;

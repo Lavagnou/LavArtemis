@@ -696,6 +696,19 @@ public class HomeScreenshotTest {
                 View segue = new com.limelight.v2.ui.SegueView(ctx, theme, ctx.getString(R.string.v2_segue_quit, "ATLAS-PC"),
                         GAMES[0], covers.peek(rdr), covers.peekBackground(rdr), covers.peekBackground(rdr) == null, null);
                 save(draw(segue, 1280, 720), "segue" + suffix);
+
+                // Before the stream (V8-24 launch, V8-71 resume), with the Android tip
+                NvApp split = apps.get(3 + 4);
+                View launch = new com.limelight.v2.ui.SegueView(ctx, theme,
+                        ctx.getString(PendingSegue.lineRes(PendingSegue.Mode.START, false), "ATLAS-PC"), split.getAppName(),
+                        covers.peek(split), covers.peekBackground(split), covers.peekBackground(split) == null,
+                        ctx.getString(R.string.v2_segue_tip));
+                save(draw(launch, 1280, 720), "seguelaunch" + suffix);
+                View resume = new com.limelight.v2.ui.SegueView(ctx, theme,
+                        ctx.getString(PendingSegue.lineRes(PendingSegue.Mode.RESUME, false), "ATLAS-PC"), GAMES[0],
+                        covers.peek(rdr), covers.peekBackground(rdr), covers.peekBackground(rdr) == null,
+                        ctx.getString(R.string.v2_segue_tip));
+                save(draw(resume, 1280, 720), "segueresume" + suffix);
             }
         }
     }
