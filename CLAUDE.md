@@ -264,6 +264,32 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 `PcView.onCreate()` redirige vers `v2.HomeActivity` quand `BuildConfig.LAV_DEV`, **avant**
 `setContentView` ; la stable garde l'ancienne interface, intacte.
 
+> 🧭 **Portage exact du prototype V8 (branche `port-v8`, 2026-11-26, pas encore fusionné)** — notes, écarts et
+> reste : `docs/superpowers/verif-2026-11-25/port-notes.md` (hors git). Fait : fondations, accueil, options, menu en jeu.
+> - **Jetons du prototype** dans `V2Theme` : `warnBg/warnLine`, `popR/popRow/thumbR`, anneau par thème
+>   (`focusGap/focusOuter/focusColor`, Affiche `focusFill` : remplissage jaune + encre ; le contour 4 px n'est que sur
+>   les jaquettes, `V2Frame.setFocusFill(false)`), lueur par thème (`glowColor/glowPeriodMs…` : braise 2,6 s, prune
+>   **violette** 2,4 s, Affiche barre `LiveStyle.BAR` / bloc décalé 1,6 s), couleurs littérales `V2Theme.Lit`.
+>   Le desktop ne les a pas encore tous : liste dans port-notes.
+> - **Entrée** (`V2Activity`) : A maintenu **500 ms** sur un élément à appui long (`isHoldable`), A **à l'appui**
+>   ailleurs, Start = retour, D-pad sur la **grille du prototype** (`FocusGrid`, `focusRows()`). Toasts : `V2Toast`
+>   (`V2Activity.toast()`), plus de `Toast` système dans les activités v2. Barre d'aide : `ui/HintsBar`.
+> - **Accueil** : `HomeScreen` = une mise en page **par thème** (pièces dans `HomeParts`), tailles par
+>   `HomeLayout` (tablette = scène du prototype ×k ; console / téléphone = planches de densité ; le texte rétrécit
+>   moins que les blocs). Héros Braise = fond du jeu (`CoverSource.loadBackground`, LavApollo) sinon jaquette floutée
+>   (`CoverView.setBlur`). ⚠️ Dans une colonne en `WRAP_CONTENT`, un intercalaire à poids doit être un `Space`, pas
+>   une `View` (une `View` prend toute la hauteur offerte en `AT_MOST`). ⚠️ `HomeParts.cssLine()` reprend la hauteur
+>   de ligne CSS d'un grand titre (Android lui donne ~1,25 em).
+> - **Options** : `V2Sheet` (dialogue centré du prototype) ; listes de `ctxOpts` dans `V2HostActivity.showOptions`,
+>   règle `SessionChoice` (rejoindre / dans Playnite / ferme quelque chose → les options s'ouvrent d'abord). Quitter
+>   et Relancer passent par le même dialogue ; plus de « Oui / Non ».
+> - **Menu en jeu** (Dev) : `V2GameMenu` (tuiles Braise, panneau Affiche, dock Ludique), Reprendre + 9 + « Plus »
+>   construits par `GameMenu.showTileMenu` ; **pastille « Menu »** (`ui/MenuPill`) à la place du bouton flottant,
+>   le bouton vocal reste.
+> - Captures : `HomeScreenshotTest` (1280 × 720 = prototype, 1280 × 800, 915 × 412, 960 × 540, 3 thèmes × clair /
+>   sombre × tactile / manette, hors ligne, options, menu en jeu) ; tests `FocusGridTest`, `HomeLayoutTest`,
+>   `SessionChoiceTest`.
+
 - `V2Theme` : jetons **copiés de `desktop/app/gui/v2/Theme.qml`** (couleurs, rayons, bordures, poids,
   `dim()`) — les changer des deux côtés. Prefs par défaut `v2_theme` / `v2_theme_mode` (0 Système, qui
   suit le mode nuit à chaud via `onConfigurationChanged`, 1 Clair, 2 Sombre). Polices OFL variables dans

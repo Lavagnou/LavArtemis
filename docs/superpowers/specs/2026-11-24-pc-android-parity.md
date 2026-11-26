@@ -298,6 +298,20 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
   prédictif » ; en anglais « default pacing »…), les modes communs (V-Sync, VRR) l'étaient déjà
   (`Benchmark::pacingLabel`, `qml_fr.ts`, test `tests/benchmark`).
 
+## 3 nonies. Portage exact du prototype V8, nuit du 26 (branche `port-v8` des deux dépôts, non fusionnée)
+
+Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails et reste : `port-notes.md`.
+- **Communs** : entrée manette (Y = options, LB / RB, Start = retour, A maintenu 500 ms = options, grille de focus du
+  prototype) ; toast en haut 2,4 s au style du thème ; barre d'aide manette / clavier ; accueil par thème (héros
+  Braise, Scène Reprendre / Quitter + ligne « via », 6 récents + tuile « Tout voir » + lien, légende « {jeu} · {N} h
+  jouées », cartes d'état hors ligne / recherche / chargement / premier lancement) ; options du prototype (« Jouer »
+  pour un jeu, « Lancer » pour une appli, « Fermer X et lancer », « Fermer X et jouer dans Playnite », Reprendre,
+  Relancer la session, Quitter, Masquer, Annuler) dans un dialogue centré, avertissement de fermeture au lieu de
+  « %1 est en cours. Le quitter pour lancer %2 ? ».
+- **Écarts de la nuit** : Android n'a pas « Afficher les détails » (écran de détails pas porté) ; le desktop n'a pas
+  le « Créer un raccourci sur le bureau (.art) » côté Android (PC seulement, voulu). Android a le menu en jeu en
+  tuiles (Reprendre + 9 + Plus) et la pastille « Menu » ; le desktop garde `QuickMenu` pour l'instant.
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)
