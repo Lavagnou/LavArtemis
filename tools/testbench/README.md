@@ -109,12 +109,12 @@ Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce q
 
 ## Captures hors écran (`shots`)
 
-`python tools\testbench\testbench.py shots <dossier> [--screens home,home-join,home-session,options,details,library,ingame,hosts,settings]
+`python tools\testbench\testbench.py shots <dossier> [--screens home,home-join,home-session,options,details,library,segue,ingame,hosts,settings,bench,bench-results,mapper,update]
 [--themes …] [--inputs mouse,keys] [--covers <dossier>] [--keep] [--no-build]` : le client de test sur la plateforme Qt
 `offscreen` (rien à l'écran, marche écran éteint), PNG 1600 × 900 par écran × thème × clair / sombre × entrée, à comparer
 aux rendus du prototype. **Jamais une porte de release.** Les effets (`MultiEffect` : flou, masques, lueurs) ne sont pas
 dessinés par le rendu logiciel. `ingame` capture la fenêtre transparente du menu en jeu posée sur un fond (l'image du
-faux PC est une mire).
+faux PC est une mire). `segue` lance « Reprendre » (ou la première carte) une fois par thème × mode et capture l'écran de connexion avant que le stream s'ouvre. `bench-results` lance un benchmark Rapide raccourci (`LAV_TEST_BENCHMARK`) : il ferme ce qui tourne sur le faux PC, à placer après les écrans qui ont besoin de la session. `mapper` branche le joystick virtuel du client de test. `update` trouve une version (`LAV_TEST_UPDATE`) et garde « Mise à jour » dans l'en-tête : à placer en dernier.
 
 `--covers <dossier>` : les faux PC prennent **les données du prototype** au lieu des fixtures (PC, jeux, heures, dernière
 partie, installé, jeu masqué, session « depuis 42 min » de Playnite Fullscreen + un jeu), décrites par
@@ -144,6 +144,7 @@ fonds et images d'applis. Ce sont de vraies images de jeux : **le dossier et son
 | 15 | `test_15_host_data.py` | données de l'hôte pour le prototype (vague 5) : par jeu installé ou non, heures jouées, dernière activité, image de fond (canal `appasset` : 960 × 540 servie, 404 pour un jeu sans fond, jaquette intacte), ordre de la bibliothèque sur la dernière activité ; par PC type (`form_factor`) et liaison (`link`) de `pc.json`, latence mesurée (≥ 1 ms), début de la session et du jeu lancé dans Playnite (`state.json` écrit par le banc) ; **« Récents »** : un jeu joué pendant que Playnite Fullscreen tourne sur le PC (client déconnecté) passe en tête sans attendre la fin de la session |
 | 16 | `test_16_port_v8_home.py` | (V8, **jamais exécuté**) accueil : grille de focus au clavier, barre d'aide, Menu / Entrée maintenue = options, Q / E = PC précédent / suivant, toast Multi-écran, Bureau repris après « Déconnecter » |
 | 17 | `test_17_port_v8_more.py` | (V8, **jamais exécuté**) « Rejoindre » quand un autre appareil streame (`hosts.set_session`), menu en jeu en tuiles (tuiles, « Micro non envoyé », Plus, Zoom 100 % ↔ 200 %, Reprendre), carte de Mes PC « Tour · réseau filaire », Réglages : « N réglages avancés masqués », « ● », EXPERT |
+| 18 | `test_18_port_v8_third.py` | (V8, troisième passe, **jamais exécuté**) toasts du stream « Connecté à <PC> » / « Session reprise » et « Déconnecté : la session continue sur le PC » au retour ; statistiques sur une ligne ; Mes PC : PC en ligne d'abord ; dialogue de mise à jour du thème (`LAV_TEST_UPDATE`) |
 
 Les requêtes `launch` / `resume` / `cancel` reçues par un faux PC sont dans son `events.jsonl` (`request`, avec leurs
 paramètres) ; `hosts.set_display`, `fail_next` (`launch`, `resume`, `cancel`, `cancel_error`, `clipboard`), `terminate`, `clipboard`,

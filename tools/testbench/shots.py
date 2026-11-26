@@ -43,6 +43,10 @@ OFFSCREEN_ENV = {
     "QT_SCALE_FACTOR": "1.25",
     # offscreen has no screen of its own: give it the size of a 1600 x 900 desktop at 125 %
     "QT_QPA_OFFSCREEN_SCREEN_SIZE": "1600x900",
+    # the « update » screen: the first « Vérifier » finds the prototype's next version (never the startup check)
+    "LAV_TEST_UPDATE": "available:0.7.0-dev.8:https://github.invalid/LavArtemis-v0.7.0-dev.8-win-installer.exe",
+    # the « bench-results » screen: short runs (warm-up, measure, window in seconds), as scenario 12
+    "LAV_TEST_BENCHMARK": "1,3,1,0",
 }
 
 
@@ -263,6 +267,126 @@ def shot_ingame(sh, ctx):
         sh.c.call("key", key="Q", modifiers="Ctrl+Alt+Shift", target="stream")
         sh.c.wait_for(lambda st: st["page"] == "HomeView" and not st["session"]["active"], 30)
         time.sleep(2.0)
+
+
+@screen("segue")
+def shot_segue(sh, ctx):
+    """The segue while the stream connects (V8-71 « Reprise sur ATLAS-PC… » with --covers, else V8-24
+    « Lancement sur … »): « Reprendre » (or the first card), the capture as soon as the segue page is up, then
+    « Déconnecter ».  One launch per theme x mode: the segue lasts only as long as the connection."""
+    import helpers
+    for theme in sh.themes:
+        for mode_name, mode in MODES:
+            _set(sh.c, "uiTheme", theme)
+            _set(sh.c, "uiThemeMode", mode)
+            helpers.go_home(sh.c)
+            # « Reprendre », « REPRENDRE → » (Affiche), else the first card
+            resume = [t for t in helpers.texts(sh.c) if t.lower().startswith("reprendre")]
+            title = resume[0] if resume else ctx.get("launch", "Bureau")
+            helpers.wait_settled(sh.c, title)
+            sh.c.click(title)
+            deadline = time.time() + 15
+            while sh.c.state()["page"] != "StreamSegue" and time.time() < deadline:
+                time.sleep(0.05)
+            time.sleep(0.4)  # the cover and the background load asynchronously
+            p = sh.out / "segue" / f"{theme}-{mode_name}-mouse.png"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            sh.c.screenshot(p, 0)
+            sh.taken.append(p)
+            try:
+                deadline = time.time() + 40
+                while not sh.c.state()["session"]["streaming"]:
+                    if time.time() > deadline:
+                        raise AssertionError("no stream")
+                    time.sleep(0.3)
+            except AssertionError as e:
+                print(f"shots: segue, no stream ({e})")
+                sh.c.call("key", key="Escape", target="qt")
+                helpers.go_home(sh.c)
+                continue
+            st = sh.c.state()
+            toasts = st.get("session", {}).get("toasts") or st.get("toasts")
+            if toasts:
+                print(f"shots: segue, toasts over the stream: {toasts}")
+            sh.c.call("key", key="Q", modifiers="Ctrl+Alt+Shift", target="stream")
+            sh.c.wait_for(lambda s: s["page"] == "HomeView" and not s["session"]["active"], 30)
+            time.sleep(2.0)
+
+
+def _open_bench(sh, ctx):
+    import helpers
+    if sh.c.state()["page"] == "BenchmarkView":
+        return
+    helpers.open_hosts(sh.c)
+    helpers.host_card_menu(sh.c, ctx["hosts"][0].name)
+    helpers.click(sh.c, "Benchmark des réglages")
+    helpers.wait_page(sh.c, "BenchmarkView")
+    time.sleep(1.0)
+
+
+@screen("bench")
+def shot_bench(sh, ctx):
+    """V8-43: the benchmark's setup page of the first PC (with --covers: an app runs there, the warning shows)."""
+    _open_bench(sh, ctx)
+    sh.themed("bench")
+
+
+@screen("bench-results")
+def shot_bench_results(sh, ctx):
+    """V8-45: a Quick run (shortened by LAV_TEST_BENCHMARK, test build only), then its ranked results.  It quits
+    what runs on the PC: after the screens that need the session."""
+    import helpers
+    _open_bench(sh, ctx)
+    helpers.click(sh.c, "Lancer le benchmark")
+    sh.c.wait_for(lambda s: s["benchmark"]["running"], 20)
+    try:
+        sh.c.wait_for(lambda s: not s["benchmark"]["running"] and s["page"] == "BenchmarkView", 300, interval=1.0)
+    except Exception as e:  # noqa: BLE001 - a capture tool: say it and go on
+        print(f"shots: bench-results, the benchmark did not finish ({e})")
+        return
+    time.sleep(1.5)
+    sh.themed("bench-results")
+    helpers.go_home(sh.c)
+
+
+@screen("mapper")
+def shot_mapper(sh, ctx):
+    """V8-46: Réglages › Manettes › « Assigner les boutons d’une manette », with the test build's virtual joystick
+    (4 axes, 8 buttons, 1 hat: SDL does not know it, LavArtemis guesses its layout); a few controls assigned."""
+    import helpers
+    sh.c.call("joystick", attach=True, kind="generic", axes=4, buttons=8, hats=1)
+    helpers.open_settings(sh.c)
+    helpers.open_settings_page(sh.c, "Manettes")
+    row = helpers.wait_settled(sh.c, "Assigner les boutons d’une manette")
+    ouvrir = [i for i in helpers.find(sh.c, "Ouvrir") if abs(i["y"] - row["y"]) < 60]
+    helpers.click_item(sh.c, ouvrir[0])
+    helpers.wait_page(sh.c, "GamepadMapper")
+    time.sleep(1.0)
+    sh.themed("mapper")
+    helpers.go_home(sh.c)
+
+
+@screen("update")
+def shot_update(sh, ctx):
+    """V8-13: « Vérifier » in Réglages › Avancé finds 0.7.0-dev.8 (LAV_TEST_UPDATE, test build only), then the
+    home's « Mise à jour » opens the theme's dialog.  Last of the screens: the home keeps its « Mise à jour »."""
+    import helpers
+    helpers.open_settings(sh.c)
+    helpers.open_settings_page(sh.c, "Avancé")
+    helpers.click(sh.c, "Vérifier")
+    helpers.wait_text(sh.c, "est disponible", contains=True, timeout=10)
+    helpers.go_home(sh.c)
+
+    def prepare(c, inp):
+        if helpers.find(c, "Ignorer cette version"):  # the dialog of the previous capture
+            c.call("key", key="Escape", target="qt")
+            helpers.wait_text(c, "Ignorer cette version", gone=True)
+        # the header's button: its MouseArea covers its text, click at the text's place
+        item = next(i for i in c.tree() if i.get("text") == "Mise à jour")
+        helpers.click_item(c, item)
+        helpers.wait_text(c, "Ignorer cette version")
+    sh.themed("update", prepare=prepare)
+    sh.c.call("key", key="Escape", target="qt")
 
 
 @screen("hosts")

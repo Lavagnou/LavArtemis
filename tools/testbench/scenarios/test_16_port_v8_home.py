@@ -1,7 +1,7 @@
 """Scenario 16 (port of the V8 prototype, LavArtemis-Qt branch port-v8): the home's new behaviour.
 
 S1 focus grid at the keyboard: rows [Mes PC, Réglages] / [Bureau, Playnite] / [6 recents, Tout voir]; a recent
-   focused shows « {jeu} · {N} h jouées » after « Bibliothèque Playnite · récents ».
+   focused shows « {jeu} · {N} h jouées » (or « {N} min jouées ») after « Bibliothèque Playnite · récents ».
 S2 hints bar at the keyboard (« Entrée Lancer · Menu Options (ou maintenir Entrée) · Q E Changer de PC »), none at
    the mouse.
 S3 Menu key = options of the focused game (centred dialog: « Jouer », « Afficher les détails »…); Échap closes.
@@ -45,7 +45,7 @@ def test_focus_grid_hints_options_hold(bench):
 
     # S1: Up x3 = header row, Down x2 = first recent: its caption
     _key(c, "Up", "Up", "Up", "Down", "Down")
-    caption = helpers.wait_text(c, " h jouées", contains=True)[0]["text"]
+    caption = helpers.wait_text(c, " jouées", contains=True)[0]["text"]  # « N h » or « N min jouées »
     assert "·" in caption
     first = caption
     _key(c, "Right")

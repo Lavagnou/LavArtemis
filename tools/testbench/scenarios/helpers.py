@@ -249,7 +249,7 @@ SETTINGS_PAGE_ROW = {
     "Vidéo": "Débit vidéo",
     "Audio": "Canaux audio",
     "Entrées": "Souris pour le bureau à distance",
-    "Manettes": "Configurer une manette",
+    "Manettes": "Assigner les boutons d’une manette",
     "Apparence": "Thème",
     "PC": "Quitter l'appli sur le PC distant à la fin",
     "Raccourcis clavier": "Menu en jeu",

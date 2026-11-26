@@ -26,7 +26,7 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     # Micro enabled the way the user does it: Réglages › Audio
     helpers.open_settings(c)
     helpers.open_settings_page(c, "Audio")
-    helpers.set_switch(c, "Envoyer mon micro au PC distant", "micPassthroughEnabled", True)
+    helpers.set_switch(c, "Envoyer mon micro au PC hôte", "micPassthroughEnabled", True)
     bench.shot("01-mic-on")
     helpers.go_home(c)
     helpers.wait_text(c, "Bureau")

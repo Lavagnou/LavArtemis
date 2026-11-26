@@ -12,7 +12,7 @@ import helpers
 
 NAME = "LavArtemis Test Joystick"
 GUESSED = "Disposition devinée — peut-être fausse"
-UNMAPPED = "Non reconnue — inutilisable sans mapping"
+UNMAPPED = "Non reconnue — inutilisable avant assignation"
 RECOGNIZED = "Reconnue"
 GUESS_WARNING = f"Disposition des boutons devinée pour {NAME}"
 NO_LAYOUT_WARNING = "Une manette branchée n'a pas de disposition"
@@ -28,9 +28,9 @@ def mapper_status(c):
 def open_mapper(c):
     helpers.open_settings(c)
     helpers.open_settings_page(c, "Manettes")
-    row = helpers.wait_settled(c, "Configurer une manette")
+    row = helpers.wait_settled(c, "Assigner les boutons d’une manette")
     ouvrir = [i for i in helpers.find(c, "Ouvrir") if abs(i["y"] - row["y"]) < 60]
-    assert ouvrir, "no « Ouvrir » next to « Configurer une manette »"
+    assert ouvrir, "no « Ouvrir » next to « Assigner les boutons d’une manette »"
     helpers.click_item(c, ouvrir[0])
     helpers.wait_page(c, "GamepadMapper")
     helpers.wait_text(c, NAME)
@@ -98,8 +98,8 @@ def test_guessed_gamepad(bench):
     helpers.click(c, NAME)
     helpers.wait_text(c, "Enregistrer")
     helpers.click(c, "Enregistrer")
-    helpers.wait_text(c, "Mapping enregistré")
-    helpers.click(c, "Retour à la liste des périphériques")
+    # the page of the prototype (V8-46): the devices stay on the left, the toast says it is saved
+    helpers.wait_text(c, "Disposition enregistrée")
     helpers.wait_text(c, NAME)
     bench.shot("03-saved-guessing-off")
     assert mapper_status(c) == RECOGNIZED, f"a mapping saved with guessing off: {mapper_status(c)}"

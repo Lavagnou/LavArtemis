@@ -4,15 +4,15 @@ the test build only (`LAV_TEST_BENCHMARK="warmup,measure,window[,quitDelayMs]"`,
 a Quick run takes about half a minute; quitDelayMs holds each quit of the host's app, a window to press « Arrêter »
 in.  The report is read from `state.benchmark.report` (the JSON saved in the history, LavApollo docs/benchmark.md).
 
-- unavailable: a PC without the app: the reason in French, « Démarrer » greyed out.
+- unavailable: a PC without the app: the reason in French, « Lancer le benchmark » greyed out.
 - quick: the report of a Quick run: the baseline records what it streamed (requested = effective: with the codec on
   Auto, the planner, the climb and the confirmation work on the codec really streamed), every run ok, the notes in
   English (translated at display, as Android), the page in French (mode and goal names, never « quick »).
 - stop early: « Arrêter » while the host's app is being quit, before any run: the setup page comes back (no blank
-  page), with « Démarrer » and a message that says nothing was measured; no stream afterwards.
+  page), with « Lancer le benchmark » and a message that says nothing was measured; no stream afterwards.
 - stop during restart: « Arrêter » while the scene restarts between a VRR run and a non-VRR one: no stream starts
   afterwards (the launch that the restart was going to make never happens).
-- start again right after a stop: « Arrêter » while the host's app is quit, then « Démarrer » before that quit is
+- start again right after a stop: « Arrêter » while the host's app is quit, then « Lancer le benchmark » before that quit is
   over: the new benchmark runs its own plan, once (review of waves 1-4, #7: the old quit, ending, launched a run)."""
 import json
 import re
@@ -21,6 +21,8 @@ import time
 import helpers
 
 FAST = "1,3,1,0"
+# The page of the prototype (V8-43): « Lancer le benchmark », the report under « Rapide · objectif équilibré · PC »
+START = "Lancer le benchmark"
 
 
 def open_benchmark(c, host):
@@ -87,7 +89,7 @@ def test_benchmark_unavailable(bench):
     msg = helpers.wait_any_text(c, ["ne propose pas le benchmark"])
     bench.shot("01-unavailable")
     assert msg.startswith("Ce PC hôte ne propose pas le benchmark."), msg
-    assert item_enabled(c, "Démarrer") is False
+    assert item_enabled(c, START) is False
 
 
 def test_benchmark_quick(bench):
@@ -101,7 +103,7 @@ def test_benchmark_quick(bench):
     open_benchmark(c, atlas)
     helpers.wait_any_text(c, ["Tes réglages :"])
     bench.shot("01-setup")
-    helpers.click(c, "Démarrer")
+    helpers.click(c, START)
     b = wait_finished(c, 150)
     report = b["report"]
     bench.note(f"report: {json.dumps(report)[:3000]}")
@@ -130,8 +132,8 @@ def test_benchmark_quick(bench):
     assert not st["session"]["active"]
     assert st["benchmark"]["message"] == "Benchmark terminé.", st["benchmark"]["message"]
     shown = helpers.texts(c)
-    header = next((t for t in shown if t.startswith(f"{atlas.name}, ")), None)
-    assert header and "Rapide" in header and "Équilibré" in header, f"report header {header!r}"
+    header = next((t for t in shown if t.startswith("Rapide · objectif ")), None)
+    assert header and "équilibré" in header and atlas.name in header, f"report header {header!r}"
     for t in shown:
         assert not re.search(r"\b(quick|full|adaptive|balanced|latency|smoothness)\b", t), f"English on screen: {t!r}"
     bench.shot("02-report")
@@ -159,8 +161,8 @@ def test_benchmark_stop_early(bench):
     launches = len(requests(atlas, "launch"))
 
     open_benchmark(c, atlas)
-    helpers.wait_any_text(c, ["Une appli tourne sur le PC hôte"])
-    helpers.click(c, "Démarrer")
+    helpers.wait_any_text(c, ["Une appli tourne sur "])
+    helpers.click(c, START)
     wait_message(c, "Fermeture de l'appli")
     helpers.click(c, "Arrêter")
     wait_finished(c, 20)
@@ -170,7 +172,7 @@ def test_benchmark_stop_early(bench):
     assert not st["session"]["active"] and st["page"] == "BenchmarkView", st["page"]
     assert len(requests(atlas, "launch")) == launches, "no run may start after « Arrêter »"
     # The setup page, not a blank one, and a message that says what happened
-    assert item_enabled(c, "Démarrer") is True
+    assert item_enabled(c, START) is True
     msg = st["benchmark"]["message"]
     assert msg == "Benchmark arrêté avant le premier passage : rien n'a été mesuré.", msg
     helpers.wait_text(c, msg)
@@ -187,7 +189,7 @@ def test_benchmark_stop_during_restart(bench):
     c.call("setting", action="set", key="enableVsync", value=True)
     c.call("setting", action="set", key="enableVrr", value=True)
     open_benchmark(c, atlas)
-    helpers.click(c, "Démarrer")
+    helpers.click(c, START)
     wait_message(c, "Redémarrage de la scène", timeout=90)
     launches = len(requests(atlas, "launch"))
     helpers.click(c, "Arrêter")
@@ -221,13 +223,13 @@ def test_benchmark_start_again_right_after_stop(bench):
     helpers.wait_computer(c, atlas.name, lambda x: x["currentGameId"] != 0, timeout=20)
 
     open_benchmark(c, atlas)
-    helpers.wait_any_text(c, ["Une appli tourne sur le PC hôte"])
-    helpers.click(c, "Démarrer")
+    helpers.wait_any_text(c, ["Une appli tourne sur "])
+    helpers.click(c, START)
     wait_message(c, "Fermeture de l'appli")
     helpers.click(c, "Arrêter")
     wait_finished(c, 20)
     starts = len(requests(atlas, "launch")) + len(requests(atlas, "resume"))
-    helpers.click(c, "Démarrer")  # within the 4 s the first quit is held
+    helpers.click(c, START)  # within the 4 s the first quit is held
     c.wait_for(lambda s: s["benchmark"]["running"], 10)
     b = wait_finished(c, 240)
     report = b["report"]

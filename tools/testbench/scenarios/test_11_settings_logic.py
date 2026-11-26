@@ -463,9 +463,10 @@ def check_now(c, expect, what):
 def update_dialog_text(c):
     deadline = time.time() + 5
     while True:
-        t = [x for x in helpers.texts(c) if x.startswith("LavArtemis 9.9.") and "Appuie sur OK" in x]
-        if t:
-            return t[0]
+        # The theme's dialog (LavOptions, prototype V8-13): « LavArtemis X est disponible », its note, its entries
+        t = helpers.popup_texts(c)
+        if any(x.startswith("LavArtemis 9.9.") and "disponible" in x for x in t):
+            return " | ".join(t)
         assert time.time() < deadline, f"no update dialog; texts {helpers.texts(c)[-10:]}"
         time.sleep(0.2)
 
@@ -475,8 +476,8 @@ def test_s6_update_check(bench):
     helpers.open_settings(c)
     helpers.open_settings_page(c, "Avancé")
     row(c, "autoUpdateEnabled")
-    check_now(c, "est à jour.", "first check")
-    check_now(c, "est à jour.", "second check in a row")
+    check_now(c, "est à jour (", "first check")
+    check_now(c, "est à jour (", "second check in a row")
     t = check_now(c, "La vérification a échoué", "host not found")
     assert "GitHub est injoignable. Vérifie la connexion Internet de ce PC." in t, t
     t = check_now(c, "La vérification a échoué", "timeout")
@@ -489,7 +490,7 @@ def test_s6_update_check(bench):
     check_now(c, "LavArtemis 9.9.9 est disponible.", "9.9.9")
     helpers.click(c, "Installer")
     text = update_dialog_text(c)
-    assert "télécharger et l'installer" in text, text
+    assert "se télécharge et s’installe" in text and "Télécharger et installer" in text, text
     helpers.click(c, "Ignorer cette version")
     helpers.wait_text(c, "Chercher une mise à jour maintenant")
 
@@ -498,7 +499,7 @@ def test_s6_update_check(bench):
     helpers.click(c, "Installer")
     text = update_dialog_text(c)
     bench.shot("s6-no-installer")
-    assert "ouvrir la page de téléchargement" in text, \
+    assert "sa page s’ouvre dans ton navigateur" in text and "Ouvrir la page de la version" in text, \
         f"a release without an installer must open its page, not download an earlier installer: {text!r}"
     c.call("key", key="Escape", target="qt")
 

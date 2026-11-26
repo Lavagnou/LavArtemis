@@ -487,7 +487,8 @@ def test_s8_stream_shortcuts(bench):
     atlas, c = setup(bench, settings=[("micPassthroughEnabled", True)])
     helpers.launch(c, "Bureau")
 
-    # Performance overlay (Ctrl+Alt+Shift+S): in French, with the wording of Android's perf_overlay_*
+    # Performance overlay (Ctrl+Alt+Shift+S): in French, on one line as the prototype's statsText
+    # (« 1920 × 1080 · 60 fps · HEVC · 20 Mbit/s · réseau 1 ms · décodage 3,1 ms · pertes 0,0 % »)
     c.call("key", key="S", modifiers="Ctrl+Alt+Shift", target="stream")
     st = c.wait_for(lambda s: s["session"]["overlayStats"]["shown"] and s["session"]["overlayStats"]["text"], 10)
     time.sleep(2.5)  # filled at the next stats window
@@ -496,7 +497,7 @@ def test_s8_stream_shortcuts(bench):
     for english in ("Video stream", "Decoder", "Incoming frame rate", "Frames dropped", "Average network latency",
                     "Average decoding time", "Rendering frame rate"):
         assert english not in text, f"English in the performance overlay: {english!r} in {text!r}"
-    assert "Stream vidéo" in text and "Temps moyen de décodage" in text, text
+    assert "\n" not in text.strip() and " fps · " in text and "décodage " in text and "pertes " in text, text
     c.call("key", key="S", modifiers="Ctrl+Alt+Shift", target="stream")
     c.wait_for(lambda s: not s["session"]["overlayStats"]["shown"], 10)
 
