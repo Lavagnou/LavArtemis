@@ -67,6 +67,33 @@ public class GameMenuTileSizeTest {
         assertTrue("one row only in portrait", top(menu, V2GameMenu.tile(menu, tiles.size() - 1)) > top(menu, V2GameMenu.tile(menu, 0)));
     }
 
+    /**
+     * No text of the menu is cut: no ellipsis, no line dropped by maxLines (« Quitter Red Dead Red… »
+     * in Affiche, 2026-11-26: a label takes a second line instead)
+     */
+    private static void noTextCut(String where, View v) {
+        if (v.getVisibility() != View.VISIBLE) {
+            return;
+        }
+        if (v instanceof android.widget.TextView) {
+            android.widget.TextView t = (android.widget.TextView) v;
+            String s = t.getText().toString();
+            android.text.Layout layout = t.getLayout();
+            if (!s.isEmpty() && layout != null) {
+                for (int line = 0; line < layout.getLineCount(); line++) {
+                    assertEquals(where + ": « " + s + " » ellipsized", 0, layout.getEllipsisCount(line));
+                }
+                assertEquals(where + ": « " + s + " » cut after " + layout.getLineCount() + " line(s)",
+                        s.length(), layout.getLineEnd(layout.getLineCount() - 1));
+            }
+        } else if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                noTextCut(where, g.getChildAt(i));
+            }
+        }
+    }
+
     private static int top(View root, View v) {
         android.graphics.Rect r = new android.graphics.Rect(0, 0, v.getWidth(), v.getHeight());
         ((android.view.ViewGroup) root).offsetDescendantRectToMyCoords(v, r);
@@ -104,6 +131,7 @@ public class GameMenuTileSizeTest {
                         int count = HomeScreenshotTest.menuTiles(ctx(), playnite, game).size();
                         String where = theme + " " + s[0] + "x" + s[1] + (dark ? " dark " : " light ")
                                 + (playnite ? "playnite « " + game + " » " : "bureau ") + input;
+                        noTextCut(where, menu);
                         View first = V2GameMenu.tile(menu, 0);
                         assertNotNull(where, first);
                         for (int i = 1; i < count; i++) {

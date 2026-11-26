@@ -205,6 +205,7 @@ public final class HomeScreen {
         int bottom = l.phone() ? Math.max(Ui.dp(ctx, 8), coverRing) : px(ctx, l, af ? 72 : (lu ? 84 : 64));
         int top = l.phone() ? Math.max(Ui.dp(ctx, 8), V2Frame.ringRoom(ctx, th, 0)) : px(ctx, l, lu ? 26 : 24);
         page.setPadding(px(ctx, l, side), af ? 0 : top, px(ctx, l, side), bottom);
+        pageBottom = bottom;
 
         // ---- header ----------------------------------------------------------------------------
         LinearLayout header = new LinearLayout(ctx);
@@ -1224,6 +1225,9 @@ public final class HomeScreen {
         }
     }
 
+    /** Bottom padding of the page without the hints bar */
+    private int pageBottom;
+
     private void applyInput() {
         V2Input.Kind k = V2Input.get(ctx);
         boolean pad = k == V2Input.Kind.PAD, keys = k == V2Input.Kind.KEYS;
@@ -1244,6 +1248,13 @@ public final class HomeScreen {
             hints.add(lbrb, ctx.getString(R.string.v2_hint_switch_pc), () -> actions.switchHost(1));
         } else {
             hints.setVisibility(View.GONE);
+        }
+        // A phone: the page reaches the bottom of the screen, where the hints bar is drawn; while it shows,
+        // the page keeps its height free (« Tout voir », the last cover, the state card were under it)
+        if (l.phone()) {
+            int reserve = hints.getVisibility() == View.VISIBLE
+                    ? HintsBar.reservedHeight(ctx, th, l.tablet() ? l.k : Math.max(0.85f, l.k)) : 0;
+            page.setPadding(page.getPaddingLeft(), page.getPaddingTop(), page.getPaddingRight(), pageBottom + reserve);
         }
         root.invalidate();
     }

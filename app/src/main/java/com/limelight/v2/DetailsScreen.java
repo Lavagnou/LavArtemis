@@ -296,7 +296,11 @@ public final class DetailsScreen {
         panel.setOrientation(LinearLayout.VERTICAL);
         int pbg = dark ? 0xFFEDEDE8 : 0xFF111111, pfg = dark ? 0xFF141414 : 0xFFECECE8;
         panel.setBackgroundColor(pbg);
-        panel.setPadding(0, px(ctx, l, 28), 0, px(ctx, l, 28));
+        // Portrait: the panel spans the bottom of the screen and its launch button went under the hints
+        // bar (bottom left): it stays above it
+        panel.setPadding(0, px(ctx, l, 28), 0, l.portrait
+                ? Math.max(px(ctx, l, 28), HintsBar.reservedHeight(ctx, th, l.tablet() ? l.k : Math.max(0.85f, l.k)) + px(ctx, l, 12))
+                : px(ctx, l, 28));
         Ui.noClip(panel);
         across.addView(panel, new LinearLayout.LayoutParams(px(ctx, l, 520), ViewGroup.LayoutParams.MATCH_PARENT));
         TextView head = HomeParts.text(ctx, th, l, 14, 800, dark ? 0xFF7A6000 : 0xFFFFD60A, false);

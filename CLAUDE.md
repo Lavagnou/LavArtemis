@@ -301,7 +301,10 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   une rangée plus haute qu'une autre ; Affiche, toutes les lignes de la même hauteur ; Ludique, même largeur et
 >   même hauteur, sur une rangée comme sur deux. `V2GameMenu.EqualColumn` (grille Braise, liste Affiche) mesure
 >   puis redonne la hauteur la plus grande à chaque enfant ; `EqualRow` respecte alors la hauteur exacte reçue.
->   `GameMenuTileSizeTest` (3 thèmes, 7 tailles, jeux court / long / Bureau).
+>   `GameMenuTileSizeTest` (3 thèmes, 7 tailles, jeux court / long / Bureau). **Aucun texte du menu n'est coupé** :
+>   pas d'ellipse, un libellé prend une ligne de plus (`V2GameMenu.wrap()` : titres, « PC · via », libellés et
+>   sous-lignes de Braise et d'Affiche, pastille Ludique) ; `GameMenuTileSizeTest.noTextCut` (Affiche coupait
+>   « Quitter Red Dead Red… »).
 >   « Plus » (`StreamMenu.more`) : Presse-papiers · Commandes du PC hôte · Zoom/Panoramique, puis Android seul
 >   (bouton vocal, le déplacer, pivoter, contrôleur à l'écran, touches spéciales, clavier virtuel complet,
 >   sensibilité, pastille « Menu », entrées de la manette), **chaque entrée avec son icône** (`V2GameMenu.icon()`,
@@ -580,6 +583,13 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > - **Barre d'indications** (dessinée par-dessus, en bas) : le dock Ludique du menu en jeu garde sa hauteur
 >   libre (`HintsBar.reservedHeight()`) ; la grille Braise, trop haute pour ça sur un téléphone en paysage, remonte
 >   seulement si elle croise la barre, le titre restant à l'écran (écouteur de mise en page de `V2GameMenu`).
+>   **Aucun texte sous la barre** non plus (`FocusRingClipTest`, en haut puis au bout de chaque scroller : ce qu'un
+>   scroller peut encore sortir de dessous ne compte pas) : accueil sur téléphone (la page réserve la hauteur de la
+>   barre tant qu'elle s'affiche), Mes PC (l'aide passe à la ligne avant la barre en paysage, au-dessus d'elle en
+>   portrait et en Affiche, où la barre est à gauche), bibliothèque (dernière rangée, barre du jeu choisi en portrait
+>   Ludique), détails Affiche en portrait. Les captures d'un dialogue plein écran le mesurent à la taille de
+>   l'écran (`HostsScreenshotTest.overlay`) : mesuré `AT_MOST`, il se réduisait à sa boîte et sa barre tombait
+>   sur « Annuler », ce que l'appli ne fait pas.
 > - **Mises en page corrigées au passage** : bandeau de session Ludique sur deux rangées en portrait (Reprendre /
 >   Quitter sortaient de l'écran), grille Braise de la bibliothèque jamais plus large que l'écran, côté droit des
 >   détails Ludique qui défile quand un téléphone en paysage est trop bas.
@@ -1195,7 +1205,7 @@ Mode d'emploi complet, scénarios et codes de sortie : `tools/testbench/README.m
   sans résultat explicable · `3` FLAKY · `4` écran éteint (rien n'a tourné).
 - **Garanties** : ports 127.0.0.1 **40000-44999** seulement (le vrai LavApollo, base 45989, n'est jamais contacté, arrêté
   ni configuré ; le client de test refuse toute autre adresse), organisation Qt **« LavArtemis Test »** (jamais les
-  réglages de LavArtemis / Dev), fenêtres **sans prise de focus**, **entrées injectées seulement** (ni vrai pointeur,
+  réglages de LavArtemis / Dev), fenêtres **jamais vues** (voilées par `DWMWA_CLOAK`, au bas de l'ordre Z, jamais topmost ni activées ; `LAV_TEST_VISIBLE=1` les remontre pour déboguer ; le `VisibilityWatch` de `conftest.py` fait échouer un scénario sinon), **entrées injectées seulement** (ni vrai pointeur,
   ni vrai clavier, ni son, ni micro), ni installation ni gestionnaire `art://` ; seuls les processus lancés par le banc
   sont arrêtés.
 - **Écran du faux PC fixe** : l'hôte de test annonce dans `serverinfo` le mode de `display` (`pc.json`, défaut

@@ -224,10 +224,11 @@ public final class V2GameMenu {
             head.setPadding(px(ctx, l, 28), px(ctx, l, 24), px(ctx, l, 28), px(ctx, l, 16));
             TextView where = HomeParts.text(ctx, th, l, 13, 800, th.lit.bandLive, false);
             where.setText((host + " — " + via).toUpperCase(Locale.FRENCH));
+            wrap(where);
             head.addView(where);
             TextView t = HomeParts.text(ctx, th, l, 30, 900, th.lit.onBand, true);
             t.setText(title);
-            t.setMaxLines(2);
+            wrap(t);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             tlp.topMargin = px(ctx, l, 6);
             head.addView(t, tlp);
@@ -249,11 +250,14 @@ public final class V2GameMenu {
                 labels.setOrientation(LinearLayout.VERTICAL);
                 TextView lab = HomeParts.text(ctx, th, l, 20, 800, th.lit.onBand, false);
                 lab.setText(tile.label);
+                // A label is never cut: it takes a second line, as in the prototype
+                wrap(lab);
                 labels.addView(lab);
                 if (!tile.sub.isEmpty()) {
                     TextView sub = HomeParts.text(ctx, th, l, 13, 600, th.lit.onBand, false);
                     sub.setAlpha(0.75f);
                     sub.setText(tile.sub);
+                    wrap(sub);
                     labels.addView(sub);
                 }
                 row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -283,14 +287,19 @@ public final class V2GameMenu {
             pill.addView(chip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(ctx, l, 36)));
             TextView t = HomeParts.text(ctx, th, l, 17, 800, th.fg, false);
             t.setText(title);
+            // A long name or a narrow screen: the pill takes two lines, nothing is cut
+            wrap(t);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             tlp.setMarginStart(px(ctx, l, 12));
             pill.addView(t, tlp);
             TextView v = HomeParts.text(ctx, th, l, 14, 600, th.lit.muted2, false);
             v.setText(via);
+            wrap(v);
             pill.addView(v, tlp(ctx, l, 12));
-            FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(ctx, l, 52), Gravity.TOP | Gravity.START);
-            plp.setMargins(px(ctx, l, 48), px(ctx, l, 36), 0, 0);
+            pill.setMinimumHeight(px(ctx, l, 52));
+            pill.setPadding(px(ctx, l, 8), px(ctx, l, 8), px(ctx, l, 22), px(ctx, l, 8));
+            FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
+            plp.setMargins(px(ctx, l, 48), px(ctx, l, 36), px(ctx, l, 48), 0);
             root.addView(pill, plp);
             List<TextView> labs = new ArrayList<>(), vals = new ArrayList<>();
             List<HomeParts.Button> buttons = new ArrayList<>();
@@ -384,9 +393,12 @@ public final class V2GameMenu {
             head.setGravity(Gravity.BOTTOM);
             TextView t = HomeParts.text(ctx, th, l, 26, 700, th.dark ? th.fg : 0xFFF3EEE8, true);
             t.setText(title);
+            // A long name takes a second line rather than an ellipsis
+            wrap(t);
             head.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             TextView w = HomeParts.text(ctx, th, l, 14, 400, 0xFFCFC6BC, false);
             w.setText(host + " · " + via);
+            wrap(w);
             head.addView(w);
             section.addView(head);
             int cols = 3;
@@ -423,13 +435,14 @@ public final class V2GameMenu {
                 LinearLayout labels = new LinearLayout(ctx);
                 labels.setOrientation(LinearLayout.VERTICAL);
                 TextView lab = HomeParts.text(ctx, th, l, 16, 600, th.fg, false);
-                lab.setMaxLines(2);
                 lab.setText(tile.label);
+                // A label is never cut: it takes another line, as in the prototype
+                wrap(lab);
                 labels.addView(lab);
                 if (!tile.sub.isEmpty()) {
                     TextView sub = HomeParts.text(ctx, th, l, 12, 400, th.lit.muted2, false);
-                    sub.setMaxLines(2);
                     sub.setText(tile.sub);
+                    wrap(sub);
                     labels.addView(sub, tlpTop(ctx, l, 3));
                 }
                 TextView val = HomeParts.text(ctx, th, l, 13, 400, th.lit.muted2, false);
@@ -536,6 +549,11 @@ public final class V2GameMenu {
         return lp;
     }
 
+    /** A text that takes as many lines as it needs, never an ellipsis (a label is never cut) */
+    private static void wrap(TextView t) {
+        t.setMaxLines(Integer.MAX_VALUE);
+        t.setEllipsize(null);
+    }
     /** Width of the longest word of a label (a word is never cut in two) */
     private static float longestWord(TextView t) {
         float max = 0;

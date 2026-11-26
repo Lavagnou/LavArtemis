@@ -195,7 +195,8 @@ public final class LibraryScreen {
         root.addView(header, hl);
 
         int p = ringPad();
-        grid.setPadding(p, p, p, Math.max(p, px(ctx, l, 70)));
+        // The last row scrolls clear of the hints bar (a phone: the prototype's 70 px were less than the bar)
+        grid.setPadding(p, p, p, Math.max(px(ctx, l, 70), hintsReserve() + p));
         grid.setLayoutManager(new GridLayoutManager(ctx, cols));
         grid.addItemDecoration(new Gaps(px(ctx, l, 16)));
         // Never wider than the screen (a phone in portrait): the last column stayed off the edge
@@ -346,7 +347,10 @@ public final class LibraryScreen {
         grid.setLayoutManager(new GridLayoutManager(ctx, cols));
         grid.addItemDecoration(new Gaps(px(ctx, l, 18)));
         FrameLayout.LayoutParams gl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        gl.setMargins(px(ctx, l, 48) - p, px(ctx, l, 112) - p, px(ctx, l, 48) - p, px(ctx, l, 116) - p);
+        // Portrait: the pick bar (bottom left) and the hints bar (bottom right) do not fit side by side:
+        // the pick bar goes above the hints, the grid above both
+        int lift = l.portrait ? hintsReserve() : 0;
+        gl.setMargins(px(ctx, l, 48) - p, px(ctx, l, 112) - p, px(ctx, l, 48) - p, px(ctx, l, 116) - p + lift);
         root.addView(grid, gl);
 
         LinearLayout bar = new LinearLayout(ctx);
@@ -369,7 +373,7 @@ public final class LibraryScreen {
         xl.setMarginStart(px(ctx, l, 16));
         bar.addView(texts, xl);
         FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(ctx, l, 76), Gravity.BOTTOM | Gravity.START);
-        bl.setMargins(px(ctx, l, 48), 0, 0, px(ctx, l, 28));
+        bl.setMargins(px(ctx, l, 48), 0, 0, px(ctx, l, 28) + lift);
         root.addView(bar, bl);
         pickPanel = bar;
     }
@@ -393,6 +397,11 @@ public final class LibraryScreen {
      * it (V2Frame.ringRoom; the prototype's 12 px were too little at 0.6 on a phone). The grid is
      * moved out by as much, so the covers stay where they were.
      */
+    /** Height of the hints bar at the bottom of the screen, its margin included */
+    private int hintsReserve() {
+        return HintsBar.reservedHeight(ctx, th, l.tablet() ? l.k : Math.max(0.85f, l.k));
+    }
+
     private int ringPad() {
         return Math.max(px(ctx, l, 12), com.limelight.v2.ui.V2Frame.ringRoom(ctx, th, px(ctx, l, 240)));
     }

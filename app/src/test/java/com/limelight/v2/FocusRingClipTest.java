@@ -338,6 +338,30 @@ public class FocusRingClipTest {
     }
 
     private void walk(String what, String theme, int[] s, View root, int w, int h) {
+        // The hints bar is drawn over the bottom of the screen: no text may be under it, at the top of
+        // the scrollers and at their end (what a scroller can still move out from under it is fine)
+        textsUnderHints(what, theme, s, root);
+        List<View> scrollers = new ArrayList<>();
+        scrollers(root, scrollers);
+        if (!scrollers.isEmpty()) {
+            for (View sc : scrollers) {
+                if (sc instanceof androidx.recyclerview.widget.RecyclerView) {
+                    ((androidx.recyclerview.widget.RecyclerView) sc).scrollBy(0, 1_000_000);
+                } else {
+                    sc.scrollTo(0, 1_000_000);
+                }
+            }
+            layout(root, w, h);
+            textsUnderHints(what, theme, s, root);
+            for (View sc : scrollers) {
+                if (sc instanceof androidx.recyclerview.widget.RecyclerView) {
+                    ((androidx.recyclerview.widget.RecyclerView) sc).scrollToPosition(0);
+                } else {
+                    sc.scrollTo(0, 0);
+                }
+            }
+            layout(root, w, h);
+        }
         List<V2Frame> frames = new ArrayList<>();
         frames(root, frames);
         for (V2Frame f : frames) {
@@ -365,6 +389,86 @@ public class FocusRingClipTest {
                         + ") coupé par " + cut);
             }
         }
+    }
+
+    private static void scrollers(View v, List<View> out) {
+        if (v.getVisibility() != View.VISIBLE) {
+            return;
+        }
+        if (v instanceof android.widget.ScrollView || v instanceof androidx.recyclerview.widget.RecyclerView) {
+            out.add(v);
+        }
+        if (v instanceof ViewGroup) {
+            for (int i = 0; i < ((ViewGroup) v).getChildCount(); i++) {
+                scrollers(((ViewGroup) v).getChildAt(i), out);
+            }
+        }
+    }
+
+    /** Texts that the hints bar paints over (a text a scroller can still move up is not counted) */
+    private void textsUnderHints(String what, String theme, int[] s, View root) {
+        List<View> bars = new ArrayList<>();
+        hintBars(root, bars);
+        for (View bar : bars) {
+            if (!visible(bar, root) || ((ViewGroup) bar).getChildCount() == 0) {
+                continue;
+            }
+            RectF b = rectIn(root, bar);
+            List<TextView> texts = new ArrayList<>();
+            texts(root, texts);
+            for (TextView t : texts) {
+                if (t.getText().length() == 0 || !visible(t, root) || t.getAlpha() == 0f || inside(t, bar) || canScrollUp(t, root)) {
+                    continue;
+                }
+                RectF r = rectIn(root, t);
+                if (r.width() > 0 && r.height() > 0 && RectF.intersects(r, b)) {
+                    cuts.add(what + " · " + theme + " " + s[0] + "x" + s[1] + " · texte « " + t.getText()
+                            + " » recouvert par la barre d'indications");
+                }
+            }
+        }
+    }
+
+    private static void hintBars(View v, List<View> out) {
+        if (v instanceof com.limelight.v2.ui.HintsBar) {
+            out.add(v);
+        } else if (v instanceof ViewGroup) {
+            for (int i = 0; i < ((ViewGroup) v).getChildCount(); i++) {
+                hintBars(((ViewGroup) v).getChildAt(i), out);
+            }
+        }
+    }
+
+    private static boolean inside(View v, View group) {
+        for (View c = v; c != null; c = c.getParent() instanceof View ? (View) c.getParent() : null) {
+            if (c == group) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A scroller above v can still bring it up, from under the bar */
+    private static boolean canScrollUp(View v, View root) {
+        for (View c = v; c != null && c != root; c = c.getParent() instanceof View ? (View) c.getParent() : null) {
+            if ((c instanceof android.widget.ScrollView || c instanceof androidx.recyclerview.widget.RecyclerView)
+                    && c.canScrollVertically(1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The bounds of v in root's space (translations and scrolls applied) */
+    private static RectF rectIn(View root, View v) {
+        RectF r = new RectF(0, 0, v.getWidth(), v.getHeight());
+        View c = v;
+        while (c != root) {
+            ViewGroup p = (ViewGroup) c.getParent();
+            r.offset(c.getLeft() + c.getTranslationX() - p.getScrollX(), c.getTop() + c.getTranslationY() - p.getScrollY());
+            c = p;
+        }
+        return r;
     }
 
     /** isShown() wants a window: the screens are laid out without one */

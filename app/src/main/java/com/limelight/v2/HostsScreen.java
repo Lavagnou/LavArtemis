@@ -128,14 +128,33 @@ public final class HostsScreen {
         page.addView(new Space(context), new LinearLayout.LayoutParams(1, 0, 1f));
         help = HomeParts.text(context, theme, l, 14, 400, theme.muted, false);
         help.setMaxLines(3);
-        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        // WRAP_CONTENT: its max width (below) keeps it beside the hints bar
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hlp.topMargin = px(context, l, 20);
         hlp.bottomMargin = px(context, l, 70);
+        if (l.portrait || theme.isAffiche()) {
+            // Portrait, or Affiche's bar on the left: the help line went under the hints bar (beside it
+            // when the bar is on the right, in landscape): it stays above the bar
+            float hs = l.tablet() ? l.k : Math.max(0.85f, l.k);
+            hlp.bottomMargin = Math.max(hlp.bottomMargin, HintsBar.reservedHeight(context, theme, hs) + px(context, l, 12));
+        }
         page.addView(help, hlp);
 
         // ---- hints: A Ouvrir · Y Options · B Retour (gamepad / keyboard) ------------------------------
         hints = new HintsBar(context, theme, l.tablet() ? l.k : Math.max(0.85f, l.k));
         root.addView(hints, hints.layoutParams());
+        if (!l.portrait && !theme.isAffiche()) {
+            // Landscape: the help line (left) and the hints bar (right) share the bottom; a long help
+            // line ran under the bar: it wraps before it
+            final int gap = px(context, l, 24);
+            root.addOnLayoutChangeListener((v, a, b, c, d, e, f, g, h) -> {
+                int room = hints.getVisibility() == View.VISIBLE && hints.getWidth() > 0
+                        ? hints.getLeft() - side - gap : Integer.MAX_VALUE;
+                if (help.getMaxWidth() != room) {
+                    root.post(() -> help.setMaxWidth(room));
+                }
+            });
+        }
 
         bind(Collections.<HostCards.Card>emptyList());
     }

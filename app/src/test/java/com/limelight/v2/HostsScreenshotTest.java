@@ -137,12 +137,15 @@ public class HostsScreenshotTest {
         View content = dialog.findViewById(android.R.id.content);
         assertNotNull(content);
         int w = page.getWidth(), h = page.getHeight();
-        content.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.AT_MOST),
-                View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.AT_MOST));
+        // A full-screen dialog (V2Sheet: window MATCH_PARENT) is measured as the screen: measured
+        // AT_MOST it shrank to its box and drew its hints bar over « Annuler », which the app never does
+        android.view.WindowManager.LayoutParams attrs = dialog.getWindow() == null ? null : dialog.getWindow().getAttributes();
+        int mode = attrs != null && attrs.width == android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                && attrs.height == android.view.ViewGroup.LayoutParams.MATCH_PARENT ? View.MeasureSpec.EXACTLY : View.MeasureSpec.AT_MOST;
+        content.measure(View.MeasureSpec.makeMeasureSpec(w, mode), View.MeasureSpec.makeMeasureSpec(h, mode));
         content.layout(0, 0, content.getMeasuredWidth(), content.getMeasuredHeight());
         ShadowLooper.idleMainLooper();
-        content.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.AT_MOST),
-                View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.AT_MOST));
+        content.measure(View.MeasureSpec.makeMeasureSpec(w, mode), View.MeasureSpec.makeMeasureSpec(h, mode));
         content.layout(0, 0, content.getMeasuredWidth(), content.getMeasuredHeight());
         Bitmap out = page.copy(Bitmap.Config.ARGB_8888, true);
         Canvas c = new Canvas(out);
