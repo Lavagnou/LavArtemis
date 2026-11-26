@@ -74,6 +74,41 @@ public class LibraryModelTest {
         assertEquals(0, LibraryModel.windowStart(4, 5));
     }
 
+    /** The count line under the title: the desktop's LibraryView.qml countLine, rule for rule */
+    @Test
+    public void countLineAsTheDesktop() {
+        HomeModel m = HomeModel.build(apps(), 0, "", false, new HashSet<>(Arrays.asList(103)), false);
+        // Tous: "N jeux", N = the games shown (hidden ones are not)
+        LibraryModel.Count all = LibraryModel.count(m, LibraryModel.Filter.ALL, LibraryModel.list(m, LibraryModel.Filter.ALL));
+        assertEquals(LibraryModel.Count.Kind.GAMES, all.kind);
+        assertEquals(3, all.shown);
+        // A filter that narrows the list: "N affichés sur M", M = the games not hidden
+        LibraryModel.Count inst = LibraryModel.count(m, LibraryModel.Filter.INSTALLED,
+                LibraryModel.list(m, LibraryModel.Filter.INSTALLED));
+        assertEquals(LibraryModel.Count.Kind.SHOWN_OF, inst.kind);
+        assertEquals(2, inst.shown);
+        assertEquals(3, inst.total);
+        LibraryModel.Count hid = LibraryModel.count(m, LibraryModel.Filter.HIDDEN, LibraryModel.list(m, LibraryModel.Filter.HIDDEN));
+        assertEquals(LibraryModel.Count.Kind.SHOWN_OF, hid.kind);
+        assertEquals(1, hid.shown);
+        assertEquals(3, hid.total);
+        // The desktop compares to every game, hidden ones included: Récents under a hidden game says "3 affichés sur 3"
+        assertEquals(LibraryModel.Count.Kind.SHOWN_OF,
+                LibraryModel.count(m, LibraryModel.Filter.RECENT, LibraryModel.list(m, LibraryModel.Filter.RECENT)).kind);
+        // Nothing hidden: Récents lists every game, so "N jeux"
+        HomeModel none = HomeModel.build(apps(), 0, "", false, null, false);
+        LibraryModel.Count rec = LibraryModel.count(none, LibraryModel.Filter.RECENT, LibraryModel.list(none, LibraryModel.Filter.RECENT));
+        assertEquals(LibraryModel.Count.Kind.GAMES, rec.kind);
+        assertEquals(4, rec.shown);
+        // An empty list: "aucun jeu", whatever the filter, and without a library at all
+        List<NvApp> notInstalled = new ArrayList<>();
+        notInstalled.add(game("Old", 100, false, 1000));
+        HomeModel bare = HomeModel.build(notInstalled, 0, "", false, null, false);
+        assertEquals(LibraryModel.Count.Kind.NONE, LibraryModel.count(bare, LibraryModel.Filter.INSTALLED,
+                LibraryModel.list(bare, LibraryModel.Filter.INSTALLED)).kind);
+        assertEquals(LibraryModel.Count.Kind.NONE, LibraryModel.count(null, LibraryModel.Filter.ALL, new ArrayList<NvApp>()).kind);
+    }
+
     @Test
     public void playedAgoAsTheDesktop() {
         long now = 1_800_000_000L, day = 86_400L;

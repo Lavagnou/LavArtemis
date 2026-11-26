@@ -88,6 +88,39 @@ public final class LibraryModel {
         return Math.max(0, Math.min(focus - 3, size - WINDOW));
     }
 
+    /**
+     * The count line under the title (desktop LibraryView.qml countLine): « aucun jeu » when the list is
+     * empty, « N jeux » under Tous or when the list holds every game (hidden ones included, as the
+     * desktop compares), « N affichés sur M » otherwise, M = the games not hidden.
+     */
+    public static final class Count {
+        public enum Kind { NONE, GAMES, SHOWN_OF }
+
+        public final Kind kind;
+        public final int shown;
+        public final int total;
+
+        Count(Kind kind, int shown, int total) {
+            this.kind = kind;
+            this.shown = shown;
+            this.total = total;
+        }
+    }
+
+    /** shown = what list(m, f) returned */
+    public static Count count(HomeModel m, Filter f, List<NvApp> shown) {
+        int n = shown == null ? 0 : shown.size();
+        int all = m == null ? 0 : m.library.size();
+        int visible = m == null ? 0 : all - m.hiddenCount;
+        if (n == 0) {
+            return new Count(Count.Kind.NONE, 0, visible);
+        }
+        if (n == all || f == Filter.ALL) {
+            return new Count(Count.Kind.GAMES, n, visible);
+        }
+        return new Count(Count.Kind.SHOWN_OF, n, visible);
+    }
+
     /** How long ago a game was played (desktop lastPlayedText): what the caller turns into words */
     public static final class Ago {
         public enum Kind { NOW, TODAY, YESTERDAY, DAYS, LAST_WEEK, WEEKS, LAST_MONTH, MONTHS, LAST_YEAR, YEARS }

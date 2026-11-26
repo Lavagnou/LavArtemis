@@ -351,6 +351,16 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   redémarrer »), « Quitter {X} ? » + segue « Fermeture sur {PC}… » puis « Session terminée ». Le desktop les a déjà
   pour la plupart dans son style (LavDialog) : à vérifier mot pour mot quand il passe au dialogue du prototype.
 
+- **Compteur de la bibliothèque (2026-11-26, décision de l'utilisateur)** : Android suit la règle `countLine` du
+  desktop (`LibraryView.qml`), et le compteur suit le filtre : liste vide « ATLAS-PC · aucun jeu » ; filtre Tous, ou
+  liste qui contient tous les jeux (masqués compris), « ATLAS-PC · 266 jeux » ; sinon « ATLAS-PC · 12 affichés sur
+  266 » (266 = jeux non masqués). Android : `LibraryModel.count()` (testé par `LibraryModelTest`), chaînes
+  `v2_lib_count_none` / `_games` / `_shown`. Android comptait avant toute la bibliothèque, masqués compris, sans
+  suivre le filtre. Conséquence de la règle, gardée telle quelle des deux côtés : Récents, quand un jeu est masqué,
+  dit « 265 affichés sur 265 ». **Écart ouvert** : en Affiche, Android met cette même ligne en majuscules derrière
+  « ← » (« ← ATLAS-PC · 12 AFFICHÉS SUR 266 ») ; le desktop écrit encore « ← ATLAS-PC · 266 JEUX » (`totalUp`, jeux
+  non masqués, sans suivre le filtre) et doit suivre.
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)

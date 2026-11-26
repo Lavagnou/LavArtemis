@@ -503,13 +503,28 @@ public final class LibraryScreen {
         this.nowSeconds = nowSeconds;
         filters = LibraryModel.filters(model);
         filter = LibraryModel.clamp(filter, filters.size());
-        String name = host == null || host.name == null ? "" : host.name;
-        int total = model == null ? 0 : model.library.size();
-        String count = total == 0 ? ctx.getString(R.string.v2_lib_no_game) : ctx.getString(R.string.v2_lib_games, total);
-        countText.setText(af ? ctx.getString(R.string.v2_lib_back, name, count).toUpperCase(Locale.FRENCH)
-                : ctx.getString(R.string.v2_lib_count, name, count));
         bindFilters();
         reloadList();
+    }
+
+    /** The count line, which follows the filter (desktop countLine); Affiche in capitals, behind its arrow */
+    private void bindCount() {
+        String name = host == null || host.name == null ? "" : host.name;
+        LibraryModel.Count c = LibraryModel.count(model,
+                filters.isEmpty() ? LibraryModel.Filter.ALL : filters.get(filter), list);
+        String line;
+        switch (c.kind) {
+            case NONE:
+                line = ctx.getString(R.string.v2_lib_count_none, name);
+                break;
+            case GAMES:
+                line = ctx.getString(R.string.v2_lib_count_games, name, c.shown);
+                break;
+            default:
+                line = ctx.getString(R.string.v2_lib_count_shown, name, c.shown, c.total);
+                break;
+        }
+        countText.setText(af ? ctx.getString(R.string.v2_lib_back, line).toUpperCase(Locale.FRENCH) : line);
     }
 
     private void reloadList() {
@@ -517,6 +532,7 @@ public final class LibraryScreen {
         focus = Math.max(0, Math.min(focus, list.size() - 1));
         windowStart = windowed() ? LibraryModel.windowStart(focus, list.size()) : 0;
         adapter.notifyDataSetChanged();
+        bindCount();
         boolean empty = list.isEmpty();
         Ui.setVisible(emptyCard, empty && model != null);
         Ui.setVisible(grid, !empty);

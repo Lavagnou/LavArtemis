@@ -354,6 +354,8 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   (`PlayniteLastActivity`, sinon l'ordre de l'hôte), 10 au plus, jamais les masqués ; `decide()` : START / RESUME / INSIDE_PLAYNITE / ASK_QUIT.
   Les autres applis de l'hôte ne sont pas montrées. Les cartes ignorent « Masquer » (le menu ne le propose
   que pour les jeux) : la bibliothèque est le seul endroit où l'on réaffiche les jeux masqués.
+  Son compteur suit le filtre avec la règle `countLine` du desktop (`LibraryModel.count()`) : « PC · aucun jeu »,
+  « PC · N jeux » (Tous, ou liste = tous les jeux, masqués compris), sinon « PC · N affichés sur M » (M = non masqués).
 - `HomeScreen` / `LibraryScreen` se construisent depuis des **données simples** (`HomeScreen.State`,
   `CoverSource`) : aucune dépendance au service. Les activités (`V2HostActivity` : binding
   `ComputerManagerService`, poller d'applis du PC affiché, lancer/quitter/relancer, jeux masqués
