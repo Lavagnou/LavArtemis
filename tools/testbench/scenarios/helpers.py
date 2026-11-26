@@ -236,7 +236,10 @@ def wait_no_popup(c, timeout=5.0):
 
 # ---------------------------------------------------------------- settings
 
-SETTINGS_LIST_X_MAX = 330  # the page list is the left column of Réglages
+# The page list is the left column of Réglages: its Flickable ends at x 317, the rows' Flickable starts at 330 (it
+# starts 14 px further left since the rows got room for their focus rings, LavArtemis-Qt 757a7294), its rows at 348.
+# The boundary sits in the gap, away from both edges.
+SETTINGS_LIST_X_MAX = 324
 
 
 def open_settings(c):
