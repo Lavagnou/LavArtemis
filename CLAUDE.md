@@ -355,7 +355,8 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   Les autres applis de l'hôte ne sont pas montrées. Les cartes ignorent « Masquer » (le menu ne le propose
   que pour les jeux) : la bibliothèque est le seul endroit où l'on réaffiche les jeux masqués.
   Son compteur suit le filtre avec la règle `countLine` du desktop (`LibraryModel.count()`) : « PC · aucun jeu »,
-  « PC · N jeux » (Tous, ou liste = tous les jeux, masqués compris), sinon « PC · N affichés sur M » (M = non masqués).
+  « PC · N jeux » (Tous, ou autant d'affichés que de non masqués), sinon « PC · N affichés sur M » (M = non masqués) ;
+  singulier « 1 jeu » / « 1 affiché sur M » (plurals `v2_lib_count_games` / `_shown`).
 - `HomeScreen` / `LibraryScreen` se construisent depuis des **données simples** (`HomeScreen.State`,
   `CoverSource`) : aucune dépendance au service. Les activités (`V2HostActivity` : binding
   `ComputerManagerService`, poller d'applis du PC affiché, lancer/quitter/relancer, jeux masqués

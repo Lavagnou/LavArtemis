@@ -512,19 +512,20 @@ public final class LibraryScreen {
         String name = host == null || host.name == null ? "" : host.name;
         LibraryModel.Count c = LibraryModel.count(model,
                 filters.isEmpty() ? LibraryModel.Filter.ALL : filters.get(filter), list);
-        String line;
+        String line = countLine(ctx.getResources(), name, c);
+        countText.setText(af ? ctx.getString(R.string.v2_lib_back, line).toUpperCase(Locale.FRENCH) : line);
+    }
+
+    /** « PC · aucun jeu », « PC · N jeu(x) », « PC · N affiché(s) sur M » (LibraryModelTest) */
+    static String countLine(android.content.res.Resources res, String name, LibraryModel.Count c) {
         switch (c.kind) {
             case NONE:
-                line = ctx.getString(R.string.v2_lib_count_none, name);
-                break;
+                return res.getString(R.string.v2_lib_count_none, name);
             case GAMES:
-                line = ctx.getString(R.string.v2_lib_count_games, name, c.shown);
-                break;
+                return res.getQuantityString(R.plurals.v2_lib_count_games, c.shown, name, c.shown);
             default:
-                line = ctx.getString(R.string.v2_lib_count_shown, name, c.shown, c.total);
-                break;
+                return res.getQuantityString(R.plurals.v2_lib_count_shown, c.shown, name, c.shown, c.total);
         }
-        countText.setText(af ? ctx.getString(R.string.v2_lib_back, line).toUpperCase(Locale.FRENCH) : line);
     }
 
     private void reloadList() {

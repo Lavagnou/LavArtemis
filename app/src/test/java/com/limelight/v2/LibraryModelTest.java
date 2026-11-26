@@ -5,14 +5,21 @@ import static org.junit.Assert.assertNull;
 
 import com.limelight.nvstream.http.NvApp;
 
+import androidx.test.core.app.ApplicationProvider;
+
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
-/** The library page: its filters, their lists, the Affiche window and « joué hier » (prototype library). */
+/** The library page: its filters, their lists, its count line, the Affiche window and « joué hier » (prototype library). */
+@RunWith(RobolectricTestRunner.class)
+@Config(sdk = {33}, qualifiers = "fr")
 public class LibraryModelTest {
     private static NvApp game(String name, int id, boolean installed, long last) {
         NvApp a = new NvApp(name, "u" + id, id, false);
@@ -74,7 +81,7 @@ public class LibraryModelTest {
         assertEquals(0, LibraryModel.windowStart(4, 5));
     }
 
-    /** The count line under the title: the desktop's LibraryView.qml countLine, rule for rule */
+    /** The count line under the title: the desktop's LibraryView.qml countLine, compared to the games not hidden */
     @Test
     public void countLineAsTheDesktop() {
         HomeModel m = HomeModel.build(apps(), 0, "", false, new HashSet<>(Arrays.asList(103)), false);
@@ -82,31 +89,48 @@ public class LibraryModelTest {
         LibraryModel.Count all = LibraryModel.count(m, LibraryModel.Filter.ALL, LibraryModel.list(m, LibraryModel.Filter.ALL));
         assertEquals(LibraryModel.Count.Kind.GAMES, all.kind);
         assertEquals(3, all.shown);
+        assertEquals("ATLAS-PC · 3 jeux", line(all));
         // A filter that narrows the list: "N affichés sur M", M = the games not hidden
         LibraryModel.Count inst = LibraryModel.count(m, LibraryModel.Filter.INSTALLED,
                 LibraryModel.list(m, LibraryModel.Filter.INSTALLED));
         assertEquals(LibraryModel.Count.Kind.SHOWN_OF, inst.kind);
         assertEquals(2, inst.shown);
         assertEquals(3, inst.total);
+        assertEquals("ATLAS-PC · 2 affichés sur 3", line(inst));
+        // One game shown: singular
         LibraryModel.Count hid = LibraryModel.count(m, LibraryModel.Filter.HIDDEN, LibraryModel.list(m, LibraryModel.Filter.HIDDEN));
         assertEquals(LibraryModel.Count.Kind.SHOWN_OF, hid.kind);
-        assertEquals(1, hid.shown);
-        assertEquals(3, hid.total);
-        // The desktop compares to every game, hidden ones included: Récents under a hidden game says "3 affichés sur 3"
-        assertEquals(LibraryModel.Count.Kind.SHOWN_OF,
-                LibraryModel.count(m, LibraryModel.Filter.RECENT, LibraryModel.list(m, LibraryModel.Filter.RECENT)).kind);
-        // Nothing hidden: Récents lists every game, so "N jeux"
-        HomeModel none = HomeModel.build(apps(), 0, "", false, null, false);
-        LibraryModel.Count rec = LibraryModel.count(none, LibraryModel.Filter.RECENT, LibraryModel.list(none, LibraryModel.Filter.RECENT));
+        assertEquals("ATLAS-PC · 1 affiché sur 3", line(hid));
+        // Récents under a hidden game lists every game not hidden: "N jeux", not "3 affichés sur 3"
+        LibraryModel.Count rec = LibraryModel.count(m, LibraryModel.Filter.RECENT, LibraryModel.list(m, LibraryModel.Filter.RECENT));
         assertEquals(LibraryModel.Count.Kind.GAMES, rec.kind);
-        assertEquals(4, rec.shown);
+        assertEquals("ATLAS-PC · 3 jeux", line(rec));
+        // The library's "265 sur 265": every game installed, one hidden, Installés = "265 jeux"
+        List<NvApp> big = new ArrayList<>();
+        for (int i = 0; i < 266; i++) {
+            big.add(game("Jeu " + i, 1000 + i, true, i));
+        }
+        HomeModel lib = HomeModel.build(big, 0, "", false, new HashSet<>(Arrays.asList(1000)), false);
+        LibraryModel.Count full = LibraryModel.count(lib, LibraryModel.Filter.INSTALLED,
+                LibraryModel.list(lib, LibraryModel.Filter.INSTALLED));
+        assertEquals(LibraryModel.Count.Kind.GAMES, full.kind);
+        assertEquals("ATLAS-PC · 265 jeux", line(full));
+        // A single game: "1 jeu"
+        List<NvApp> one = new ArrayList<>();
+        one.add(game("Old", 100, false, 1000));
+        HomeModel single = HomeModel.build(one, 0, "", false, null, false);
+        assertEquals("ATLAS-PC · 1 jeu", line(LibraryModel.count(single, LibraryModel.Filter.ALL,
+                LibraryModel.list(single, LibraryModel.Filter.ALL))));
         // An empty list: "aucun jeu", whatever the filter, and without a library at all
-        List<NvApp> notInstalled = new ArrayList<>();
-        notInstalled.add(game("Old", 100, false, 1000));
-        HomeModel bare = HomeModel.build(notInstalled, 0, "", false, null, false);
-        assertEquals(LibraryModel.Count.Kind.NONE, LibraryModel.count(bare, LibraryModel.Filter.INSTALLED,
-                LibraryModel.list(bare, LibraryModel.Filter.INSTALLED)).kind);
+        LibraryModel.Count none = LibraryModel.count(single, LibraryModel.Filter.INSTALLED,
+                LibraryModel.list(single, LibraryModel.Filter.INSTALLED));
+        assertEquals(LibraryModel.Count.Kind.NONE, none.kind);
+        assertEquals("ATLAS-PC · aucun jeu", line(none));
         assertEquals(LibraryModel.Count.Kind.NONE, LibraryModel.count(null, LibraryModel.Filter.ALL, new ArrayList<NvApp>()).kind);
+    }
+
+    private static String line(LibraryModel.Count c) {
+        return LibraryScreen.countLine(ApplicationProvider.getApplicationContext().getResources(), "ATLAS-PC", c);
     }
 
     @Test

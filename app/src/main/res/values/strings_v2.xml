@@ -664,8 +664,16 @@
     <string name="v2_lib_filter_hidden">Masqués · %1$d</string>
     <!-- Count line of the library (desktop LibraryView.qml countLine): host, games shown, games not hidden -->
     <string name="v2_lib_count_none">%1$s · aucun jeu</string>
-    <string name="v2_lib_count_games">%1$s · %2$d jeux</string>
-    <string name="v2_lib_count_shown">%1$s · %2$d affichés sur %3$d</string>
+    <plurals name="v2_lib_count_games">
+        <item quantity="one">%1$s · %2$d jeu</item>
+        <item quantity="many">%1$s · %2$d jeux</item>
+        <item quantity="other">%1$s · %2$d jeux</item>
+    </plurals>
+    <plurals name="v2_lib_count_shown">
+        <item quantity="one">%1$s · %2$d affiché sur %3$d</item>
+        <item quantity="many">%1$s · %2$d affichés sur %3$d</item>
+        <item quantity="other">%1$s · %2$d affichés sur %3$d</item>
+    </plurals>
     <string name="v2_lib_back">← %1$s</string>
     <string name="v2_lib_playnite">Playnite</string>
     <string name="v2_lib_badge_installed">Installé</string>
