@@ -516,9 +516,13 @@ public final class LibraryScreen {
         countText.setText(af ? ctx.getString(R.string.v2_lib_back, line).toUpperCase(Locale.FRENCH) : line);
     }
 
-    /** « PC · aucun jeu », « PC · N jeu(x) », « PC · N affiché(s) sur M » (LibraryModelTest) */
+    /** « PC · aucun jeu », « PC · N jeu(x) », « PC · N affiché(s) sur M », « PC · N jeu(x) masqué(s) » (LibraryModelTest) */
     static String countLine(android.content.res.Resources res, String name, LibraryModel.Count c) {
         switch (c.kind) {
+            case HIDDEN:
+                // French plurals take 0 as « one »: « aucun jeu masqué » has its own string
+                return c.shown == 0 ? res.getString(R.string.v2_lib_count_hidden_none, name)
+                        : res.getQuantityString(R.plurals.v2_lib_count_hidden, c.shown, name, c.shown);
             case NONE:
                 return res.getString(R.string.v2_lib_count_none, name);
             case GAMES:

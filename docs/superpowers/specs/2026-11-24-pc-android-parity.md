@@ -369,6 +369,12 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   `LibraryModelTest`), chaînes `v2_lib_count_none` et plurals `v2_lib_count_games` / `_shown`. Android comptait avant
   toute la bibliothèque, masqués compris, sans suivre le filtre ; la première version de la règle comparait aux jeux
   masqués compris (« 265 affichés sur 265 » sous Récents dès qu'un jeu était masqué), corrigée des deux côtés.
+- **Compteur sous le filtre Masqués (2026-11-26, décision de l'utilisateur)** : il compte les jeux masqués seuls,
+  « ATLAS-PC · 1 jeu masqué », « ATLAS-PC · 3 jeux masqués », « ATLAS-PC · aucun jeu masqué » (au lieu de « 1 affiché
+  sur 265 »), en majuscules derrière « ← » en Affiche. Les autres filtres gardent « N affichés sur M », M = les jeux
+  non masqués. Android : `LibraryModel.Count.Kind.HIDDEN`, chaîne `v2_lib_count_hidden_none` (le français range 0
+  dans « one » : « aucun » a sa propre chaîne) et plurals `v2_lib_count_hidden`, cas dans `LibraryModelTest`.
+  **Écart : le desktop (`LibraryView.qml` countLine) ne l'a pas encore**, à reporter (port-v8 de LavArtemis-Qt).
 
 ## 4. Ce qui reste
 

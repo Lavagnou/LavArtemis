@@ -98,9 +98,21 @@ public class LibraryModelTest {
         assertEquals(3, inst.total);
         assertEquals("ATLAS-PC · 2 affichés sur 3", line(inst));
         // One game shown: singular
+        List<NvApp> two = LibraryModel.list(m, LibraryModel.Filter.INSTALLED).subList(0, 1);
+        assertEquals("ATLAS-PC · 1 affiché sur 3", line(LibraryModel.count(m, LibraryModel.Filter.INSTALLED, two)));
+        // Masqués counts the hidden games only (user, 2026-11-26): « 1 jeu masqué »
         LibraryModel.Count hid = LibraryModel.count(m, LibraryModel.Filter.HIDDEN, LibraryModel.list(m, LibraryModel.Filter.HIDDEN));
-        assertEquals(LibraryModel.Count.Kind.SHOWN_OF, hid.kind);
-        assertEquals("ATLAS-PC · 1 affiché sur 3", line(hid));
+        assertEquals(LibraryModel.Count.Kind.HIDDEN, hid.kind);
+        assertEquals(1, hid.shown);
+        assertEquals("ATLAS-PC · 1 jeu masqué", line(hid));
+        HomeModel three = HomeModel.build(apps(), 0, "", false, new HashSet<>(Arrays.asList(101, 102, 103)), false);
+        LibraryModel.Count hid3 = LibraryModel.count(three, LibraryModel.Filter.HIDDEN,
+                LibraryModel.list(three, LibraryModel.Filter.HIDDEN));
+        assertEquals("ATLAS-PC · 3 jeux masqués", line(hid3));
+        // The last hidden game shown again while Masqués is on screen: « aucun jeu masqué », not « 0 jeu »
+        LibraryModel.Count hid0 = LibraryModel.count(m, LibraryModel.Filter.HIDDEN, new ArrayList<NvApp>());
+        assertEquals(LibraryModel.Count.Kind.HIDDEN, hid0.kind);
+        assertEquals("ATLAS-PC · aucun jeu masqué", line(hid0));
         // Récents under a hidden game lists every game not hidden: "N jeux", not "3 affichés sur 3"
         LibraryModel.Count rec = LibraryModel.count(m, LibraryModel.Filter.RECENT, LibraryModel.list(m, LibraryModel.Filter.RECENT));
         assertEquals(LibraryModel.Count.Kind.GAMES, rec.kind);

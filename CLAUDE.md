@@ -375,7 +375,9 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   que pour les jeux) : la bibliothèque est le seul endroit où l'on réaffiche les jeux masqués.
   Son compteur suit le filtre avec la règle `countLine` du desktop (`LibraryModel.count()`) : « PC · aucun jeu »,
   « PC · N jeux » (Tous, ou autant d'affichés que de non masqués), sinon « PC · N affichés sur M » (M = non masqués) ;
-  singulier « 1 jeu » / « 1 affiché sur M » (plurals `v2_lib_count_games` / `_shown`).
+  singulier « 1 jeu » / « 1 affiché sur M » (plurals `v2_lib_count_games` / `_shown`). Sous **Masqués** : « PC · 1 jeu
+  masqué », « N jeux masqués », « aucun jeu masqué » (`Count.Kind.HIDDEN` ; ⚠️ le français range 0 dans `one`, d'où
+  la chaîne à part `v2_lib_count_hidden_none`). Le desktop ne l'a pas encore (écart noté dans la parité).
 - `HomeScreen` / `LibraryScreen` se construisent depuis des **données simples** (`HomeScreen.State`,
   `CoverSource`) : aucune dépendance au service. Les activités (`V2HostActivity` : binding
   `ComputerManagerService`, poller d'applis du PC affiché, lancer/quitter/relancer, jeux masqués

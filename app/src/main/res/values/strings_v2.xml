@@ -679,6 +679,12 @@
         <item quantity="many">%1$s · %2$d affichés sur %3$d</item>
         <item quantity="other">%1$s · %2$d affichés sur %3$d</item>
     </plurals>
+    <string name="v2_lib_count_hidden_none">%1$s · aucun jeu masqué</string>
+    <plurals name="v2_lib_count_hidden">
+        <item quantity="one">%1$s · %2$d jeu masqué</item>
+        <item quantity="many">%1$s · %2$d jeux masqués</item>
+        <item quantity="other">%1$s · %2$d jeux masqués</item>
+    </plurals>
     <string name="v2_lib_back">← %1$s</string>
     <string name="v2_lib_playnite">Playnite</string>
     <string name="v2_lib_badge_installed">Installé</string>

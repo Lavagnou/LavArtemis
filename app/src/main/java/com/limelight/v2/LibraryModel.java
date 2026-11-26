@@ -91,10 +91,11 @@ public final class LibraryModel {
     /**
      * The count line under the title (desktop LibraryView.qml countLine): « aucun jeu » when the list is
      * empty, « N jeux » under Tous or when it shows as many games as are not hidden, « N affichés sur M »
-     * otherwise, M = the games not hidden (singular « 1 jeu », « 1 affiché sur M »).
+     * otherwise, M = the games not hidden (singular « 1 jeu », « 1 affiché sur M »). Under Masqués, the
+     * hidden games only: « N jeux masqués », « 1 jeu masqué », « aucun jeu masqué » (user, 2026-11-26).
      */
     public static final class Count {
-        public enum Kind { NONE, GAMES, SHOWN_OF }
+        public enum Kind { NONE, GAMES, SHOWN_OF, HIDDEN }
 
         public final Kind kind;
         public final int shown;
@@ -111,6 +112,9 @@ public final class LibraryModel {
     public static Count count(HomeModel m, Filter f, List<NvApp> shown) {
         int n = shown == null ? 0 : shown.size();
         int visible = m == null ? 0 : m.library.size() - m.hiddenCount;
+        if (f == Filter.HIDDEN) {
+            return new Count(Count.Kind.HIDDEN, n, visible);
+        }
         if (n == 0) {
             return new Count(Count.Kind.NONE, 0, visible);
         }
