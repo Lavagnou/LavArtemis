@@ -11,7 +11,7 @@ S6 toasts: the Multi-écran pill without the virtual display says why (« Le mul
 S7 Bureau left running by « Déconnecter »: its card says « Reprendre » and a click resumes the stream (the bug of
    wave 4: « ne relance rien »).
 
-Written during the night of 2026-11-26 with the display off: never run yet (port-notes.md)."""
+Written during the night of 2026-11-26 with the display off, first run on 2026-11-26."""
 import time
 
 import helpers

@@ -8,7 +8,7 @@ S3 Mes PC (V8-36): a card says the PC's type and link (« Tour · réseau filair
 S4 Réglages (V8-48): expert mode off, a page with expert rows ends with « N réglages avancés masqués · activer le
    mode expert », which turns expert mode on; rows saved in the profile carry « ● ».
 
-Written during the night of 2026-11-26 with the display off: never run yet (port-notes.md)."""
+Written during the night of 2026-11-26 with the display off, first run on 2026-11-26."""
 import time
 
 import helpers

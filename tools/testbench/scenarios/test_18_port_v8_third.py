@@ -8,7 +8,7 @@ S3 Mes PC: the PCs that answer first (Cynisca, stopped, goes after Test-Atlas al
 S4 the update dialog (V8-13): « Vérifier » finds a version (LAV_TEST_UPDATE), « Installer » opens the theme's
    dialog with « Télécharger et installer », « Ignorer cette version », « Plus tard ».
 
-Written on 2026-11-26 with the display off: never run yet (port-notes.md)."""
+Written on 2026-11-26 with the display off, first run the same day."""
 import time
 
 import helpers
