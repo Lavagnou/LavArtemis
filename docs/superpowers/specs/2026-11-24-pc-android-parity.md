@@ -241,6 +241,18 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
   téléchargés ne touche plus ceux de l'autre appli (stable / Dev) ; le dialogue de mise à jour n'a plus l'icône
   d'erreur.
 
+## 3 sexies. Aligné le 2026-11-26 (données de l'hôte pour le prototype, vague 5, scénario 15)
+
+- **Mêmes données des deux côtés**, lues des mêmes champs de LavApollo (`LavApollo/docs/lavartemis-host-data.md`) :
+  installé ou non, heures jouées, dernière activité et image de fond de chaque jeu Playnite ; début de la session et
+  du jeu lancé dans Playnite ; type de PC (tour / mini-PC / portable) ; filaire ou Wi-Fi. Pas encore affichées
+  (la vague du portage du prototype s'en charge), sauf le début de session, que les deux accueils prennent
+  désormais de l'hôte (« depuis 42 min ») au lieu de leur propre horloge quand l'hôte le donne.
+- **Ordre « Récents »** : même règle des deux côtés, tri sur la dernière activité, jamais joués à la fin, un hôte qui
+  ne la donne pas garde son ordre (`NvComputer::sortApps()` / `HomeModel.sortRecentFirst()`).
+- **Latence** : même mesure, un `connect` TCP après chaque poll réussi, au moins 1 ms (`PcMonitorThread::
+  measureLatencyMs` / `computers/HostLatency`).
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)

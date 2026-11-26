@@ -212,6 +212,27 @@ Chaque jeu installé de Playnite devient une appli de l'hôte, lancée **dans** 
   (`HomeModel.decide()` → `INSIDE_PLAYNITE` en Dev, `AppView` en stable), et `NvConnection` envoie alors un **`resume`** avec ce jeu : LavApollo le démarre dans
   Playnite et la session continue, au lieu de quitter l'appli en cours.
 - Desktop : même logique (`AppModel::startsInsidePlaynite()`, `Session`).
+- **Données de l'hôte pour les écrans du prototype** (vague 5, 2026-11-26, données seulement, aucune UI ;
+  protocole : `LavApollo/docs/lavartemis-host-data.md`). Par jeu : `PlayniteInstalled`, `PlaynitePlaytime` (s),
+  `PlayniteLastActivity` (s Unix), `PlayniteBackground` + `/appasset?asset=background` (404 sans image) ; par PC :
+  `CurrentGameElapsed`, `PlayniteGameElapsed` (des durées, pas des dates : les horloges diffèrent), `HostFormFactor`
+  (`tower`/`mini`/`laptop`), `HostLink` (`wired`/`wifi`). Android : `NvApp.isPlayniteInstalled()`,
+  `getPlayniteLastActivity()`, `getPlaynitePlaytime()`, `hasPlayniteBackground()`, `NvHTTP.getBackground()` ;
+  `ComputerDetails.sessionStartedAt` / `playniteGameStartedAt` (ms, horloge de l'appareil, gardés sauf écart de plus
+  de 5 s), `hostFormFactor`, `hostLink`, `latencyMs`. **La latence est mesurée par le client** :
+  `computers/HostLatency` = un `connect` TCP sur l'adresse qui vient de répondre au poll (`tryPollIp`), au moins
+  1 ms, -1 sinon ; le desktop fait de même. L'accueil prend le début de session de l'hôte quand il le donne
+  (`HomeActivity`, `SessionClock` reste pour les autres hôtes). Tests : `NvHTTPPlayniteTest`, `HomeModelTest`,
+  `HostLatencyTest` ; banc : scénario 15.
+- **Jeux pas installés** : LavApollo Link 1.1.0 exporte aussi les jeux non installés (non masqués) ; les lancer
+  passe par Playnite, qui **propose de les installer** (son propre dialogue sur le PC) ; la session attend alors le
+  jeu 24 h au lieu de 120 s.
+- ⚠️ **« Récents » figés (corrigé le 2026-11-26)** : LavApollo ne reconstruit sa liste d'applis que quand rien ne
+  tourne, et l'utilisateur laisse Playnite Fullscreen lancé : l'ordre restait celui du démarrage de l'hôte.
+  `/applist` prend maintenant l'ordre et l'état des jeux dans `library.json` tel qu'il est
+  (`playnite::library_snapshot()`), et **les deux clients trient sur `PlayniteLastActivity`** (jamais joués à la
+  fin, tri stable : un hôte qui ne l'envoie pas garde son ordre) — `HomeModel.sortRecentFirst()`,
+  `NvComputer::sortApps()`.
 - **« Quitter le jeu »** (menu en jeu, Android `GameMenu` et desktop `QuickMenu`) : `/playnite-quit-game`
   ferme seulement le jeu lancé dans Playnite, le stream continue et revient à Playnite.
 
@@ -250,8 +271,8 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   (`fontVariationSettings`, API 26+ ; en dessous : instance par défaut + faux gras). Licences dans
   `assets/licenses/fonts/`. Icônes `drawable/v2_ic_*` générées depuis les chemins de `LavIcon.qml`.
 - `HomeModel` (Java pur, testé) porte les règles du desktop : `kindOf` (= `AppModel::kindOf`), cartes
-  Bureau puis Playnite Fullscreen, Récents = jeux Playnite **dans l'ordre de l'hôte** (le plus récent
-  d'abord), 10 au plus, jamais les masqués ; `decide()` : START / RESUME / INSIDE_PLAYNITE / ASK_QUIT.
+  Bureau puis Playnite Fullscreen, Récents = jeux Playnite du plus récemment joué au plus ancien
+  (`PlayniteLastActivity`, sinon l'ordre de l'hôte), 10 au plus, jamais les masqués ; `decide()` : START / RESUME / INSIDE_PLAYNITE / ASK_QUIT.
   Les autres applis de l'hôte ne sont pas montrées. Les cartes ignorent « Masquer » (le menu ne le propose
   que pour les jeux) : la bibliothèque est le seul endroit où l'on réaffiche les jeux masqués.
 - `HomeScreen` / `LibraryScreen` se construisent depuis des **données simples** (`HomeScreen.State`,
