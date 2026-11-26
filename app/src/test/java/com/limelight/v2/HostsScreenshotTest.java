@@ -255,6 +255,51 @@ public class HostsScreenshotTest {
         hosts("hosts-phone-ludique-dark-empty", "ludique", true, 915, 412, V2Input.Kind.TOUCH, true);
     }
 
+    /**
+     * Ludique's focus ring (4 + 9 px, card at 1.04) on each card of Mes PC, at the gamepad: never cut
+     * by the next card, the grid or the screen (FocusRingClipTest checks every screen)
+     */
+    @Test
+    public void hostsLudiqueFocus() throws Exception {
+        int[][] sizes = {{915, 412}, {412, 915}, {960, 540}};
+        String[] names = {"phone", "portrait", "console"};
+        for (int s = 0; s < sizes.length; s++) {
+            for (String card : new String[]{"ATLAS-PC", "SALON", null}) {
+                int wDp = sizes[s][0], hDp = sizes[s][1];
+                qualifiers(wDp, hDp, "fr");
+                V2Input.reset(V2Input.Kind.PAD);
+                Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+                HostsScreen screen = new HostsScreen(ctx, V2Theme.of("ludique", true), Density.forSize(wDp, hDp), new NoActions());
+                screen.bind(cards(ctx, false));
+                View root = screen.getView();
+                draw(root, wDp * DENSITY, hDp * DENSITY);
+                View target = card == null ? findByDescription(root, ctx.getString(R.string.v2_add_pc)) : findByDescription(root, card);
+                assertNotNull("card " + card, target);
+                target.setFocusableInTouchMode(true);
+                assertTrue(target.requestFocus());
+                ShadowLooper.idleMainLooper();
+                save(draw(root, wDp * DENSITY, hDp * DENSITY), "hosts-focus-ludique-" + names[s] + "-"
+                        + (card == null ? "ajouter" : card.toLowerCase(java.util.Locale.ROOT)));
+            }
+        }
+    }
+
+    private static View findByDescription(View v, String desc) {
+        if (v.isFocusable() && v.getContentDescription() != null && desc.contentEquals(v.getContentDescription())) {
+            return v;
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View f = findByDescription(g.getChildAt(i), desc);
+                if (f != null) {
+                    return f;
+                }
+            }
+        }
+        return null;
+    }
+
     // ---- dialogs --------------------------------------------------------------------------------
 
     @Test
@@ -356,12 +401,12 @@ public class HostsScreenshotTest {
     @Test
     public void themedGameMenu() throws Exception {
         gameMenu("gamemenu-phone-braise-dark", "braise", true, 915, 412, V2Input.Kind.TOUCH);
-        gameMenu("gamemenu-phone-braise-light", "braise", false, 915, 412, V2Input.Kind.TOUCH);
+        gameMenu("gamemenu-phone-braise-light", "braise", false, 915, 412, V2Input.Kind.PAD);
         gameMenu("gamemenu-console-braise-dark", "braise", true, 960, 540, V2Input.Kind.PAD);
         gameMenu("gamemenu-phone-affiche-light", "affiche", false, 915, 412, V2Input.Kind.PAD);
         gameMenu("gamemenu-phone-affiche-dark", "affiche", true, 915, 412, V2Input.Kind.TOUCH);
         gameMenu("gamemenu-console-ludique-dark", "ludique", true, 960, 540, V2Input.Kind.KEYS);
-        gameMenu("gamemenu-phone-ludique-light", "ludique", false, 915, 412, V2Input.Kind.TOUCH);
+        gameMenu("gamemenu-phone-ludique-light", "ludique", false, 915, 412, V2Input.Kind.PAD);
         gameMenu("gamemenu-portrait-ludique-dark", "ludique", true, 412, 915, V2Input.Kind.TOUCH);
         gameMenu("gamemenu-tablet-ludique-dark", "ludique", true, 1280, 800, V2Input.Kind.PAD);
     }

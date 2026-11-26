@@ -25,6 +25,7 @@ import com.limelight.v2.ui.CoverView;
 import com.limelight.v2.ui.HintsBar;
 import com.limelight.v2.ui.AppIconDrawable;
 import com.limelight.v2.ui.Ui;
+import com.limelight.v2.ui.V2Frame;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -198,8 +199,12 @@ public final class HomeScreen {
         if (l.phone()) {
             side = af ? 0 : 20 / l.k;
         }
-        int bottom = l.phone() ? Ui.dp(ctx, 8) : px(ctx, l, af ? 72 : (lu ? 84 : 64));
-        page.setPadding(px(ctx, l, side), af ? 0 : (l.phone() ? Ui.dp(ctx, 8) : px(ctx, l, lu ? 26 : 24)), px(ctx, l, side), bottom);
+        // A phone: the header and the covers come close to the edges, the focus ring must still fit
+        // (V2Frame.ringRoom: Ludique's 9 dp ring cut 1 dp off the header pills and the covers)
+        int coverRing = V2Frame.ringRoom(ctx, th, px(ctx, l, (af ? 198 : (lu ? 186 : 180)) * 1.13f));
+        int bottom = l.phone() ? Math.max(Ui.dp(ctx, 8), coverRing) : px(ctx, l, af ? 72 : (lu ? 84 : 64));
+        int top = l.phone() ? Math.max(Ui.dp(ctx, 8), V2Frame.ringRoom(ctx, th, 0)) : px(ctx, l, lu ? 26 : 24);
+        page.setPadding(px(ctx, l, side), af ? 0 : top, px(ctx, l, side), bottom);
 
         // ---- header ----------------------------------------------------------------------------
         LinearLayout header = new LinearLayout(ctx);
@@ -377,12 +382,15 @@ public final class HomeScreen {
         recentsRow = new LinearLayout(ctx);
         recentsRow.setOrientation(LinearLayout.HORIZONTAL);
         recentsRow.setGravity(Gravity.TOP);
-        int ring = Ui.dp(ctx, 12);
-        recentsRow.setPadding(af ? px(ctx, l, 32) + ring : ring, ring, ring + (af ? px(ctx, l, 32) : 0), ring);
+        int ring = Math.max(Ui.dp(ctx, 12), coverRing);
+        // The row reaches out by the ring into the page's side padding; Affiche has none (its covers
+        // start 32 px in): the scroller stays on the screen, or its last cover's ring went past the edge
+        int out = af ? 0 : ring;
+        recentsRow.setPadding(af ? px(ctx, l, 32) : ring, ring, af ? px(ctx, l, 32) : ring, ring);
         hs.addView(recentsRow);
         Ui.noClip(hs, recentsRow);
         LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rlp.setMargins(-ring, -ring, -ring, -ring);
+        rlp.setMargins(-out, -ring, -out, -ring);
         page.addView(hs, rlp);
         libTile = new LibTile(ctx, th, l);
         libTile.setOnClickListener(v -> actions.openLibrary());
@@ -699,18 +707,38 @@ public final class HomeScreen {
             bar.setPadding(px(ctx, l, 24), 0, px(ctx, l, 9), 0);
             bar.setMinimumHeight(px(ctx, l, 64));
             Ui.noClip(bar);
+            // Portrait: the live line on top, Reprendre / Quitter under it (in one row they were pushed
+            // off the right of a 412 dp screen)
+            LinearLayout line = bar, buttons = bar;
+            if (l.portrait) {
+                bar.setOrientation(LinearLayout.VERTICAL);
+                bar.setGravity(Gravity.START);
+                bar.setPadding(px(ctx, l, 24), px(ctx, l, 14), px(ctx, l, 24), px(ctx, l, 14));
+                line = new LinearLayout(ctx);
+                line.setOrientation(LinearLayout.HORIZONTAL);
+                line.setGravity(Gravity.CENTER_VERTICAL);
+                Ui.noClip(line);
+                bar.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                buttons = new LinearLayout(ctx);
+                buttons.setOrientation(LinearLayout.HORIZONTAL);
+                buttons.setGravity(Gravity.CENTER_VERTICAL);
+                Ui.noClip(buttons);
+                LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                blp.topMargin = px(ctx, l, 12);
+                bar.addView(buttons, blp);
+            }
             st[0] = HomeParts.text(ctx, th, l, 13, 800, th.lit.bandLive, false);
             HomeParts.liveDot(st[0], ctx, l, th.lit.bandLive, 7);
-            bar.addView(st[0]);
+            line.addView(st[0]);
             st[1] = HomeParts.text(ctx, th, l, 24, 800, th.lit.onBand, true);
             st[1].setLetterSpacing(-0.02f);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
             tlp.setMarginStart(px(ctx, l, 16));
-            bar.addView(st[1], tlp);
+            line.addView(st[1], tlp);
             st[2] = HomeParts.text(ctx, th, l, 14, 600, th.lit.onBandChip, false);
             LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             vlp.setMarginStart(px(ctx, l, 16));
-            bar.addView(st[2], vlp);
+            line.addView(st[2], vlp);
             Button resume = new Button(ctx, th);
             resume.setBackground(rect(th.lit.lime, pxf(ctx, l, 23), 0, 0));
             resume.radius(l.b(23));
@@ -719,8 +747,8 @@ public final class HomeScreen {
             rr.setPadding(px(ctx, l, 22), 0, px(ctx, l, 22), 0);
             resume.addView(rr, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
             LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Math.max(px(ctx, l, 46), Ui.dp(ctx, btnMin)));
-            rlp.setMarginStart(px(ctx, l, 16));
-            bar.addView(resume, rlp);
+            rlp.setMarginStart(l.portrait ? 0 : px(ctx, l, 16));
+            buttons.addView(resume, rlp);
             Button quit = new Button(ctx, th);
             quit.setBackground(rect(Color.TRANSPARENT, pxf(ctx, l, 23), px(ctx, l, 2), th.lit.onBand));
             quit.radius(l.b(23));
@@ -731,7 +759,7 @@ public final class HomeScreen {
             quit.addView(q, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
             LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Math.max(px(ctx, l, 46), Ui.dp(ctx, btnMin)));
             qlp.setMarginStart(px(ctx, l, 16));
-            bar.addView(quit, qlp);
+            buttons.addView(quit, qlp);
             sb[0] = resume;
             sb[1] = quit;
             return bar;

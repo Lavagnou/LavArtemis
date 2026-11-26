@@ -306,19 +306,23 @@ final class HomeParts {
                 float r = pxf(ctx, l, 22);
                 setBackground(rect(th.lit.card, r, 0, 0));
                 setRing(l.b(22), 0, 0);
-                setClipToOutline21(this, r);
+                // The rounded corners clip the face, not the card: clipping the card to its outline cut its
+                // own focus ring (drawn outside it) all around (FocusRingClipTest)
+                FrameLayout face = new FrameLayout(ctx);
+                setClipToOutline21(face, r);
+                addView(face, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
                 blurArt.setBlur(true);
-                addView(blurArt, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-                addView(new GradientView(ctx, 0f, new int[]{argb(th.lit.veil, 0.92f), argb(th.lit.veil, 0.7f), argb(th.lit.veil, 0.35f)},
+                face.addView(blurArt, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+                face.addView(new GradientView(ctx, 0f, new int[]{argb(th.lit.veil, 0.92f), argb(th.lit.veil, 0.7f), argb(th.lit.veil, 0.35f)},
                         new float[]{0f, 0.55f, 1f}), new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-                addView(art, new LayoutParams(px(ctx, l, 127), LayoutParams.MATCH_PARENT, Gravity.END));
+                face.addView(art, new LayoutParams(px(ctx, l, 127), LayoutParams.MATCH_PARENT, Gravity.END));
                 glowOverlay = new GradientView(ctx, 100f, new int[]{0x6BFF6A2B, 0x1FFF6A2B, 0x00FF6A2B}, new float[]{0f, 0.55f, 0.8f});
-                addView(glowOverlay, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+                face.addView(glowOverlay, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
                 LinearLayout text = new LinearLayout(ctx);
                 text.setOrientation(LinearLayout.VERTICAL);
                 LayoutParams tlp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
                 tlp.setMargins(px(ctx, l, 26), px(ctx, l, 20), px(ctx, l, 150), px(ctx, l, 20));
-                addView(text, tlp);
+                face.addView(text, tlp);
                 pill = HomeParts.text(ctx, th, l, 12, 700, 0xFF0E0D0C, false);
                 pill.setGravity(Gravity.CENTER_VERTICAL);
                 pill.setPadding(px(ctx, l, 12), 0, px(ctx, l, 12), 0);
@@ -337,7 +341,7 @@ final class HomeParts {
                 more = HomeParts.more(ctx, th, l, 38, 18, argb(th.lit.veil, 0.72f), th.fg, true, false);
                 LayoutParams mlp = new LayoutParams(px(ctx, l, 38), px(ctx, l, 38), Gravity.TOP | Gravity.END);
                 mlp.setMargins(0, px(ctx, l, 14), px(ctx, l, 141), 0);
-                addView(more, mlp);
+                face.addView(more, mlp);
                 num = null;
             }
         }

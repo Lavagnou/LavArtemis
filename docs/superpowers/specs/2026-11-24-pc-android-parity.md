@@ -384,6 +384,11 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   dans « one » : « aucun » a sa propre chaîne) et plurals `v2_lib_count_hidden`, cas dans `LibraryModelTest`.
   Desktop : `LibraryCountText::line(…, hiddenFilter)` (`tests/librarycount`), `LibraryView.qml` countLine sur le filtre
   Masqués ; scénario 2 (« Test-Atlas · 1 jeu masqué »). **Aligné** (LavArtemis-Qt `port-v8`).
+- **Anneau de focus jamais coupé (2026-11-26, règle de l'utilisateur)** : ni par un bord (carte, panneau, liste qui
+  défile, écran) ni par la tuile voisine, dans aucun thème ni aucune taille. **Android fait** : `FocusRingClipTest`
+  (tous les écrans v2), `V2Frame.ringRoom()` / `raise()` (le focus passe devant ses voisins, comme la tuile
+  transformée du prototype), détails dans `CLAUDE.md` (« Un anneau de focus n'est jamais coupé »). **PC** : à
+  vérifier de son côté (banc de test).
 
 ## 4. Ce qui reste
 

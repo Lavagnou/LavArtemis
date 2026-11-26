@@ -143,7 +143,7 @@ public final class V2ListDialog {
             footer.setOrientation(LinearLayout.HORIZONTAL);
             footer.setGravity(Gravity.CENTER_VERTICAL);
             // Room inside the footer for the focus ring of « Annuler », drawn outside the button
-            footer.setPadding(Ui.dp(context, 8), Ui.dp(context, 12), Ui.dp(context, 6), Ui.dp(context, 6));
+            footer.setPadding(Ui.dp(context, 8), Ui.dp(context, 12), footerRing(context, theme), footerRing(context, theme));
             Ui.noClip(footer);
             TextView hint = Ui.text(context, theme, 13, 500, theme.muted);
             hint.setText(hintText == null ? "" : hintText);
@@ -282,7 +282,7 @@ public final class V2ListDialog {
         LinearLayout footer = new LinearLayout(context);
         footer.setOrientation(LinearLayout.HORIZONTAL);
         footer.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-        footer.setPadding(Ui.dp(context, 8), Ui.dp(context, 12), Ui.dp(context, 6), Ui.dp(context, 6));
+        footer.setPadding(Ui.dp(context, 8), Ui.dp(context, 12), footerRing(context, theme), footerRing(context, theme));
         Ui.noClip(footer);
         PillButton cancel = new PillButton(context, theme, PillButton.Style.SECONDARY, 0, cancelText, 44, 16);
         cancel.setOnClickListener(v -> dialog.cancel());
@@ -319,6 +319,13 @@ public final class V2ListDialog {
         return dialog;
     }
 
+    /**
+     * Right and bottom padding of the footer: the panel clips its children (the scrolled list), so
+     * the ring of the last button must fit in the footer (Ludique's 9 dp ring was cut by 6 dp)
+     */
+    private static int footerRing(Context context, V2Theme theme) {
+        return Math.max(Ui.dp(context, 6), V2Frame.ringRoom(context, theme, 0));
+    }
     private static View row(Context context, V2Theme theme, String label, boolean selected, Runnable click) {
         final float radius = Ui.dpf(context, theme.isAffiche() ? 0 : (theme.isLudique() ? 16 : 10));
         final TextView row = new TextView(context) {

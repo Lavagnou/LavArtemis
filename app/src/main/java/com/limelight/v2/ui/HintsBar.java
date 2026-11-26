@@ -51,6 +51,15 @@ public final class HintsBar extends LinearLayout {
         return lp;
     }
 
+    /**
+     * Height the bar takes at the bottom of the screen, its margin included: what is laid out above
+     * it keeps clear of it (the bar is drawn last, over a tile or the ring of a focused tile)
+     */
+    public static int reservedHeight(Context context, V2Theme theme, float scale) {
+        float h = theme.isLudique() ? 44 + 20 : (theme.isAffiche() ? 34 + 16 : 36 + 16);
+        return Ui.dp(context, h * scale);
+    }
+
     public void clear() {
         removeAllViews();
     }

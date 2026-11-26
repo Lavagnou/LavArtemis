@@ -484,6 +484,8 @@ public class HomeScreenshotTest {
     @Test
     public void portraitPhone() throws Exception {
         home("portrait-braise-dark-session", "braise", true, 412, 915, Scene.PLAYNITE_GAME, V2Input.Kind.TOUCH);
+        // Ludique's session bar takes two rows in portrait (Reprendre / Quitter went off the screen)
+        home("portrait-ludique-dark-session", "ludique", true, 412, 915, Scene.PLAYNITE_GAME, V2Input.Kind.PAD);
     }
 
     @Test

@@ -40,7 +40,9 @@ import java.util.Map;
  * colour then the ring colour (Braise 3 / 6 px, Ludique 4 / 9 px); for Affiche a yellow fill with dark
  * ink (ring), or a 4 px outline 4 px away (ring2) on the recent covers.</li>
  * </ul>
- * Ancestors must not clip children ({@link Ui#noClip}) or the halo and the ring are cut.
+ * Ancestors must not clip children ({@link Ui#noClip}) or the halo and the ring are cut. A focused
+ * view with a ring is drawn above its neighbours ({@link #raise}): the ring reaches past the gap
+ * between two tiles, and the next tile, drawn later, painted over it (FocusRingClipTest).
  */
 public class V2Frame extends FrameLayout implements V2Input.Listener {
     /** How the running item glows */
@@ -162,6 +164,40 @@ public class V2Frame extends FrameLayout implements V2Input.Listener {
         scaleOnFocus = on;
     }
 
+    /**
+     * How far the focus ring reaches outside the view, in px (the theme's outer ring: Braise 6,
+     * Affiche 8, Ludique 9 dp), before the focus scale; 0 when this view draws no ring (Affiche's
+     * yellow fill alone). FocusRingClipTest checks no ancestor cuts it.
+     */
+    public float focusRingOutsetPx() {
+        if (theme.focusFill && !focusOutline) {
+            return 0;
+        }
+        return Ui.dpf(getContext(), theme.focusOuter);
+    }
+
+    /**
+     * Room the focus ring of a view of this size takes past its edge, in px: the theme's ring,
+     * scaled, plus what the 1.04 focus scale adds (a card or a cover; pass 0 for a button). A
+     * container that clips, or the edge of the screen, keeps at least this much around its items.
+     */
+    public static int ringRoom(Context ctx, V2Theme theme, float sizePx) {
+        return (int) Math.ceil(Ui.dpf(ctx, theme.focusOuter) * FOCUS_SCALE + sizePx * (FOCUS_SCALE - 1f) / 2f) + 1;
+    }
+
+    /** The scale the focus gives this view: 1.04 for the cards and covers (not on Affiche), else 1 */
+    public float focusScale() {
+        return scaleOnFocus && !theme.isAffiche() ? FOCUS_SCALE : 1f;
+    }
+
+    /** The box the focus ring covers, in this view's coordinates (ring outset, then the focus scale) */
+    public RectF focusRingBox() {
+        float o = focusRingOutsetPx(), s = focusScale();
+        float cx = getWidth() / 2f, cy = getHeight() / 2f;
+        float hw = (getWidth() / 2f + o) * s, hh = (getHeight() / 2f + o) * s;
+        return new RectF(cx - hw, cy - hh, cx + hw, cy + hh);
+    }
+
     private void applyFocusScale() {
         if (!scaleOnFocus) {
             return;
@@ -182,10 +218,63 @@ public class V2Frame extends FrameLayout implements V2Input.Listener {
         if (getParent() instanceof View) {
             ((View) getParent()).invalidate();
         }
+        raise(gainFocus && showFocus() && focusRingOutsetPx() > 0);
+        if (gainFocus && showFocus() && focusRingOutsetPx() > 0) {
+            // A ScrollView scrolls the view itself on screen, flush with its edge: the ring would be
+            // cut there. Ask again for the whole ring (focus scale included).
+            RectF b = focusRingBox();
+            requestRectangleOnScreen(new Rect((int) Math.floor(b.left), (int) Math.floor(b.top),
+                    (int) Math.ceil(b.right), (int) Math.ceil(b.bottom)), true);
+        }
+    }
+
+    /** Views put above their siblings for the focus, with the translationZ they had */
+    private final java.util.List<View> raised = new java.util.ArrayList<>();
+    private final java.util.List<Float> raisedZ = new java.util.ArrayList<>();
+    /** Enough to come first in the drawing order of the siblings, too little for a visible shadow */
+    private static final float RAISE_Z = 0.01f;
+
+    /**
+     * Draws this view and its containers above their siblings while the ring shows, the way the
+     * prototype's focused tile (a transform, its own stacking context) paints over the next tiles:
+     * a ViewGroup draws children with a higher Z last. Up the containers of the grid (a row, the
+     * grid), not past a scroller nor out of a stack of layers (a FrameLayout: the hints bar and the
+     * dialogs stay on top).
+     */
+    private void raise(boolean on) {
+        for (int i = raised.size() - 1; i >= 0; i--) {
+            raised.get(i).setTranslationZ(raisedZ.get(i));
+        }
+        raised.clear();
+        raisedZ.clear();
+        if (!on) {
+            return;
+        }
+        View v = this;
+        while (true) {
+            raised.add(v);
+            raisedZ.add(v.getTranslationZ());
+            v.setTranslationZ(v.getTranslationZ() + RAISE_Z);
+            if (!(v.getParent() instanceof ViewGroup)) {
+                break;
+            }
+            ViewGroup p = (ViewGroup) v.getParent();
+            // A ScrollView is a FrameLayout too: its content is not raised (it is alone in it)
+            if (isScroller(p) || !(p.getParent() instanceof ViewGroup) || p.getParent() instanceof FrameLayout) {
+                break;
+            }
+            v = p;
+        }
+    }
+
+    private static boolean isScroller(View v) {
+        return v instanceof android.widget.ScrollView || v instanceof android.widget.HorizontalScrollView
+                || v instanceof androidx.recyclerview.widget.RecyclerView;
     }
 
     @Override
     public void onInputKindChanged(V2Input.Kind kind) {
+        raise(kind != V2Input.Kind.TOUCH && isFocused() && focusRingOutsetPx() > 0);
         applyFocusScale();
         applyFocusLook();
         invalidate();

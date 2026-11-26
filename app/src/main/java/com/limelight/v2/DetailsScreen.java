@@ -362,13 +362,25 @@ public final class DetailsScreen {
         LinearLayout card = new LinearLayout(ctx);
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setBackground(rect(white, pxf(ctx, l, 44), 0, 0));
-        HomeParts.setClipToOutline21(card, pxf(ctx, l, 44));
+        // Only the picture is clipped to the card's rounded corners (its left ones): clipping the whole
+        // card cut the focus ring of its rows and of the launch button (FocusRingClipTest)
+        final float cardR = pxf(ctx, l, 44);
         FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         clp.setMargins(px(ctx, l, 48), px(ctx, l, 40), px(ctx, l, 48), px(ctx, l, 90));
         root.addView(card, clp);
 
         FrameLayout pic = new FrameLayout(ctx);
         pic.setBackgroundColor(0xFF1B1530);
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            pic.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, android.graphics.Outline outline) {
+                    // Rounded on the left, square where the picture meets the rows
+                    outline.setRoundRect(0, 0, view.getWidth() + Math.round(cardR), view.getHeight(), cardR);
+                }
+            });
+            pic.setClipToOutline(true);
+        }
         pic.addView(background, matchParent());
         int veil = dark ? 0xFF000000 : 0xFF1B1530;
         pic.addView(new HomeParts.GradientView(ctx, 180f, new int[]{argb(veil, 0f), argb(veil, 0f), argb(veil, 0.88f)},
@@ -410,7 +422,15 @@ public final class DetailsScreen {
         side.setOrientation(LinearLayout.VERTICAL);
         side.setPadding(px(ctx, l, 34), px(ctx, l, 30), px(ctx, l, 34), px(ctx, l, 30));
         Ui.noClip(side);
-        card.addView(side, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        // A phone in landscape is too short for the rows, the note and the button: the side scrolls
+        // (it fills the card when it fits, the button stays at the bottom), and the focus scrolls a
+        // ring into view instead of the card cutting the button and its ring
+        android.widget.ScrollView sideScroll = new android.widget.ScrollView(ctx);
+        sideScroll.setFillViewport(true);
+        sideScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        sideScroll.setVerticalScrollBarEnabled(false);
+        sideScroll.addView(side, new android.widget.ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        card.addView(sideScroll, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         TextView head = HomeParts.text(ctx, th, l, 22, 800, th.fg, false);
         head.setLetterSpacing(-0.02f);
         head.setText(R.string.v2_details_how);

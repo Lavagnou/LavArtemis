@@ -194,11 +194,13 @@ public final class LibraryScreen {
         hl.setMargins(px(ctx, l, 40), px(ctx, l, 24), px(ctx, l, 40), 0);
         root.addView(header, hl);
 
-        int p = px(ctx, l, 12);
-        grid.setPadding(p, p, p, px(ctx, l, 70));
+        int p = ringPad();
+        grid.setPadding(p, p, p, Math.max(p, px(ctx, l, 70)));
         grid.setLayoutManager(new GridLayoutManager(ctx, cols));
         grid.addItemDecoration(new Gaps(px(ctx, l, 16)));
-        FrameLayout.LayoutParams gl = new FrameLayout.LayoutParams(px(ctx, l, 780) + 2 * p, ViewGroup.LayoutParams.MATCH_PARENT);
+        // Never wider than the screen (a phone in portrait): the last column stayed off the edge
+        FrameLayout.LayoutParams gl = new FrameLayout.LayoutParams(Math.min(px(ctx, l, 780) + 2 * p,
+                Ui.dp(ctx, l.widthDp) - 2 * (px(ctx, l, 40) - p)), ViewGroup.LayoutParams.MATCH_PARENT);
         gl.setMargins(px(ctx, l, 40) - p, px(ctx, l, 100) - p, 0, 0);
         root.addView(grid, gl);
 
@@ -339,7 +341,7 @@ public final class LibraryScreen {
         hl.setMargins(px(ctx, l, 48), px(ctx, l, 26), px(ctx, l, 48), 0);
         root.addView(header, hl);
 
-        int p = px(ctx, l, 12);
+        int p = ringPad();
         grid.setPadding(p, p, p, p);
         grid.setLayoutManager(new GridLayoutManager(ctx, cols));
         grid.addItemDecoration(new Gaps(px(ctx, l, 18)));
@@ -383,6 +385,16 @@ public final class LibraryScreen {
         b.setContentDescription(ctx.getString(R.string.v2_back));
         b.setOnClickListener(v -> actions.back());
         return b;
+    }
+
+    /**
+     * Padding of the grid, which its parent clips at its bounds: the covers scroll into it
+     * (clipToPadding off) and the focus ring of a cover of the first or last row or column fits in
+     * it (V2Frame.ringRoom; the prototype's 12 px were too little at 0.6 on a phone). The grid is
+     * moved out by as much, so the covers stay where they were.
+     */
+    private int ringPad() {
+        return Math.max(px(ctx, l, 12), com.limelight.v2.ui.V2Frame.ringRoom(ctx, th, px(ctx, l, 240)));
     }
 
     private LinearLayout.LayoutParams gap(float protoPx) {

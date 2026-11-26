@@ -555,14 +555,39 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > long tienne dans la tuile (`CoverTile.fittedSize`) — un mot n'est jamais coupé en deux (« Redem/ption »).
 
 > ⚠️ **Halo et anneau de focus sont dessinés hors des vues** (`V2Frame`) : tout parent doit avoir
+> `Ui.noClip()` (clipChildren/clipToPadding faux), sinon ils sont coupés. L'assombrissement passe par
+> un `saveLayer` avec `ColorMatrix` (gris puis luminosité **multipliée**, puis opacité), le halo par une
+> image floutée rendue en logiciel (BlurMaskFilter n'est pas fiable en accéléré).
+
+> ⚠️ **Un anneau de focus n'est jamais coupé** (règle de l'utilisateur, 2026-11-26 : l'anneau Ludique de
+> « Ouvrir » était rogné), ni par un bord (carte, panneau, liste qui défile, écran), ni par la tuile voisine.
+> `FocusRingClipTest` parcourt l'arbre de chaque écran v2 (accueil, bibliothèque, détails, options et Plus,
+> menu en jeu, Mes PC, chaque page de Réglages, dialogues de Mes PC, listes, message, alerte), 3 thèmes,
+> 4 tailles : chaque `V2Frame` focalisable prend le focus et la boîte de son anneau (`V2Frame.focusRingBox()` :
+> `focusOuter` du thème, puis l'échelle 1,04) ne doit être coupée par aucun ancêtre (`clipChildren` aux bornes
+> de l'enfant, `clipToPadding`, `clipToOutline`, fenêtre) ni recouverte par un voisin dessiné après. Les règles :
+> - **Place autour** : `V2Frame.ringRoom(ctx, thème, taille)` = l'anneau mis à l'échelle + ce que 1,04 ajoute à un
+>   élément de cette taille. Un conteneur qui coupe (grille `RecyclerView` de la bibliothèque, pied des listes,
+>   haut et bas de l'accueil sur téléphone, haut des Réglages étroits) garde au moins cette marge.
+> - **Le focus passe devant** : `V2Frame.raise()` donne un `translationZ` minuscule à la vue focalisée et à ses
+>   conteneurs (rangée, grille ; pas au-delà d'un scroller ni hors d'un `FrameLayout` de calques, la barre
+>   d'indications reste dessus), comme la tuile transformée du prototype. Sans ça la tuile suivante recouvrait
+>   l'anneau (cartes de Mes PC, dock Ludique, options d'un PC, listes).
+> - **Défilement** : à la prise du focus, `requestRectangleOnScreen()` de toute la boîte de l'anneau (un
+>   `ScrollView` amène sinon la vue au ras de son bord).
+> - **Jamais `clipToOutline` sur une vue qui porte un anneau** : la carte Braise de l'accueil coupait le sien
+>   tout autour ; le contour arrondi est sur une face intérieure (`AppCard`), sur l'image seule (détails Ludique).
+> - **Barre d'indications** (dessinée par-dessus, en bas) : le dock Ludique du menu en jeu garde sa hauteur
+>   libre (`HintsBar.reservedHeight()`) ; la grille Braise, trop haute pour ça sur un téléphone en paysage, remonte
+>   seulement si elle croise la barre, le titre restant à l'écran (écouteur de mise en page de `V2GameMenu`).
+> - **Mises en page corrigées au passage** : bandeau de session Ludique sur deux rangées en portrait (Reprendre /
+>   Quitter sortaient de l'écran), grille Braise de la bibliothèque jamais plus large que l'écran, côté droit des
+>   détails Ludique qui défile quand un téléphone en paysage est trop bas.
 
 > 📋 **Focus à la manette ou au clavier : les cartes et jaquettes grossissent à 1,04** (`V2Frame.setScaleOnFocus(true)`
 > dans `CoverTile`, `AppCard`, `SeeAllTile` et les cartes de Mes PC ; pas les boutons ni les lignes de réglages), et la
 > couleur revient sur une carte assombrie (`theme.dim(showFocus())`), comme sur le PC et dans le prototype. Le
 > survol à la souris (le PC : ombre + liseré) n'a pas d'équivalent ici, le tactile n'a pas de survol.
-> `Ui.noClip()` (clipChildren/clipToPadding faux), sinon ils sont coupés. L'assombrissement passe par
-> un `saveLayer` avec `ColorMatrix` (gris puis luminosité **multipliée**, puis opacité), le halo par une
-> image floutée rendue en logiciel (BlurMaskFilter n'est pas fiable en accéléré).
 
 > ⚠️ **Textes : `setMaxLines(1)`, jamais `setSingleLine(true)`** (Ui.text/display). singleLine active le
 > défilement horizontal : un texte centré (« A », « LB ») est posé au milieu d'une ligne immense, donc

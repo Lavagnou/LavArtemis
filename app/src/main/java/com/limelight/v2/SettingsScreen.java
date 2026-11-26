@@ -89,7 +89,10 @@ public final class SettingsScreen {
         LinearLayout pageLayout = new LinearLayout(context);
         pageLayout.setOrientation(LinearLayout.VERTICAL);
         int side = narrow ? Ui.dp(context, d.side) : px(40);
-        pageLayout.setPadding(side, narrow ? Ui.dp(context, d.top) : px(24), side, narrow ? 0 : px(58));
+        // Narrow: the back button sits near the top edge, its focus ring must fit above it (Ludique: 9 dp)
+        int top = narrow ? Math.max(Ui.dp(context, d.top), V2Frame.ringRoom(context, theme, 0)
+                - Math.max(0, (Ui.dp(context, d.headerHeight) - Ui.dp(context, 48)) / 2)) : px(24);
+        pageLayout.setPadding(side, top, side, narrow ? 0 : px(58));
         root.addView(pageLayout, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         Ui.noClip(root, pageLayout);
 

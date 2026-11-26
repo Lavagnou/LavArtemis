@@ -171,6 +171,7 @@ public final class V2GameMenu {
     }
 
     private static final Object FIRST = new Object();
+    private static final Object HINTS = new Object();
 
     /** Ludique dock: room left and right of a tile's text (prototype px) */
     private static final float DOCK_PAD = 6;
@@ -206,6 +207,11 @@ public final class V2GameMenu {
         });
         Ui.noClip(root);
         List<View> items = new ArrayList<>();
+        // The hints bar (gamepad / keyboard) is drawn over the bottom of the screen: the grid and the
+        // dock stay above it, with room for the ring of their bottom tiles (FocusRingClipTest)
+        float hintsScale = l.tablet() ? l.k : Math.max(0.85f, l.k);
+        int hintsReserve = V2Input.get(ctx) == V2Input.Kind.TOUCH ? 0
+                : HintsBar.reservedHeight(ctx, th, hintsScale) + com.limelight.v2.ui.V2Frame.ringRoom(ctx, th, 0);
 
         if (af) {
             // Right panel, full height
@@ -365,7 +371,7 @@ public final class V2GameMenu {
             }
             FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                     Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-            dlp.bottomMargin = px(ctx, l, 76);
+            dlp.bottomMargin = Math.max(px(ctx, l, 76), hintsReserve);
             root.addView(dock, dlp);
         } else {
             root.setBackgroundColor(Color.argb(158, 8, 7, 6));
@@ -463,8 +469,23 @@ public final class V2GameMenu {
             FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(Math.min(px(ctx, l, 740), Ui.dp(ctx, l.widthDp - 32)),
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
             root.addView(section, slp);
-            // Prototype: translate(-50%, -54%), i.e. 4 % of its own height above the centre
-            section.addOnLayoutChangeListener((v, a, top, c, bottom, e, f, g, h) -> v.setTranslationY(-0.04f * (bottom - top)));
+            // Prototype: translate(-50%, -54%), i.e. 4 % of its own height above the centre; never so
+            // high that the ring of the first row leaves the screen. The hints bar (bottom right) is
+            // drawn over the grid where they cross: the grid goes up by as much, the title staying on
+            // the screen (a phone in landscape has no room to reserve the bar's height)
+            final int ring = com.limelight.v2.ui.V2Frame.ringRoom(ctx, th, 0);
+            root.addOnLayoutChangeListener((v, a, b, c, d, e, f, g, h) -> {
+                int top = section.getTop(), bottom = section.getBottom();
+                float y = -Math.min(0.04f * (bottom - top), Math.max(0, top - ring));
+                View bar = root.findViewWithTag(HINTS);
+                if (bar != null && bar.getLeft() < section.getRight() + ring && bar.getRight() > section.getLeft() - ring) {
+                    float over = bottom + y + ring - bar.getTop();
+                    if (over > 0) {
+                        y = Math.max(-top, y - over);
+                    }
+                }
+                section.setTranslationY(y);
+            });
         }
         if (!items.isEmpty()) {
             items.get(0).setTag(FIRST);
@@ -477,7 +498,7 @@ public final class V2GameMenu {
         V2Input.Kind k = V2Input.get(ctx);
         if (k != V2Input.Kind.TOUCH) {
             boolean pad = k == V2Input.Kind.PAD;
-            HintsBar hints = new HintsBar(ctx, th, l.tablet() ? l.k : Math.max(0.85f, l.k));
+            HintsBar hints = new HintsBar(ctx, th, hintsScale);
             hints.add(pad ? "A" : ctx.getString(R.string.v2_key_enter), ctx.getString(R.string.v2_hint_validate), null);
             hints.add(pad ? "B" : ctx.getString(R.string.v2_key_escape), ctx.getString(R.string.v2_hint_close_menu),
                     dialog == null ? null : dialog::cancel);
@@ -486,6 +507,7 @@ public final class V2GameMenu {
                 // The panel takes the right side: hints stay on the left
                 hlp.gravity = Gravity.BOTTOM | Gravity.START;
             }
+            hints.setTag(HINTS);
             root.addView(hints, hlp);
         }
         return root;
