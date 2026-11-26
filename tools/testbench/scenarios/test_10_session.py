@@ -278,6 +278,21 @@ def test_s3_refused_launch_and_refused_quit(bench):
     bench.shot("02-quit-refused")
     bench.note(f"quit error: {found}")
     wait_home(c, "after a refused quit")
+    close_dialog(c)
+    helpers.wait_text(c, "Le jeu en cours n'a pas été lancé par ce PC", contains=True, gone=True)
+
+    # The host answers the quit with an error: which app and why, in French, never the exception's English text
+    # (review of waves 1-4, #6)
+    helpers.launch(c, "Bureau")
+    stream_runs(c, 2, "after a refused quit")
+    hosts.fail_next(atlas, "cancel_error")
+    qm = menu_entry(c, "Quitter la session")
+    helpers.wait_any_text(c, ["Tu veux vraiment quitter ?"])
+    helpers.quick_menu_click(c, "Quitter la session", qm)
+    found = helpers.wait_any_text(c, ["Impossible de quitter"], timeout=30)
+    bench.shot("03-quit-error")
+    assert found == "Impossible de quitter Bureau sur le PC (erreur 500).", found
+    wait_home(c, "after a quit error")
 
 
 # ---------------------------------------------------------------- S4, S5: menu and quit requests
@@ -389,6 +404,18 @@ def test_s6_clipboard(bench):
         wait_toast(c, n, "Presse-papiers envoyé")
     except AssertionError as e:
         problems.append(f"send: {e}")
+
+    # A fetch the PC fails: why, in French (review of waves 1-4, #6: it was the exception's English text)
+    hosts.fail_next(atlas, "clipboard")
+    n = len(c.state()["toasts"])
+    menu_entry(c, "Récupérer le presse-papiers")
+    try:
+        new = wait_toast(c, n, "Échec de la récupération du presse-papiers")
+        msg = next(t for t in new if "Échec de la récupération du presse-papiers" in t)
+        if msg != "Échec de la récupération du presse-papiers : erreur 500":
+            problems.append(f"failed fetch: {msg!r}")
+    except AssertionError as e:
+        problems.append(f"failed fetch: {e}")
 
     # Fetched when leaving with « Déconnecter » (as Android does)
     hosts.clipboard(atlas, "copié sur le PC en dernier")

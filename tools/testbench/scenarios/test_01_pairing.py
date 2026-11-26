@@ -1,11 +1,27 @@
 """Scenario 1: add a PC by its address and pair it (PIN read on the pairing screen, typed on the host by the
-testbench as the user would in LavApollo's web UI), and pair it from an art:// link that carries a passphrase."""
+testbench as the user would in LavApollo's web UI), and pair it from an art:// link that carries a passphrase.
+Neither pairing leaves its secrets in the client's log: the salt, the OTP hash and the challenges would give the PIN
+(and a short passphrase) offline (review of waves 1-4, #5)."""
+import pathlib
+import re
 import time
 
 import helpers
 import hosts
 
 ADDRESS = "127.0.0.1:40989"
+SECRET_ARGS = ("salt", "otpauth", "clientchallenge", "serverchallengeresp", "clientpairingsecret", "clientcert")
+
+
+def assert_no_pairing_secrets(log_path, *secrets):
+    """The client's log names the pairing arguments but never shows their values."""
+    text = pathlib.Path(log_path).read_text(encoding="utf-8", errors="replace")
+    assert "phrase=getservercert" in text, f"no pairing request in {log_path}: the check would prove nothing"
+    for name in SECRET_ARGS:
+        for m in re.finditer(name + r"=([^&\s\"]*)", text):
+            assert m.group(1) in ("", "<hidden>"), f"{name}={m.group(1)[:16]}... in the client's log {log_path}"
+    for secret in secrets:
+        assert secret not in text, f"{secret!r} in the client's log {log_path}"
 
 
 def test_pairing_add_by_address_opens_pairing(bench):
@@ -52,6 +68,7 @@ def test_pairing_with_pin(bench):
     bench.shot("02-pin")
     assert helpers.give_pin(atlas, pin).get("status") is True
     comp = helpers.wait_computer(c, atlas.name, lambda x: x["paired"])
+    assert_no_pairing_secrets(c.log_path)
     assert comp["state"] == "online" and comp["testHost"] and not comp["thisPc"]
     apps = helpers.wait_apps(c, atlas.name)
     assert "Bureau" in apps and "Playnite Fullscreen" in apps
@@ -78,6 +95,7 @@ def test_pairing_art_link_with_passphrase(bench):
         bench.shot("03-not-paired")
         raise AssertionError(f"not paired by the link; texts: {helpers.texts(c)}")
     bench.shot("03-paired")
+    assert_no_pairing_secrets(c.log_path, passphrase)
     # Never paired by a PIN: the PIN route was not used (the host got no pending pairing to fill)
     assert hosts.pin(atlas, "0000").get("status") is False
     # The CLI pairing ends on its confirmation; the normal app knows the PC afterwards

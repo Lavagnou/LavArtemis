@@ -240,3 +240,57 @@ def test_add_by_address_forms(bench):
     helpers.wait_text(c, "Ce PC est déjà dans la liste")
     bench.shot("02-already-listed")
     assert len(c.state()["computers"]) == 1
+
+
+def _stored_uuids(c):
+    return [h["uuid"] for h in c.call("hoststore", action="list")["hosts"]]
+
+
+def _wait_stored(c, uuid, present, timeout=15.0):
+    deadline = time.time() + timeout
+    while (uuid in _stored_uuids(c)) != present:
+        assert time.time() < deadline, f"{uuid} {'never stored' if present else 'still stored'}: {_stored_uuids(c)}"
+        time.sleep(0.3)
+
+
+def test_forgotten_pc_stored_again_by_another_process(bench):
+    """A PC forgotten here, then paired again by another LavArtemis process (an art:// link: there is no single
+    instance), which stores it: this process takes it in at its next save instead of dropping it (review of waves
+    1-4, #2: a forgotten uuid was kept for the whole process and dropped from the stored list at every save, so the
+    other process's pairing was lost).  The other process is played by the channel's `hoststore`: it puts the PC's
+    stored entry back, as that process's save would (the bench runs one client at a time)."""
+    atlas, cyn = bench.up("atlas-test", "cynisca-test")
+    c = bench.start_client()
+    helpers.add_and_pair(c, atlas)
+    helpers.add_and_pair(c, cyn)
+    uuid = helpers.wait_computer(c, atlas.name, lambda x: x["paired"])["uuid"]
+    _wait_stored(c, uuid, True)
+    c.call("hoststore", action="keep", uuid=uuid)
+
+    # Forgotten here: out of the stored list
+    helpers.host_card_menu(c, atlas.name)
+    helpers.click(c, "Oublier ce PC")
+    helpers.wait_text(c, f"Oublier {atlas.name} ?")
+    helpers.click(c, "Oublier")
+    c.wait_for(lambda s: helpers.computer(s, atlas.name) is None, 15)
+    _wait_stored(c, uuid, False)
+
+    # Another process pairs it again and stores it; then this one saves (a rename of the other PC)
+    c.call("hoststore", action="restore")
+    helpers.host_card_menu(c, cyn.name)
+    c.click("Renommer")
+    helpers.wait_field_focus(c)
+    c.call("key", key="A", modifiers="Ctrl", target="qt")
+    c.call("key", key="Delete", target="qt")
+    c.call("text", s="Cynisca renommé", target="qt")
+    c.click("Renommer", index=-1)
+    helpers.wait_computer(c, "Cynisca renommé")
+
+    # Taken in: in the list here, still stored after that save, and there after a restart
+    comp = helpers.wait_computer(c, atlas.name, lambda x: x["paired"], timeout=20)
+    assert comp["uuid"] == uuid, comp
+    bench.shot("01-taken-in")
+    time.sleep(2.0)  # the save that took it in is written
+    assert uuid in _stored_uuids(c), f"dropped from the stored list: {_stored_uuids(c)}"
+    c = bench.restart_client()
+    helpers.wait_computer(c, atlas.name, lambda x: x["paired"], timeout=20)

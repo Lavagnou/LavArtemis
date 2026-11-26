@@ -11,7 +11,9 @@ in.  The report is read from `state.benchmark.report` (the JSON saved in the his
 - stop early: « Arrêter » while the host's app is being quit, before any run: the setup page comes back (no blank
   page), with « Démarrer » and a message that says nothing was measured; no stream afterwards.
 - stop during restart: « Arrêter » while the scene restarts between a VRR run and a non-VRR one: no stream starts
-  afterwards (the launch that the restart was going to make never happens)."""
+  afterwards (the launch that the restart was going to make never happens).
+- start again right after a stop: « Arrêter » while the host's app is quit, then « Démarrer » before that quit is
+  over: the new benchmark runs its own plan, once (review of waves 1-4, #7: the old quit, ending, launched a run)."""
 import json
 import re
 import time
@@ -202,3 +204,41 @@ def test_benchmark_stop_during_restart(bench):
     assert st["benchmark"]["message"] == "Benchmark arrêté. Les mesures déjà faites sont conservées.", \
         st["benchmark"]["message"]
     helpers.wait_text(c, "Retour")
+
+
+def test_benchmark_start_again_right_after_stop(bench):
+    """« Arrêter » while the app running on the host is quit, then « Démarrer » at once (review of waves 1-4, #7)."""
+    atlas, = bench.up("atlas-test")
+    c = bench.start_client(env={"LAV_TEST_BENCHMARK": "1,3,1,4000"})
+    helpers.add_and_pair(c, atlas)
+    helpers.wait_apps(c, atlas.name)
+    c.call("setting", action="set", key="fps", value=30)
+    # An app left running on the host: Bureau, disconnected
+    helpers.launch(c, "Bureau")
+    qm = helpers.open_quick_menu(c)
+    helpers.quick_menu_click(c, "Déconnecter", qm)
+    c.wait_for(lambda s: not s["session"]["active"] and s["page"] == "HomeView", 30)
+    helpers.wait_computer(c, atlas.name, lambda x: x["currentGameId"] != 0, timeout=20)
+
+    open_benchmark(c, atlas)
+    helpers.wait_any_text(c, ["Une appli tourne sur le PC hôte"])
+    helpers.click(c, "Démarrer")
+    wait_message(c, "Fermeture de l'appli")
+    helpers.click(c, "Arrêter")
+    wait_finished(c, 20)
+    starts = len(requests(atlas, "launch")) + len(requests(atlas, "resume"))
+    helpers.click(c, "Démarrer")  # within the 4 s the first quit is held
+    c.wait_for(lambda s: s["benchmark"]["running"], 10)
+    b = wait_finished(c, 240)
+    report = b["report"]
+    bench.note(f"report: {json.dumps(report)[:3000]}")
+    runs = report["runs"]
+    roles = [r["role"] for r in runs]
+    assert not report["cancelled"], report["cancelled"]
+    assert roles[0] == "baseline" and roles.count("baseline") == 1, roles
+    for r in runs:
+        assert r["status"] == "ok", f"run {r['role']} {r['requested']}: {r['status']} {r['note']!r}"
+    # One stream per run: no run of the stopped benchmark's plan launched on top of the new one's
+    started = len(requests(atlas, "launch")) + len(requests(atlas, "resume")) - starts
+    assert started == len(runs), f"{started} streams started for {len(runs)} runs: {roles}"
+    assert b["message"] == "Benchmark terminé.", b["message"]

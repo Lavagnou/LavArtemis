@@ -520,7 +520,8 @@ def set_display(host, mode):
 
 def fail_next(host, what):
     """Make the fake PC's next `launch` / `resume` fail (503), or its next `cancel` leave the app running while
-    answering success (what a host does for a game another device started)."""
+    answering success (what a host does for a game another device started); `cancel_error`: the next quit answers
+    status 500 (app left running); `clipboard`: the next clipboard read answers HTTP 500."""
     r = _test_request(host, "/api/test/fail", {"what": what})
     if not r.get("status"):
         raise RuntimeError(f"{host.name}: fail_next({what}) refused ({r})")

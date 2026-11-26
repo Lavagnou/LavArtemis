@@ -3,6 +3,8 @@
 inconnues », on by default), and the app says so every time, not only the first: the mapper shows « Disposition
 devinée » after « Actualiser » too, and every stream launch warns (findings B1).  Turning the guess off takes effect
 at once, without a restart: the device is « Non reconnue » and a launch warns that it has no layout (findings B11).
+A mapping saved in the mapper with guessing off is used at once too: « Reconnue », no warning (review of waves 1-4, #1:
+it stayed an ignored guess until the next start).
 The joystick is never opened by the stream (test build: only the channel's pad is)."""
 import time
 
@@ -11,6 +13,7 @@ import helpers
 NAME = "LavArtemis Test Joystick"
 GUESSED = "Disposition devinée — peut-être fausse"
 UNMAPPED = "Non reconnue — inutilisable sans mapping"
+RECOGNIZED = "Reconnue"
 GUESS_WARNING = f"Disposition des boutons devinée pour {NAME}"
 NO_LAYOUT_WARNING = "Une manette branchée n'a pas de disposition"
 
@@ -86,4 +89,23 @@ def test_guessed_gamepad(bench):
     c.call("setting", action="set", key="genericGamepadFallbackEnabled", value=True)
     open_mapper(c)
     assert mapper_status(c) == GUESSED, f"guessing on again: {mapper_status(c)}"
+
+    # Guessing off again, and the user saves a mapping in the mapper (it starts from the guess SDL still has):
+    # a real mapping, used at once
+    c.call("setting", action="set", key="genericGamepadFallbackEnabled", value=False)
+    open_mapper(c)
+    assert mapper_status(c) == UNMAPPED, f"guessing off again: {mapper_status(c)}"
+    helpers.click(c, NAME)
+    helpers.wait_text(c, "Enregistrer")
+    helpers.click(c, "Enregistrer")
+    helpers.wait_text(c, "Mapping enregistré")
+    helpers.click(c, "Retour à la liste des périphériques")
+    helpers.wait_text(c, NAME)
+    bench.shot("03-saved-guessing-off")
+    assert mapper_status(c) == RECOGNIZED, f"a mapping saved with guessing off: {mapper_status(c)}"
+    helpers.go_home(c)
+    warnings = launch_warnings(c)
+    bench.note(f"launch, saved mapping, guessing off: {warnings}")
+    assert not any(w.startswith(NO_LAYOUT_WARNING) for w in warnings), warnings
+    assert not any(w.startswith(GUESS_WARNING) for w in warnings), warnings
     c.call("joystick", detach=True)
