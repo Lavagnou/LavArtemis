@@ -61,7 +61,7 @@
     <string name="v2_quit_to_launch">%1$s est en cours. Le quitter pour lancer %2$s ? Ce qui n\'est pas sauvegardé sera perdu.</string>
     <string name="v2_quit_confirm">Quitter %1$s ? Ce qui n\'est pas sauvegardé sera perdu.</string>
     <string name="v2_relaunch_confirm">Quitter %1$s puis le relancer ? Ce qui n\'est pas sauvegardé sera perdu.</string>
-    <string name="v2_vdisplay_not_ready">L\'écran virtuel du PC n\'est pas prêt. Lancer quand même ?</string>
+    <string name="v2_vdisplay_not_ready">L’écran virtuel du PC n’est pas prêt. Lancer quand même ?</string>
     <string name="v2_vdisplay_not_supported">Ce PC ne gère pas l\'écran virtuel. Lancer quand même ?</string>
     <string name="v2_hint_launch">Lancer</string>
     <string name="v2_hint_options">Options</string>
@@ -751,4 +751,32 @@
         <item quantity="many">%1$d réglages avancés masqués · activer le mode expert</item>
         <item quantity="other">%1$d réglages avancés masqués · activer le mode expert</item>
     </plurals>
+    <!-- Theme and PC pickers (prototype themePick / hostPick, V8-58 / V8-59) -->
+    <string name="v2_pick_theme_kind">Apparence</string>
+    <string name="v2_pick_theme_note">Change l’allure de toute l’appli. Toucher le bouton change clair / sombre ; appui long : le thème.</string>
+    <string name="v2_pick_theme_toast">Thème %1$s</string>
+    <string name="v2_pick_pc_title">Choisir un PC</string>
+    <string name="v2_pick_pc_kind">PC</string>
+    <string name="v2_pick_pc_note">Les PC appairés avec cet appareil.</string>
+    <string name="v2_pick_pc_hosts">Mes PC…</string>
+    <string name="v2_launch_anyway">Lancer quand même</string>
+    <!-- Segue, quit the session from the stream, voice button (V8-25, V8-32, V8-34) -->
+    <string name="v2_segue_quit">Fermeture sur %1$s…</string>
+    <string name="v2_session_ended">Session terminée</string>
+    <string name="v2_quit_session_title">Quitter %1$s ?</string>
+    <string name="v2_quit_session_note">Assure-toi d’avoir sauvegardé : quitter la session ferme l’appli qui tourne sur le PC.</string>
+    <string name="v2_quit_session_go">Quitter la session</string>
+    <string name="v2_voice_move_hint">Fais glisser le bouton, puis touche ailleurs pour valider</string>
+    <!-- Update dialogs (prototype update / updating, V8-13 / V8-14) -->
+    <string name="v2_update_kind">Mise à jour</string>
+    <string name="v2_update_title">LavArtemis %1$s est disponible</string>
+    <string name="v2_update_note">Tu as la version %1$s. L’APK se télécharge, puis Android te demande de l’installer.</string>
+    <string name="v2_update_go">Télécharger et installer</string>
+    <string name="v2_update_downloading_title">Téléchargement de LavArtemis %1$s…</string>
+    <string name="v2_update_downloading">Téléchargement…</string>
+    <string name="v2_update_cancel">Annuler le téléchargement</string>
+    <string name="v2_update_ready_title">LavArtemis %1$s est prête à installer</string>
+    <string name="v2_update_downloaded">Téléchargée</string>
+    <string name="v2_update_ready_note">Android te demande d’installer la mise à jour.</string>
+    <string name="v2_update_install">Installer et redémarrer</string>
 </resources>

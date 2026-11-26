@@ -17,9 +17,7 @@ import com.limelight.utils.UiHelper;
 import com.limelight.utils.UpdateChecker;
 import com.limelight.utils.UpdateDialogHelper;
 import com.limelight.utils.UpdateDownloader;
-import com.limelight.v2.ui.V2Dialogs;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -276,37 +274,67 @@ public class HomeActivity extends V2HostActivity {
         finish();
     }
 
-    /** Braise, Affiche or Ludique straight from the home (long press on light / dark); Réglages › Apparence has them too */
+    /**
+     * Prototype themePick (V8-58): long press on the light / dark button. « ✓ » in front of the
+     * current theme, which has the focus; Réglages › Apparence has them too.
+     */
     private void showThemePicker() {
         String[] ids = {V2Theme.BRAISE, V2Theme.AFFICHE, V2Theme.LUDIQUE};
         String[] names = {getString(R.string.v2_theme_braise), getString(R.string.v2_theme_affiche), getString(R.string.v2_theme_ludique)};
-        List<V2Dialogs.Entry> entries = new ArrayList<>();
+        V2Sheet.Spec spec = new V2Sheet.Spec();
+        spec.title = getString(R.string.v2_theme);
+        spec.kind = getString(R.string.v2_pick_theme_kind);
+        spec.info = true;
+        spec.note = getString(R.string.v2_pick_theme_note);
         for (int i = 0; i < ids.length; i++) {
             final String id = ids[i];
-            entries.add(new V2Dialogs.Entry(names[i], id.equals(theme.id) ? R.drawable.v2_ic_check : 0, id.equals(theme.id), () -> {
+            final String name = names[i];
+            boolean current = id.equals(theme.id);
+            if (current) {
+                spec.focus = i;
+            }
+            spec.option(Pickers.checked(name, current), false, false, () -> {
                 V2Theme.saveTheme(this, id);
                 theme = V2Theme.load(this);
                 applyWindowColors();
                 rebuild();
-            }));
+                toast(getString(R.string.v2_pick_theme_toast, name));
+            });
         }
-        V2Dialogs.showMenu(this, theme, getString(R.string.v2_theme), null, entries);
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        V2Sheet.show(this, theme, spec);
     }
 
+    /**
+     * Prototype hostPick (V8-59): tap on the PC pill. Every paired PC with its state (« ✓ » and the
+     * focus on the shown one), « Mes PC… », Annuler.
+     */
     private void showHostPicker() {
         final List<ComputerDetails> hosts = safeHosts();
-        if (hosts.size() < 2) {
+        if (hosts.isEmpty()) {
             startActivity(new Intent(this, HostsActivity.class));
             return;
         }
-        List<V2Dialogs.Entry> entries = new ArrayList<>();
-        for (final ComputerDetails d : hosts) {
+        V2Sheet.Spec spec = new V2Sheet.Spec();
+        spec.title = getString(R.string.v2_pick_pc_title);
+        spec.kind = getString(R.string.v2_pick_pc_kind);
+        spec.info = true;
+        spec.note = getString(R.string.v2_pick_pc_note);
+        for (int i = 0; i < hosts.size(); i++) {
+            final ComputerDetails d = hosts.get(i);
             boolean current = d.uuid.equalsIgnoreCase(currentUuid);
-            String status = getString(HostList.isOnline(d) ? R.string.v2_status_online : R.string.v2_status_offline);
-            entries.add(new V2Dialogs.Entry(d.name + "  ·  " + status, R.drawable.v2_ic_monitor, current,
-                    () -> selectHost(d.uuid, true)));
+            if (current) {
+                spec.focus = i;
+            }
+            boolean online = HostList.isOnline(d);
+            String status = getString(online && d.runningGameId != 0 ? R.string.v2_status_session
+                    : online ? R.string.v2_status_online : R.string.v2_status_offline);
+            spec.option(Pickers.checked(d.name + " · " + status, current), false, false, () -> selectHost(d.uuid, true));
         }
-        V2Dialogs.showMenu(this, theme, getString(R.string.v2_pick_pc), null, entries);
+        spec.option(getString(R.string.v2_pick_pc_hosts), false, false,
+                () -> startActivity(new Intent(this, HostsActivity.class)));
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        V2Sheet.show(this, theme, spec);
     }
 
     // ---- what PcView did at startup -----------------------------------------------------------

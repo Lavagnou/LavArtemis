@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.view.View;
 import android.os.IBinder;
 
 import androidx.preference.PreferenceManager;
@@ -21,7 +22,6 @@ import com.limelight.nvstream.wol.WakeOnLanSender;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.ServerHelper;
-import com.limelight.v2.ui.V2Dialogs;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -333,8 +333,8 @@ public abstract class V2HostActivity extends V2Activity {
         }
         if (!HostSupport.isSupported(c)) {
             // As the desktop: a message instead of a launch that fails half-way
-            V2Dialogs.message(this, theme, getString(R.string.v2_oops),
-                    getString(R.string.v2_host_unsupported, c.name, c.serverAppVersion), getString(R.string.v2_ok));
+            V2Sheet.oops(this, theme, getString(R.string.v2_pick_pc_kind), c.name,
+                    getString(R.string.v2_host_unsupported, c.name, c.serverAppVersion));
             return;
         }
         // Prototype quick(): what would close something opens the options with the warning
@@ -370,14 +370,18 @@ public abstract class V2HostActivity extends V2Activity {
             return;
         }
         if (prefs.useVirtualDisplay && !(c.vDisplaySupported && c.vDisplayDriverReady)) {
-            V2Dialogs.confirm(this, theme, null,
-                    getString(c.vDisplaySupported ? R.string.v2_vdisplay_not_ready : R.string.v2_vdisplay_not_supported),
-                    getString(R.string.v2_continue), getString(R.string.v2_cancel),
-                    () -> {
-                        if (managerBinder != null) {
-                            ServerHelper.doStart(this, app, c, managerBinder, true);
-                        }
-                    }, null);
+            // Prototype ctxKind 'vd' (V8-17): the app's header, the warning, « Lancer quand même » / Annuler
+            HomeModel m = currentModel();
+            V2Sheet.Spec spec = targetSpec(app, m, c);
+            spec.warn = true;
+            spec.note = getString(c.vDisplaySupported ? R.string.v2_vdisplay_not_ready : R.string.v2_vdisplay_not_supported);
+            spec.option(getString(R.string.v2_launch_anyway), true, true, () -> {
+                if (managerBinder != null) {
+                    ServerHelper.doStart(this, app, c, managerBinder, true);
+                }
+            });
+            spec.option(getString(R.string.v2_cancel), false, false, null);
+            V2Sheet.show(this, theme, spec);
         } else {
             ServerHelper.doStart(this, app, c, managerBinder, prefs.useVirtualDisplay);
         }
@@ -475,12 +479,44 @@ public abstract class V2HostActivity extends V2Activity {
             return;
         }
         NvApp running = m.runningApp();
+        // Prototype goSegue('quit') (V8-25): « Fermeture sur ATLAS-PC… » over the screen while the
+        // host closes it (at least 1.1 s, as the prototype), then « Session terminée »
+        final View segue = showQuitSegue(c, m);
+        final long shownAt = android.os.SystemClock.uptimeMillis();
         ServerHelper.doQuit(this, c, running != null ? running : new NvApp("app", null, m.runningId, false), managerBinder, () -> {
             pollNow();
+            runOnUiThread(() -> {
+                long wait = Math.max(0, QUIT_SEGUE_MS - (android.os.SystemClock.uptimeMillis() - shownAt));
+                handler.postDelayed(() -> {
+                    if (segue != null && segue.getParent() instanceof android.view.ViewGroup) {
+                        ((android.view.ViewGroup) segue.getParent()).removeView(segue);
+                    }
+                    if (then == null && !isFinishing()) {
+                        toast(getString(R.string.v2_session_ended));
+                    }
+                }, wait);
+            });
             if (then != null) {
                 then.run();
             }
         });
+    }
+
+    /** Prototype goSegue: 1100 ms for a quit */
+    static final long QUIT_SEGUE_MS = 1100;
+
+    private View showQuitSegue(ComputerDetails c, HomeModel m) {
+        if (isFinishing()) {
+            return null;
+        }
+        NvApp shown = m.backdropApp() != null ? m.backdropApp() : m.runningApp();
+        V2Sheet.Spec head = targetSpec(shown, m, c);
+        android.graphics.Bitmap bg = shown != null && covers != null ? covers.peekBackground(shown) : null;
+        View segue = new com.limelight.v2.ui.SegueView(this, theme, getString(R.string.v2_segue_quit, c.name), head.title,
+                head.cover, bg, bg == null, null);
+        addContentView(segue, new android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+        return segue;
     }
 
     protected void wake() {

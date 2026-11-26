@@ -18,7 +18,6 @@ import androidx.core.content.FileProvider;
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.v2.ui.ThemedDialogs;
-import com.limelight.v2.ui.V2Alert;
 
 import java.io.File;
 
@@ -46,20 +45,21 @@ public class UpdateDialogHelper {
                 info.version, com.limelight.BuildConfig.VERSION_NAME);
 
         if (ThemedDialogs.enabled()) {
-            // LavArtemis Dev: the v2 dialog, same three answers
-            new V2Alert(activity, ThemedDialogs.theme(activity))
-                    .title(activity.getString(R.string.update_available_title))
-                    .text(message)
-                    .button(activity.getString(R.string.update_download), () -> {
-                        if (info.downloadUrl != null) {
-                            startDownload(activity, info);
-                        } else {
-                            HelpLauncher.launchUrl(activity, info.pageUrl);
-                        }
-                    })
-                    .button(activity.getString(R.string.update_later), null)
-                    .button(activity.getString(R.string.update_skip), () -> UpdateChecker.skipVersion(activity, info.version))
-                    .show();
+            // LavArtemis Dev: the prototype's « update » dialog (V2Sheet), same three answers
+            com.limelight.v2.V2Sheet.Spec spec = updateSpec(activity);
+            spec.title = activity.getString(R.string.v2_update_title, info.version);
+            spec.info = true;
+            spec.note = activity.getString(R.string.v2_update_note, com.limelight.BuildConfig.VERSION_NAME);
+            spec.option(activity.getString(R.string.v2_update_go), true, false, () -> {
+                if (info.downloadUrl != null) {
+                    startDownload(activity, info);
+                } else {
+                    HelpLauncher.launchUrl(activity, info.pageUrl);
+                }
+            });
+            spec.option(activity.getString(R.string.update_skip), false, false, () -> UpdateChecker.skipVersion(activity, info.version));
+            spec.option(activity.getString(R.string.update_later), false, false, null);
+            com.limelight.v2.V2Sheet.show(activity, ThemedDialogs.theme(activity), spec);
             return;
         }
 
@@ -103,13 +103,17 @@ public class UpdateDialogHelper {
                     return;
                 }
                 if (ThemedDialogs.enabled()) {
-                    new V2Alert(activity, ThemedDialogs.theme(activity))
-                            .title(activity.getString(R.string.update_ready_title))
-                            .text(activity.getString(R.string.update_ready_message, update.version))
-                            .button(activity.getString(R.string.update_install), () -> UpdateDownloader.installApk(activity, update.apk))
-                            .button(activity.getString(R.string.update_later), null)
-                            .button(activity.getString(R.string.update_skip), () -> UpdateChecker.skipVersion(activity, update.version))
-                            .show();
+                    // The prototype's « updating » dialog at 100 %: « prête à installer »
+                    com.limelight.v2.V2Sheet.Spec spec = updateSpec(activity);
+                    spec.title = activity.getString(R.string.v2_update_ready_title, update.version);
+                    spec.progressLabel = activity.getString(R.string.v2_update_downloaded);
+                    spec.progress = 100;
+                    spec.info = true;
+                    spec.note = activity.getString(R.string.v2_update_ready_note);
+                    spec.option(activity.getString(R.string.v2_update_install), true, false, () -> UpdateDownloader.installApk(activity, update.apk));
+                    spec.option(activity.getString(R.string.update_later), false, false, null);
+                    spec.option(activity.getString(R.string.update_skip), false, false, () -> UpdateChecker.skipVersion(activity, update.version));
+                    com.limelight.v2.V2Sheet.show(activity, ThemedDialogs.theme(activity), spec);
                     return;
                 }
                 new AlertDialog.Builder(activity)
@@ -206,20 +210,32 @@ public class UpdateDialogHelper {
     }
 
     /** startDownload() in the v2 theme (LavArtemis Dev): same steps, a themed progress dialog */
+    /** « Mise à jour · LavArtemis »: the head line of the prototype's update dialogs */
+    private static com.limelight.v2.V2Sheet.Spec updateSpec(Activity activity) {
+        com.limelight.v2.V2Sheet.Spec spec = new com.limelight.v2.V2Sheet.Spec();
+        spec.kind = activity.getString(R.string.v2_update_kind);
+        spec.where = activity.getString(R.string.v2_brand);
+        return spec;
+    }
+
     private static void startThemedDownload(Activity activity, UpdateChecker.UpdateInfo info, Context appContext) {
-        final V2Alert.Shown progress = new V2Alert(activity, ThemedDialogs.theme(activity))
-                .title(activity.getString(R.string.update_available_title))
-                .text(activity.getString(R.string.update_downloading, 0))
-                .progressBar(0)
-                .cancelable(false)
-                .show();
+        // The prototype's « updating » dialog (V8-14): title, « Téléchargement… 42 % », Annuler le téléchargement
+        final java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        final com.limelight.v2.V2Sheet.Spec spec = updateSpec(activity);
+        spec.title = activity.getString(R.string.v2_update_downloading_title, info.version);
+        spec.progressLabel = activity.getString(R.string.v2_update_downloading);
+        spec.option(activity.getString(R.string.v2_update_cancel), true, false, () -> cancelled.set(true));
+        final android.app.Dialog shown = com.limelight.v2.V2Sheet.show(activity, ThemedDialogs.theme(activity), spec);
+        // Back / B / outside leave the download running, as before; only the option stops it
+        shown.setCanceledOnTouchOutside(false);
+        shown.setCancelable(false);
+        final V2AlertCompat progress = new V2AlertCompat(shown);
         UpdateDownloader.download(appContext, info.downloadUrl, info.version,
                 new UpdateDownloader.Callback() {
                     @Override
                     public void onProgress(int percent) {
-                        if (isAlive(activity) && progress.dialog.isShowing()) {
-                            progress.setProgress(percent);
-                            progress.setText(activity.getString(R.string.update_downloading, percent));
+                        if (isAlive(activity) && shown.isShowing()) {
+                            spec.setProgress(percent, null);
                         }
                     }
 
@@ -235,7 +251,8 @@ public class UpdateDialogHelper {
 
                     @Override
                     public void onError(Exception e) {
-                        if (!isAlive(activity)) {
+                        if (!isAlive(activity) || e instanceof UpdateDownloader.CancelledException) {
+                            progress.dismiss();
                             return;
                         }
                         progress.dismiss();
@@ -249,6 +266,25 @@ public class UpdateDialogHelper {
                         }
                     }
                 });
+    }
+
+    /** The shown sheet, dismissed quietly (the activity may be gone) */
+    private static final class V2AlertCompat {
+        private final android.app.Dialog dialog;
+
+        V2AlertCompat(android.app.Dialog dialog) {
+            this.dialog = dialog;
+        }
+
+        void dismiss() {
+            try {
+                if (dialog.isShowing()) {
+                    dialog.dismiss();
+                }
+            } catch (RuntimeException ignored) {
+                // Window already gone
+            }
+        }
     }
 
     // Best effort: on Android 13+ without POST_NOTIFICATIONS this is silently dropped, and the

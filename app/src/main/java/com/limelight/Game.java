@@ -68,6 +68,7 @@ import com.limelight.v2.ui.ThemedDialogs;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.app.Service;
@@ -1211,7 +1212,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
         hideGameMenu();
         voicePttButton.beginMove();
-        Toast.makeText(this, R.string.voice_ptt_move_hint, Toast.LENGTH_SHORT).show();
+        if (BuildConfig.LAV_DEV) {
+            // The prototype's pill at the top (V8-34), in the theme
+            com.limelight.v2.ui.V2Toast.show(this, com.limelight.v2.V2Theme.load(this), getString(R.string.v2_voice_move_hint));
+        } else {
+            Toast.makeText(this, R.string.voice_ptt_move_hint, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void releaseVoicePttKey() {
@@ -4782,6 +4788,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         finish();
     }
 
+    /** What the stream shows, as the v2 screens name it (prototype playingTitle) */
+    private String streamTitle() {
+        String pg = getPlayniteGameName();
+        if (pg != null) {
+            return pg;
+        }
+        if (appName == null) {
+            return "";
+        }
+        if (appName.equalsIgnoreCase("Desktop")) {
+            return getString(R.string.v2_desktop);
+        }
+        return appName.toLowerCase(java.util.Locale.ROOT).contains("playnite") ? getString(R.string.v2_playnite) : appName;
+    }
+
     public void quit() {
         Context context;
         if (isOnExternalDisplay() && ExternalDisplayControlActivity.instance != null) {
@@ -4789,14 +4810,27 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         } else {
             context = this;
         }
-        if (ThemedDialogs.enabled()) {
-            // LavArtemis Dev: the v2 dialog, same answers
-            ThemedDialogs.confirm(context, getString(R.string.game_dialog_title_quit_confirm),
-                    getString(R.string.game_dialog_message_quit_confirm), getString(R.string.yes), getString(R.string.no),
-                    () -> {
-                        quitOnStop = true;
-                        finish();
-                    }, null);
+        if (ThemedDialogs.enabled() && context instanceof Activity) {
+            // LavArtemis Dev: the prototype's quitSession dialog (V8-32), then its segue (V8-25)
+            com.limelight.v2.V2Theme th = com.limelight.v2.V2Theme.load(this);
+            com.limelight.v2.V2Sheet.Spec spec = new com.limelight.v2.V2Sheet.Spec();
+            spec.kind = getString(R.string.v2_menu_kind);
+            spec.where = pcName == null ? "" : pcName;
+            String title = streamTitle();
+            spec.title = getString(R.string.v2_quit_session_title, title);
+            spec.warn = true;
+            spec.note = getString(R.string.v2_quit_session_note);
+            spec.option(getString(R.string.v2_quit_session_go), true, false, () -> {
+                if (!isFinishing()) {
+                    addContentView(new com.limelight.v2.ui.SegueView(this, th,
+                                    getString(R.string.v2_segue_quit, pcName == null ? "" : pcName), title, null, null, false, null),
+                            new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                }
+                quitOnStop = true;
+                finish();
+            });
+            spec.option(getString(R.string.v2_cancel), false, false, null);
+            com.limelight.v2.V2Sheet.show((Activity) context, th, spec);
             return;
         }
         AlertDialog.Builder builder = new AlertDialog.Builder(context);

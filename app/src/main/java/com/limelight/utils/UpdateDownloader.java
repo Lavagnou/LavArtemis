@@ -60,6 +60,19 @@ public class UpdateDownloader {
     }
 
     public static void download(Context context, String url, String version, Callback callback) {
+        download(context, url, version, callback, new java.util.concurrent.atomic.AtomicBoolean(false));
+    }
+
+    /** Thrown inside the download when {@code cancelled} turns true (« Annuler le téléchargement ») */
+    public static final class CancelledException extends IOException {
+        CancelledException() {
+            super("Download cancelled");
+        }
+    }
+
+    /** As {@link #download}, stopped (partial file removed, onError with CancelledException) once {@code cancelled} is set */
+    public static void download(Context context, String url, String version, Callback callback,
+                                java.util.concurrent.atomic.AtomicBoolean cancelled) {
         Handler mainHandler = new Handler(Looper.getMainLooper());
         File outputDir = context.getExternalFilesDir("updates");
         File outputFile = new File(outputDir, "LavArtemis-" + version + ".apk");
@@ -97,6 +110,9 @@ public class UpdateDownloader {
                     int lastPercent = -1;
                     int read;
                     while ((read = in.read(buffer)) != -1) {
+                        if (cancelled.get()) {
+                            throw new CancelledException();
+                        }
                         out.write(buffer, 0, read);
                         downloaded += read;
                         if (totalBytes > 0) {

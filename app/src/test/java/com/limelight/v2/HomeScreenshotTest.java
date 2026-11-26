@@ -574,6 +574,132 @@ public class HomeScreenshotTest {
         }
     }
 
+    /** The home of the prototype under a dialog (session inside Playnite, or nothing running) */
+    private Bitmap homeUnder(Context ctx, V2Theme theme, boolean session) throws Exception {
+        List<NvApp> apps = apps();
+        HomeScreen.State s = new HomeScreen.State();
+        s.hosts = Arrays.asList(pc("ATLAS-PC", true), pc("SALON-HTPC", true), pc("PORTABLE", false));
+        s.updateAvailable = true;
+        s.model = HomeModel.build(apps, session ? 2 : 0, session ? GAMES[0] : "", session, DATA.hidden(apps), false);
+        s.sessionMinutes = session ? 42 : -1;
+        HomeScreen screen = new HomeScreen(ctx, theme, HomeLayout.forSize(1280, 720), new NoActions(), covers(apps));
+        screen.bind(s);
+        screen.setDialogOpen(true);
+        return draw(screen.getView(), 1280, 720);
+    }
+
+    private void sheetOver(Bitmap under, Context ctx, V2Theme theme, V2Sheet.Spec spec, String file) throws Exception {
+        View sheet = V2Sheet.build(ctx, theme, HomeLayout.forSize(1280, 720), spec, null);
+        draw(sheet, 1280, 720);
+        allowFocus(sheet);
+        View first = firstFocusable(sheet);
+        if (first != null && V2Input.get(ctx) != V2Input.Kind.TOUCH) {
+            first.requestFocus();
+        }
+        Bitmap over = draw(sheet, 1280, 720);
+        Bitmap out = under.copy(Bitmap.Config.ARGB_8888, true);
+        new Canvas(out).drawBitmap(over, 0, 0, null);
+        save(out, file);
+    }
+
+    /**
+     * The rest of step 9: theme and PC pickers (V8-58 / 59), « Oups » (V8-15), the virtual display
+     * question (V8-17), the update download (V8-14), « Quitter la session » (V8-32), the quit segue (V8-25).
+     */
+    @Test
+    public void restDialogs() throws Exception {
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                RuntimeEnvironment.setQualifiers("w1280dp-h720dp-land-mdpi");
+                V2Input.reset(V2Input.Kind.PAD);
+                Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+                V2Theme theme = V2Theme.of(t, dark);
+                String suffix = "-" + t + "-" + (dark ? "sombre" : "clair") + "-manette";
+                Bitmap home = homeUnder(ctx, theme, true);
+                List<NvApp> apps = apps();
+                CoverSource covers = covers(apps);
+
+                V2Sheet.Spec themes = new V2Sheet.Spec();
+                themes.title = ctx.getString(R.string.v2_theme);
+                themes.kind = ctx.getString(R.string.v2_pick_theme_kind);
+                themes.info = true;
+                themes.note = ctx.getString(R.string.v2_pick_theme_note);
+                String[] ids = {V2Theme.BRAISE, V2Theme.AFFICHE, V2Theme.LUDIQUE};
+                int[] names = {R.string.v2_theme_braise, R.string.v2_theme_affiche, R.string.v2_theme_ludique};
+                for (int i = 0; i < ids.length; i++) {
+                    themes.option(Pickers.checked(ctx.getString(names[i]), ids[i].equals(t)), false, false, null);
+                }
+                themes.option(ctx.getString(R.string.v2_cancel), false, false, null);
+                sheetOver(home, ctx, theme, themes, "themepick" + suffix);
+
+                V2Sheet.Spec hosts = new V2Sheet.Spec();
+                hosts.title = ctx.getString(R.string.v2_pick_pc_title);
+                hosts.kind = ctx.getString(R.string.v2_pick_pc_kind);
+                hosts.info = true;
+                hosts.note = ctx.getString(R.string.v2_pick_pc_note);
+                hosts.option(Pickers.checked("ATLAS-PC · " + ctx.getString(R.string.v2_status_session), true), false, false, null);
+                hosts.option("SALON-HTPC · " + ctx.getString(R.string.v2_status_online), false, false, null);
+                hosts.option("PORTABLE · " + ctx.getString(R.string.v2_status_offline), false, false, null);
+                hosts.option(ctx.getString(R.string.v2_pick_pc_hosts), false, false, null);
+                hosts.option(ctx.getString(R.string.v2_cancel), false, false, null);
+                sheetOver(home, ctx, theme, hosts, "hostpick" + suffix);
+
+                V2Sheet.Spec oops = new V2Sheet.Spec();
+                oops.kind = ctx.getString(R.string.v2_pick_pc_kind);
+                oops.where = "ATLAS-PC";
+                oops.title = ctx.getString(R.string.v2_oops);
+                oops.info = true;
+                oops.note = ctx.getString(R.string.v2_host_unsupported, "ATLAS-PC", "7.1.431.-1");
+                oops.option(ctx.getString(R.string.v2_ok), true, false, null);
+                sheetOver(home, ctx, theme, oops, "oups" + suffix);
+
+                V2Sheet.Spec down = new V2Sheet.Spec();
+                down.kind = ctx.getString(R.string.v2_update_kind);
+                down.where = ctx.getString(R.string.v2_brand);
+                down.title = ctx.getString(R.string.v2_update_downloading_title, "0.7.0-dev.8");
+                down.progressLabel = ctx.getString(R.string.v2_update_downloading);
+                down.progress = 42;
+                down.option(ctx.getString(R.string.v2_update_cancel), true, false, null);
+                sheetOver(home, ctx, theme, down, "download" + suffix);
+
+                Bitmap idle = homeUnder(ctx, theme, false);
+                V2Sheet.Spec vd = new V2Sheet.Spec();
+                vd.kind = ctx.getString(R.string.v2_kind_app);
+                vd.where = "ATLAS-PC";
+                vd.title = ctx.getString(R.string.v2_desktop);
+                vd.hasCover = true;
+                vd.cover = covers.peek(apps.get(0));
+                vd.warn = true;
+                vd.note = ctx.getString(R.string.v2_vdisplay_not_ready);
+                vd.option(ctx.getString(R.string.v2_launch_anyway), true, true, null);
+                vd.option(ctx.getString(R.string.v2_cancel), false, false, null);
+                sheetOver(idle, ctx, theme, vd, "vd" + suffix);
+
+                Bitmap stream = Bitmap.createBitmap(1280, 720, Bitmap.Config.ARGB_8888);
+                Bitmap desk = covers.peek(apps.get(0));
+                if (desk != null) {
+                    new Canvas(stream).drawBitmap(desk, null, new android.graphics.Rect(0, 0, 1280, 720), new Paint(Paint.FILTER_BITMAP_FLAG));
+                }
+                V2Sheet.Spec quit = new V2Sheet.Spec();
+                quit.kind = ctx.getString(R.string.v2_menu_kind);
+                quit.where = "ATLAS-PC";
+                quit.title = ctx.getString(R.string.v2_quit_session_title, ctx.getString(R.string.v2_desktop));
+                quit.hasCover = true;
+                quit.cover = desk;
+                quit.warn = true;
+                quit.note = ctx.getString(R.string.v2_quit_session_note);
+                quit.option(ctx.getString(R.string.v2_quit_session_go), true, false, null);
+                quit.option(ctx.getString(R.string.v2_cancel), false, false, null);
+                sheetOver(stream, ctx, theme, quit, "quitsession" + suffix);
+
+                NvApp rdr = apps.get(3);
+                View segue = new com.limelight.v2.ui.SegueView(ctx, theme, ctx.getString(R.string.v2_segue_quit, "ATLAS-PC"),
+                        GAMES[0], covers.peek(rdr), covers.peekBackground(rdr), covers.peekBackground(rdr) == null, null);
+                save(draw(segue, 1280, 720), "segue" + suffix);
+            }
+        }
+    }
+
     private static final class NoActions implements HomeScreen.Actions {
         @Override public void switchHost(int delta) {}
         @Override public void pickHost() {}

@@ -281,6 +281,34 @@ public final class V2Dialogs {
     /** LavDialog: title, text, accept (accent) and cancel. Back / B / outside counts as cancel. */
     public static Dialog confirm(Activity activity, V2Theme theme, String title, String text,
                                  String acceptText, String rejectText, Runnable onAccept, Runnable onReject) {
+        // The prototype's centred dialog (V2Sheet): title, calm note, the accept option first
+        com.limelight.v2.V2Sheet.Spec spec = new com.limelight.v2.V2Sheet.Spec();
+        spec.title = title == null ? "" : title;
+        spec.info = true;
+        spec.note = text;
+        final boolean[] accepted = {false};
+        spec.option(acceptText, true, false, () -> {
+            accepted[0] = true;
+            if (onAccept != null) {
+                onAccept.run();
+            }
+        });
+        if (rejectText != null) {
+            spec.option(rejectText, false, false, null);
+        }
+        Dialog shown = com.limelight.v2.V2Sheet.show(activity, theme, spec);
+        // Back, B, outside or the second option: the reject callback, as before (after the accept ran)
+        shown.setOnDismissListener(d -> {
+            if (!accepted[0] && onReject != null) {
+                onReject.run();
+            }
+        });
+        return shown;
+    }
+
+    /** The LavDialog version (kept for the callers that need its field) */
+    private static Dialog confirmPanel(Activity activity, V2Theme theme, String title, String text,
+                                       String acceptText, String rejectText, Runnable onAccept, Runnable onReject) {
         final Dialog[] holder = new Dialog[1];
         final PillButton[] acceptHolder = new PillButton[1];
         final boolean[] accepted = {false};

@@ -321,6 +321,14 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > - **Décisions du 2026-11-26** : l'en-tête garde l'**icône de la Dev** (« plan d'atelier », `ui/AppIconDrawable` =
 >   calques `ic_launcher_bg/fg` recadrés), plus de logo du thème ni de puce DEV ; temps de jeu sous une heure en
 >   minutes (« 25 min jouées », `PlayTime`, testé), au-delà « N h jouées ».
+> - **Le reste (étape 9)** : D-pad / stick à **380 ms puis 110 ms** dans les écrans v2 (`DirRepeat`, testé ; la
+>   répétition du système est ignorée, `V2Activity` refait la sienne et sa propre recherche de focus si l'écran n'a pas
+>   de grille ; arrêtée sur `onPause` / perte de focus de la fenêtre). Sélecteurs **thème** (appui long sur clair /
+>   sombre) et **PC** (tap sur la pastille) en `V2Sheet` (« ✓ » + focus sur le courant, `Spec.focus`). « Oups »
+>   (`V2Sheet.oops`), écran virtuel pas prêt (« Lancer quand même »), téléchargement de la mise à jour (`Spec.progressLabel`
+>   / `setProgress`, « Annuler le téléchargement » arrête vraiment : `UpdateDownloader.download(…, cancelled)`),
+>   « Quitter {X} ? » du stream puis **segue** « Fermeture sur {PC}… » (`ui/SegueView`, aussi sur l'accueil pendant
+>   `doQuit`, 1,1 s au moins, puis « Session terminée »). `V2Dialogs.confirm` / `message` passent par `V2Sheet`.
 > - Captures comparables : `V2_SHOT_COVERS` = dossier des images et de `shots-data.json` du prototype (jamais dans
 >   git) → `ShotData` charge les mêmes jeux, heures, états et jaquettes ; sans la variable, jaquettes dessinées.
 > - Captures : `HomeScreenshotTest` (1280 × 720 = prototype, 1280 × 800, 915 × 412, 960 × 540, 3 thèmes × clair /

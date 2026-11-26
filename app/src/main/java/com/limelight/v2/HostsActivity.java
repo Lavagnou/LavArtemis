@@ -29,7 +29,6 @@ import com.limelight.utils.CacheHelper;
 import com.limelight.utils.PairingErrorText;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
-import com.limelight.v2.ui.V2Dialogs;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -293,7 +292,7 @@ public class HostsActivity extends V2HostActivity {
 
     private void error(String text) {
         if (!isFinishing()) {
-            V2Dialogs.message(this, theme, getString(R.string.v2_oops), text, getString(R.string.v2_ok));
+            V2Sheet.oops(this, theme, getString(R.string.v2_pick_pc_kind), "", text);
         }
     }
 

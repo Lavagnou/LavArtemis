@@ -72,6 +72,35 @@ public final class V2Sheet {
         /** The field once the dialog is built (read it with {@link #text()}) */
         android.widget.EditText field;
         public final List<Option> options = new ArrayList<>();
+        /** The option focused first (prototype focus 'c' + n: the current theme, the current PC) */
+        public int focus;
+        /** A progress bar (prototype ctx.hasProgress): its label, null for none; see {@link #setProgress} */
+        public String progressLabel;
+        public int progress;
+        private TextView progressText, progressPct;
+        private View progressFill;
+
+        /** Moves the bar of a shown dialog (on the main thread) */
+        public void setProgress(int pct, String label) {
+            progress = Math.max(0, Math.min(100, pct));
+            if (label != null) {
+                progressLabel = label;
+            }
+            if (progressText != null) {
+                progressText.setText(progressLabel);
+                progressPct.setText(progress + " %");
+                ViewGroup.LayoutParams lp = progressFill.getLayoutParams();
+                ViewGroup track = (ViewGroup) progressFill.getParent();
+                if (lp instanceof LinearLayout.LayoutParams && track != null && track.getChildCount() > 1) {
+                    ((LinearLayout.LayoutParams) lp).weight = progress;
+                    progressFill.setLayoutParams(lp);
+                    View rest = track.getChildAt(1);
+                    LinearLayout.LayoutParams rp = (LinearLayout.LayoutParams) rest.getLayoutParams();
+                    rp.weight = 100 - progress;
+                    rest.setLayoutParams(rp);
+                }
+            }
+        }
 
         /** What is typed in the field, trimmed ("" without a field) */
         public String text() {
@@ -96,6 +125,18 @@ public final class V2Sheet {
         return (affiche ? 580 : (ludique ? 560 : 520)) + (cols - 1) * 250;
     }
 
+
+    /** Prototype ctxKind 'error' (V8-15): « PC · ATLAS-PC », « Oups », the message, OK */
+    public static Dialog oops(Activity activity, V2Theme th, String kind, String where, String text) {
+        Spec spec = new Spec();
+        spec.kind = kind == null ? "" : kind;
+        spec.where = where == null ? "" : where;
+        spec.title = activity.getString(com.limelight.R.string.v2_oops);
+        spec.info = true;
+        spec.note = text;
+        spec.option(activity.getString(com.limelight.R.string.v2_ok), true, false, null);
+        return show(activity, th, spec);
+    }
 
     public static Dialog show(Activity activity, V2Theme th, Spec spec) {
         android.content.res.Configuration conf = activity.getResources().getConfiguration();
@@ -234,6 +275,35 @@ public final class V2Sheet {
             box.addView(note, nlp);
         }
 
+        if (spec.progressLabel != null) {
+            // Prototype: label and « 42 % » 14/700 on one line, then a 10 px pill track (off) filled with on
+            LinearLayout prog = new LinearLayout(ctx);
+            prog.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout line = new LinearLayout(ctx);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            spec.progressText = HomeParts.text(ctx, th, l, 14, 700, th.fg, false);
+            line.addView(spec.progressText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            spec.progressPct = HomeParts.text(ctx, th, l, 14, 700, th.fg, false);
+            line.addView(spec.progressPct);
+            prog.addView(line);
+            LinearLayout track = new LinearLayout(ctx);
+            track.setOrientation(LinearLayout.HORIZONTAL);
+            int th10 = px(ctx, l, 10);
+            track.setBackground(rect(th.off, th10 / 2f, 0, 0));
+            HomeParts.setClipToOutline21(track, th10 / 2f);
+            spec.progressFill = new View(ctx);
+            spec.progressFill.setBackgroundColor(th.on);
+            track.addView(spec.progressFill, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 0));
+            track.addView(new android.widget.Space(ctx), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
+            LinearLayout.LayoutParams trackLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, th10);
+            trackLp.topMargin = px(ctx, l, 8);
+            prog.addView(track, trackLp);
+            LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            glp.bottomMargin = px(ctx, l, 12);
+            box.addView(prog, glp);
+            spec.setProgress(spec.progress, null);
+        }
+
         if (spec.pin != null) {
             // Prototype: surface2 block, display font 54 with .2em letter spacing
             TextView pin = HomeParts.text(ctx, th, l, 54, th.displayWeight, th.fg, true);
@@ -346,7 +416,7 @@ public final class V2Sheet {
                     o.action.run();
                 }
             });
-            if (i == 0) {
+            if (i == Math.max(0, Math.min(spec.focus, spec.options.size() - 1))) {
                 b.setTag(FIRST);
             }
             b.setMinimumHeight(Math.max(px(ctx, l, h), Ui.dp(ctx, 44)));
