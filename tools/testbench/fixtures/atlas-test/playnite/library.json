@@ -9,8 +9,10 @@
       "platform": "PC (Windows)",
       "favorite": true,
       "lastActivity": "2026-11-20T21:00:00Z",
-      "playtime": 3600,
-      "cover": "4DCCF2BC-FD8D-5E93-8467-BBB42C5B8159.png"
+      "playtime": 151200,
+      "installed": true,
+      "cover": "4DCCF2BC-FD8D-5E93-8467-BBB42C5B8159.png",
+      "background": "4DCCF2BC-FD8D-5E93-8467-BBB42C5B8159.jpg"
     },
     {
       "id": "388A275E-05D7-5706-B8DF-6A612F1EFB79",
@@ -19,7 +21,8 @@
       "platform": "PC (Windows)",
       "favorite": false,
       "lastActivity": "2026-11-18T19:30:00Z",
-      "playtime": 3600,
+      "playtime": 27000,
+      "installed": false,
       "cover": "388A275E-05D7-5706-B8DF-6A612F1EFB79.png"
     },
     {
@@ -29,8 +32,10 @@
       "platform": "PC (Windows)",
       "favorite": false,
       "lastActivity": "2026-11-10T08:15:00Z",
-      "playtime": 3600,
-      "cover": "08488143-797D-5C59-A38A-D5EBBB49F353.png"
+      "playtime": 10800,
+      "installed": true,
+      "cover": "08488143-797D-5C59-A38A-D5EBBB49F353.png",
+      "background": "08488143-797D-5C59-A38A-D5EBBB49F353.jpg"
     },
     {
       "id": "326B3B19-C436-57EC-8FDC-225841229FDA",
@@ -39,7 +44,8 @@
       "platform": "PC (Windows)",
       "favorite": false,
       "lastActivity": null,
-      "playtime": 3600,
+      "playtime": 0,
+      "installed": true,
       "cover": "326B3B19-C436-57EC-8FDC-225841229FDA.png"
     }
   ]

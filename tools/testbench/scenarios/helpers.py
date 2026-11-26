@@ -394,6 +394,12 @@ def tiles(c):
     return [i for i in c.tree() if i["type"] == "CoverTile"]
 
 
+def reading_order(item):
+    """Sort key of a tile in reading order: by its centre, which a hovered or focused tile keeps when it grows
+    (scale 1.04 around the centre: its top moves up, and sorting by the top put it first of its row)."""
+    return round((item["y"] + item["h"] / 2) / 10), item["x"] + item["w"] / 2
+
+
 def tile_names(c, shot_path, names, dpr):
     """Name of each cover tile, recognised by its generated colour (covers.py) sampled in a capture: the tile's
     picture has no text item in the tree.  Returns (name, colour distance, tree item) in reading order."""
@@ -403,7 +409,7 @@ def tile_names(c, shot_path, names, dpr):
     out = []
     with Image.open(shot_path) as img:
         img = img.convert("RGB")
-        for t in sorted(tiles(c), key=lambda i: (i["y"], i["x"])):
+        for t in sorted(tiles(c), key=reading_order):
             x = int((t["x"] + t["w"] / 2) * dpr)
             y = int((t["y"] + t["h"] * 0.15) * dpr)
             rgb = img.getpixel((x, y))
@@ -430,7 +436,7 @@ def popup_texts(c):
 def tile_by_name(c, name):
     """The cover tile of a game, found by opening each tile's menu (its title is the game's name) and closing it:
     works whatever the covers look like (dimmed while a session runs)."""
-    for t in sorted(tiles(c), key=lambda i: (i["y"], i["x"])):
+    for t in sorted(tiles(c), key=reading_order):
         click_item(c, t, "right")
         deadline = time.time() + 5
         shown = []

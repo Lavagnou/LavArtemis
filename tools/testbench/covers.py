@@ -6,6 +6,7 @@ import pathlib
 from PIL import Image, ImageDraw, ImageFont
 
 SIZE = (300, 450)
+BACKGROUND_SIZE = (960, 540)
 
 
 def _colour(name):
@@ -37,3 +38,11 @@ def make_cover(name, path):
         y += 42
     pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
     img.save(path, "PNG")
+
+
+def make_background(name, path):
+    """A game's background image (LavApollo Link exports JPEG): a darker plain colour, 16:9, nothing drawn."""
+    r, g, b = _colour(name)
+    img = Image.new("RGB", BACKGROUND_SIZE, (r // 2, g // 2, b // 2))
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    img.save(path, "JPEG", quality=85)

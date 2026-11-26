@@ -135,6 +135,12 @@ def render_conf(pc, pcdir):
         lines.append(f"test_host_appversion = {pc['appversion']}")
     if pc.get("this_pc"):
         lines.append("test_host_this_pc = enabled")
+    if pc.get("form_factor"):
+        # serverinfo HostFormFactor (tower / mini / laptop), never the SMBIOS of the machine running the bench
+        lines.append(f"test_host_form_factor = {pc['form_factor']}")
+    if pc.get("link"):
+        # serverinfo HostLink (wired / wifi): loopback has neither
+        lines.append(f"test_host_link = {pc['link']}")
     # Always written: the scenarios derive the negotiated stream size from the same value
     lines.append("test_host_display = {}x{}x{}".format(*display_mode(pc)))
     if pc.get("benchmark_app") is False:
@@ -158,6 +164,8 @@ def write_pc_files(pc, fixture, pcdir):
     for g in lib["games"]:
         if g.get("cover"):
             covers.make_cover(g["name"], pn / "covers" / g["cover"])
+        if g.get("background"):
+            covers.make_background(g["name"], pn / "backgrounds" / g["background"])
     (pn / "library.json").write_text(json.dumps(lib, ensure_ascii=False, indent=2), encoding="utf-8")
     running = bool(pc.get("playnite_running"))
     state = {"version": 1, "playniteRunning": running, "mode": "fullscreen",

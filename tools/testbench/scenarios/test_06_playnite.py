@@ -91,8 +91,8 @@ def test_playnite_game_inside_running_playnite(bench):
     assert c.state()["session"]["decoded"] > d1
     bench.note(f"playnite app {playnite_app}; events {helpers.host_events(atlas, 'events')[-4:]}")
 
-    # « Quitter la session »: Playnite closes on the host, nothing runs there any more (LavApollo rebuilds its list
-    # only then)
+    # « Quitter la session »: Playnite closes on the host, nothing runs there any more (a play recorded while a
+    # session runs is scenario 15)
     qm = helpers.open_quick_menu(c)
     helpers.quick_menu_click(c, "Quitter la session", qm)
     helpers.wait_any_text(c, ["Tu veux vraiment quitter ?"])

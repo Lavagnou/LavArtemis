@@ -2,5 +2,7 @@
   "name": "Test-Atlas",
   "port": 40989,
   "mac": "02:00:00:00:a7:01",
-  "playnite_running": true
+  "playnite_running": true,
+  "form_factor": "tower",
+  "link": "wired"
 }
