@@ -54,7 +54,8 @@ def test_s2_ingame_menu_tiles(bench):
              "Statistiques de performance", "Plus"]
     items = {t: helpers.find(c, t, window=qm) for t in tiles}
     assert all(items.values()), {t: bool(v) for t, v in items.items()}
-    order = sorted(tiles, key=lambda t: helpers.reading_order(items[t][0]))
+    by_item = {id(items[t][0]): t for t in tiles}
+    order = [by_item[id(i)] for i in helpers.in_reading_order([items[t][0] for t in tiles])]
     assert order == tiles, f"tiles in the order {order}"
     shown = helpers.texts(c, window=qm)
     assert not [t for t in shown if t.startswith("Quitter ") and t != "Quitter la session"], \

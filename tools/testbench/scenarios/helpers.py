@@ -494,6 +494,20 @@ def reading_order(item):
     return round((item["y"] + item["h"] / 2) / 10), item["x"] + item["w"] / 2
 
 
+def in_reading_order(items):
+    """Labels in reading order, a row being the labels whose heights overlap.  Not reading_order: the in-game menu's
+    labels sit at the bottom of tiles of the same height, so a label on two lines (« Libérer la souris et le
+    clavier ») has its centre 10 px above a one-line label of its row (« Micro non envoyé ») and fell into the row
+    before."""
+    rows = []
+    for it in sorted(items, key=lambda i: i["y"]):
+        if rows and it["y"] < max(r["y"] + r["h"] for r in rows[-1]):
+            rows[-1].append(it)
+        else:
+            rows.append([it])
+    return [i for r in rows for i in sorted(r, key=lambda i: i["x"])]
+
+
 def tile_names(c, shot_path, names, dpr):
     """Name of each cover tile, recognised by its generated colour (covers.py) sampled in a capture: the tile's
     picture has no text item in the tree.  Returns (name, colour distance, tree item) in reading order."""
