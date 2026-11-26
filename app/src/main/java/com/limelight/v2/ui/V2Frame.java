@@ -2,41 +2,63 @@ package com.limelight.v2.ui;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.limelight.v2.V2Input;
 import com.limelight.v2.V2Theme;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Base of every interactive v2 view. Draws, around its children:
  * <ul>
- * <li>the live halo of the running item (blurred glow, or Affiche's hard offset block), outside
- * its bounds and pulsing (LiveHalo.qml);</li>
+ * <li>the live glow of the running item, pulsing with the prototype's keyframes: Braise's ember
+ * (lavember, 2.6 s) and Ludique's purple plume (lavplum, 2.4 s) as a blurred glow outside the
+ * bounds; Affiche's hard yellow offset block (lavpop, 10 &lt;-&gt; 5 px) or, on an app card, its
+ * inset yellow bar at the bottom (lavbar, 12 &lt;-&gt; 4 px), 1.6 s;</li>
  * <li>the Projecteur dimming: grayscale, multiplied brightness and opacity (Theme.dim()), applied to
  * the whole face through one layer, so covers and texts dim alike;</li>
- * <li>the focus ring, outside its bounds, only for gamepad and keyboard (V2Input).</li>
+ * <li>the focus decoration of the theme, only for gamepad and keyboard (V2Input): a ring in the page
+ * colour then the ring colour (Braise 3 / 6 px, Ludique 4 / 9 px); for Affiche a yellow fill with dark
+ * ink plus a 4 px outline 4 px away (the prototype's ring + ring2), or the outline alone on images.</li>
  * </ul>
  * Ancestors must not clip children ({@link Ui#noClip}) or the halo and the ring are cut.
  */
-public class V2Frame extends FrameLayout {
+public class V2Frame extends FrameLayout implements V2Input.Listener {
+    /** How the running item glows */
+    public enum LiveStyle { HALO, BAR }
+
     protected V2Theme theme;
     private float ringRadiusPx;
-    private float ringOutsetPx;
-    private int ringColor;
-    private float ringStrokePx;
 
     private boolean dimmed;
     private boolean live;
+    private LiveStyle liveStyle = LiveStyle.HALO;
     private float liveRadiusPx;
+    /** Affiche: fill the focused item yellow (buttons, cards); false on images (outline only) */
+    private boolean focusFill = true;
+    private boolean fillApplied;
+    private Drawable savedBackground;
+    private final Map<TextView, ColorStateList> savedText = new HashMap<>();
+    private final Map<ImageView, android.graphics.ColorFilter> savedImage = new HashMap<>();
 
     private final Paint layerPaint = new Paint();
     private final Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -44,9 +66,9 @@ public class V2Frame extends FrameLayout {
     private final RectF rect = new RectF();
 
     private Bitmap glow;
-    private int glowW, glowH, glowColor;
+    private int glowW, glowH;
     private float glowPad;
-    /** Pulse phase 0..1; a static mid-high value when not animating (screenshots, no animation) */
+    /** Pulse phase 0..1 (0 = the keyframes' 0 %, 1 = their 50 %); a static value when not animating */
     private float pulse = 1f;
     private ValueAnimator pulseAnimator;
 
@@ -54,18 +76,22 @@ public class V2Frame extends FrameLayout {
         super(context);
         this.theme = theme;
         setWillNotDraw(false);
-        ringStrokePx = Ui.dpf(context, 3);
-        ringOutsetPx = Ui.dpf(context, 6);
-        ringColor = theme.accent;
         ringPaint.setStyle(Paint.Style.STROKE);
-        ringPaint.setStrokeWidth(ringStrokePx);
     }
 
+    /**
+     * Corner radius of the focus ring (the view's own radius). The outset and colour arguments are
+     * kept for the callers but the ring now follows the theme ({@link V2Theme#focusGap}).
+     */
     public void setRing(float radiusDp, float outsetDp, int color) {
         ringRadiusPx = Ui.dpf(getContext(), radiusDp);
-        ringOutsetPx = Ui.dpf(getContext(), outsetDp);
-        ringColor = color;
         invalidate();
+    }
+
+    /** Affiche: whether focus fills the item yellow (true) or only outlines it (images) */
+    public void setFocusFill(boolean fill) {
+        focusFill = fill;
+        applyFocusLook();
     }
 
     public void setDimmed(boolean dimmed) {
@@ -80,7 +106,12 @@ public class V2Frame extends FrameLayout {
     }
 
     public void setLive(boolean live, float radiusDp) {
+        setLive(live, radiusDp, LiveStyle.HALO);
+    }
+
+    public void setLive(boolean live, float radiusDp, LiveStyle style) {
         this.liveRadiusPx = Ui.dpf(getContext(), radiusDp);
+        this.liveStyle = style;
         if (this.live != live) {
             this.live = live;
             updatePulse();
@@ -97,7 +128,8 @@ public class V2Frame extends FrameLayout {
     }
 
     /** Gamepad/keyboard focus scales the view to 1.04, as on the desktop and in the prototype
-     *  (`ring`). Only cards and covers, not buttons or settings rows. */
+     *  (`ring`). Only cards and covers, not buttons or settings rows. Never on Affiche (its ring
+     *  has no scale). */
     private boolean scaleOnFocus;
     private static final float FOCUS_SCALE = 1.04f;
 
@@ -109,7 +141,7 @@ public class V2Frame extends FrameLayout {
         if (!scaleOnFocus) {
             return;
         }
-        float s = showFocus() ? FOCUS_SCALE : 1f;
+        float s = showFocus() && !theme.isAffiche() ? FOCUS_SCALE : 1f;
         if (getScaleX() != s) {
             animate().scaleX(s).scaleY(s).setDuration(150).start();
         }
@@ -119,6 +151,7 @@ public class V2Frame extends FrameLayout {
     protected void onFocusChanged(boolean gainFocus, int direction, Rect previouslyFocusedRect) {
         super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
         applyFocusScale();
+        applyFocusLook();
         invalidate();
         // The ring and the dim are drawn outside / over the view: the parent repaints too
         if (getParent() instanceof View) {
@@ -127,14 +160,71 @@ public class V2Frame extends FrameLayout {
     }
 
     @Override
+    public void onInputKindChanged(V2Input.Kind kind) {
+        applyFocusScale();
+        applyFocusLook();
+        invalidate();
+    }
+
+    /**
+     * Affiche's focus fill: the background becomes yellow and every text and icon inside turns to
+     * the dark ink, then everything is put back when the focus leaves (or the input becomes touch).
+     */
+    private void applyFocusLook() {
+        boolean want = theme.focusFill && focusFill && showFocus();
+        if (want == fillApplied) {
+            return;
+        }
+        fillApplied = want;
+        if (want) {
+            savedBackground = getBackground();
+            float r = ringRadiusPx;
+            setBackground(Ui.roundRect(V2Theme.YELLOW, r, 0, 0));
+            recolor(this, true);
+        } else {
+            setBackground(savedBackground);
+            savedBackground = null;
+            recolor(this, false);
+        }
+    }
+
+    private void recolor(View v, boolean fill) {
+        if (v instanceof TextView) {
+            TextView t = (TextView) v;
+            if (fill) {
+                savedText.put(t, t.getTextColors());
+                t.setTextColor(V2Theme.FILL_INK);
+            } else if (savedText.containsKey(t)) {
+                t.setTextColor(savedText.remove(t));
+            }
+        } else if (v instanceof ImageView) {
+            ImageView i = (ImageView) v;
+            if (fill) {
+                savedImage.put(i, i.getColorFilter());
+                i.setColorFilter(new PorterDuffColorFilter(V2Theme.FILL_INK, PorterDuff.Mode.SRC_IN));
+            } else if (savedImage.containsKey(i)) {
+                i.setColorFilter(savedImage.remove(i));
+            }
+        }
+        if (v instanceof ViewGroup && !(v instanceof V2Frame && v != this)) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                recolor(g.getChildAt(i), fill);
+            }
+        }
+    }
+
+    @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        V2Input.addListener(this);
         updatePulse();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        V2Input.removeListener(this);
         if (pulseAnimator != null) {
             pulseAnimator.cancel();
             pulseAnimator = null;
@@ -146,8 +236,10 @@ public class V2Frame extends FrameLayout {
                 || ValueAnimator.areAnimatorsEnabled();
         boolean want = live && isAttachedToWindow() && animations;
         if (want && pulseAnimator == null) {
+            // Keyframes 0 % = 100 % = rest, 50 % = peak, ease-in-out: half a period each way
             pulseAnimator = ValueAnimator.ofFloat(0f, 1f);
-            pulseAnimator.setDuration(theme.isAffiche() ? 800 : 1300);
+            pulseAnimator.setDuration(theme.glowPeriodMs / 2);
+            pulseAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
             pulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
             pulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
             pulseAnimator.addUpdateListener(a -> {
@@ -167,7 +259,7 @@ public class V2Frame extends FrameLayout {
 
     @Override
     public void draw(Canvas canvas) {
-        if (live) {
+        if (live && liveStyle == LiveStyle.HALO) {
             drawHalo(canvas);
         }
         boolean layered = dimmed;
@@ -184,16 +276,40 @@ public class V2Frame extends FrameLayout {
             save = canvas.saveLayer(0, 0, getWidth(), getHeight(), layerPaint);
         }
         super.draw(canvas);
+        if (live && liveStyle == LiveStyle.BAR) {
+            // lavbar: inset 0 -12px 0 yellow <-> -4px (the 0 % keyframe is the thick one)
+            float h = Ui.dpf(getContext(), 12 - 8 * pulse);
+            haloPaint.setColor(theme.glowColor);
+            haloPaint.setAlpha(255);
+            canvas.drawRect(0, getHeight() - h, getWidth(), getHeight(), haloPaint);
+        }
         if (save >= 0) {
             canvas.restoreToCount(save);
         }
         if (showFocus()) {
-            ringPaint.setColor(ringColor);
-            float o = ringOutsetPx - ringStrokePx / 2f;
-            rect.set(-o, -o, getWidth() + o, getHeight() + o);
-            float rad = ringRadiusPx + ringOutsetPx;
-            canvas.drawRoundRect(rect, rad, rad, ringPaint);
+            drawFocus(canvas);
         }
+    }
+
+    private void drawFocus(Canvas canvas) {
+        float gap = Ui.dpf(getContext(), theme.focusGap);
+        float outer = Ui.dpf(getContext(), theme.focusOuter);
+        if (!theme.focusFill) {
+            // box-shadow 0 0 0 gap bg, 0 0 0 outer colour: two rings that follow the corners
+            ringPaint.setColor(theme.bg);
+            ringPaint.setStrokeWidth(gap);
+            strokeAround(canvas, gap / 2f, ringRadiusPx + gap / 2f);
+        }
+        ringPaint.setColor(theme.focusColor);
+        ringPaint.setStrokeWidth(outer - gap);
+        float mid = (gap + outer) / 2f;
+        // An outline (Affiche) keeps square corners; a box-shadow spread grows the radius
+        strokeAround(canvas, mid, theme.focusFill ? 0 : ringRadiusPx + mid);
+    }
+
+    private void strokeAround(Canvas canvas, float offset, float radius) {
+        rect.set(-offset, -offset, getWidth() + offset, getHeight() + offset);
+        canvas.drawRoundRect(rect, radius, radius, ringPaint);
     }
 
     private void drawHalo(Canvas canvas) {
@@ -202,10 +318,10 @@ public class V2Frame extends FrameLayout {
             return;
         }
         if (theme.isAffiche()) {
-            // A hard offset block, blinking like a poster light (1.0 <-> 0.55)
-            haloPaint.setColor(theme.live);
-            haloPaint.setAlpha(Math.round(255 * (0.55f + 0.45f * pulse)));
-            float off = Ui.dpf(getContext(), 10);
+            // lavpop: a hard yellow block offset 10 px, then 5 px at the peak
+            haloPaint.setColor(theme.glowColor);
+            haloPaint.setAlpha(255);
+            float off = Ui.dpf(getContext(), 10 - 5 * pulse);
             canvas.drawRect(off, off, w + off, h + off, haloPaint);
             return;
         }
@@ -213,38 +329,41 @@ public class V2Frame extends FrameLayout {
         if (glow == null) {
             return;
         }
-        haloPaint.setAlpha(Math.round(255 * (0.35f + 0.40f * pulse)));
-        rect.set(-glowPad, -glowPad, w + glowPad, h + glowPad);
+        // drop-shadow blur grows from glowBlurMin to glowBlurMax, alpha too
+        float blurNow = theme.glowBlurMin + (theme.glowBlurMax - theme.glowBlurMin) * pulse;
+        float grow = glowPad * (blurNow / theme.glowBlurMax);
+        float alpha = theme.glowAlphaMin + (theme.glowAlphaMax - theme.glowAlphaMin) * pulse;
+        haloPaint.setAlpha(Math.round(255 * alpha));
+        rect.set(-grow, -grow, w + grow, h + grow);
         canvas.drawBitmap(glow, null, rect, haloPaint);
     }
 
     /**
      * The glow is rendered once per size in software (BlurMaskFilter is not supported by every
-     * hardware pipeline), at a quarter of the resolution: the blur hides the upscaling.
+     * hardware pipeline), at a quarter of the resolution: the blur hides the upscaling. It is the
+     * peak of the keyframes; the pulse shrinks and fades it.
      */
     private void ensureGlow(int w, int h) {
-        if (glow != null && glowW == w && glowH == h && glowColor == theme.live) {
+        if (glow != null && glowW == w && glowH == h) {
             return;
         }
         float scale = 0.25f;
-        float spread = Ui.dpf(getContext(), 6);
-        float blur = Ui.dpf(getContext(), 16);
-        glowPad = spread + blur * 2;
+        float blur = Ui.dpf(getContext(), theme.glowBlurMax);
+        glowPad = blur;
         int bw = Math.max(1, Math.round((w + 2 * glowPad) * scale));
         int bh = Math.max(1, Math.round((h + 2 * glowPad) * scale));
         try {
             Bitmap b = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(b);
             Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-            p.setColor(theme.live);
-            p.setMaskFilter(new BlurMaskFilter(Math.max(1f, blur * scale), BlurMaskFilter.Blur.NORMAL));
-            float inset = (glowPad - spread) * scale;
-            float rad = (liveRadiusPx + spread) * scale;
+            p.setColor(theme.glowColor);
+            p.setMaskFilter(new BlurMaskFilter(Math.max(1f, blur * scale / 2f), BlurMaskFilter.Blur.NORMAL));
+            float inset = glowPad * scale;
+            float rad = liveRadiusPx * scale;
             c.drawRoundRect(new RectF(inset, inset, bw - inset, bh - inset), rad, rad, p);
             glow = b;
             glowW = w;
             glowH = h;
-            glowColor = theme.live;
         } catch (OutOfMemoryError e) {
             glow = null;
         }

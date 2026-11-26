@@ -7,7 +7,6 @@ import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.widget.Toast;
 
 import androidx.preference.PreferenceManager;
 
@@ -433,7 +432,7 @@ public abstract class V2HostActivity extends V2Activity {
         }
         if (c.macAddress == null) {
             // The v2 messages of Mes PC, which are the desktop's
-            Toast.makeText(this, getString(R.string.v2_wake_no_mac, c.name), Toast.LENGTH_LONG).show();
+            toast(getString(R.string.v2_wake_no_mac, c.name));
             return;
         }
         new Thread(() -> {
@@ -445,7 +444,7 @@ public abstract class V2HostActivity extends V2Activity {
                 message = getString(R.string.v2_wake_failed, c.name);
             }
             final String toast = message;
-            runOnUiThread(() -> Toast.makeText(this, toast, Toast.LENGTH_LONG).show());
+            runOnUiThread(() -> toast(toast));
         }).start();
     }
 

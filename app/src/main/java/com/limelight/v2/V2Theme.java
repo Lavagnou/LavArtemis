@@ -44,6 +44,36 @@ public final class V2Theme {
     /** Weight of display text (700 Braise, 900 Affiche, 800 Ludique) */
     public final int displayWeight;
 
+    /** Note of a launch that closes something (prototype tk.warnBg / tk.warnLine) */
+    public final int warnBg, warnLine;
+    /** Radius of the options popover, of its rows and of its thumbnail (tk.popR / popRow / thumbR) */
+    public final int popR, popRow, thumbR;
+
+    /**
+     * Focus ring of the prototype (T.ring), drawn outside the focused view: a gap in the page
+     * colour, then the ring colour. Braise 3 / 6 px accent, Ludique 4 / 9 px (light #1B1530, dark
+     * lime). Affiche has no ring: the focused item is filled yellow with dark text, plus a 4 px
+     * outline 4 px away (T.ring2).
+     */
+    public final float focusGap, focusOuter;
+    public final int focusColor;
+    public final boolean focusFill;
+    /** Affiche's focus fill and live yellow, both modes */
+    public static final int YELLOW = 0xFFFFD60A;
+    /** Ink of Affiche's focus fill */
+    public static final int FILL_INK = 0xFF111111;
+
+    /** Live glow (prototype keyframes): colour and full period of lavember / lavplum / lavbar-lavpop */
+    public final int glowColor;
+    public final int glowPeriodMs;
+    public final float glowAlphaMin, glowAlphaMax, glowBlurMin, glowBlurMax;
+
+    /**
+     * Colours the prototype writes literally in a theme's markup (not tokens), per mode: see
+     * {@link Lit}. Copy of the "literal colours" table of design-port-spec §2.1.
+     */
+    public final Lit lit;
+
     /** Grayscale, multiplied brightness and opacity of a dimmed card (Theme.qml dim()) */
     public static final class Dim {
         public final float gray, bright, opacity;
@@ -89,6 +119,139 @@ public final class V2Theme {
         upper = AFFICHE.equals(id);
         tracking = AFFICHE.equals(id) ? -0.02f : (LUDIQUE.equals(id) ? -0.03f : -0.01f);
         displayWeight = AFFICHE.equals(id) ? 900 : (LUDIQUE.equals(id) ? 800 : 700);
+
+        if (AFFICHE.equals(id)) {
+            warnBg = dark ? c("#3B330F") : YELLOW;
+            warnLine = dark ? YELLOW : c("#111111");
+        } else if (LUDIQUE.equals(id)) {
+            warnBg = dark ? c("#3A2430") : c("#FFE1D8");
+            warnLine = c("#FF7A59");
+        } else {
+            warnBg = dark ? c("#2A1A12") : c("#FBE3D4");
+            warnLine = accent;
+        }
+        popR = AFFICHE.equals(id) ? 0 : (LUDIQUE.equals(id) ? 24 : 16);
+        popRow = AFFICHE.equals(id) ? 0 : (LUDIQUE.equals(id) ? 16 : 10);
+        thumbR = AFFICHE.equals(id) ? 0 : (LUDIQUE.equals(id) ? 10 : 8);
+
+        focusFill = AFFICHE.equals(id);
+        if (LUDIQUE.equals(id)) {
+            focusGap = 4;
+            focusOuter = 9;
+            focusColor = dark ? c("#C6F432") : c("#1B1530");
+        } else if (AFFICHE.equals(id)) {
+            // ring2: outline 4 px, 4 px away from the item
+            focusGap = 4;
+            focusOuter = 8;
+            focusColor = fg;
+        } else {
+            focusGap = 3;
+            focusOuter = 6;
+            focusColor = accent;
+        }
+
+        if (LUDIQUE.equals(id)) {
+            glowColor = c("#7B5CFF");
+            glowPeriodMs = 2400;
+            glowAlphaMin = 0.5f;
+            glowAlphaMax = 1f;
+            glowBlurMin = 6;
+            glowBlurMax = 20;
+        } else if (AFFICHE.equals(id)) {
+            glowColor = YELLOW;
+            glowPeriodMs = 1600;
+            glowAlphaMin = 1f;
+            glowAlphaMax = 1f;
+            glowBlurMin = 0;
+            glowBlurMax = 0;
+        } else {
+            glowColor = c("#FF6A2B");
+            glowPeriodMs = 2600;
+            glowAlphaMin = 0.45f;
+            glowAlphaMax = 0.95f;
+            glowBlurMin = 10;
+            glowBlurMax = 26;
+        }
+        lit = new Lit(id, dark);
+    }
+
+    /**
+     * Literal colours of the prototype's markup, per theme and mode. Names describe the role; the
+     * comment gives the dark / light values of Braise, then Affiche, then Ludique where they
+     * differ from a token.
+     */
+    public static final class Lit {
+        /** Secondary text over the page (Braise #E7E0D8 / #3E3731) */
+        public final int text2;
+        /** Muted text over a dark or light veil (Braise #CFC6BC / #6B6158; Ludique #D9D2F5 on navy) */
+        public final int muted2;
+        /** Accent used as text (Braise #FF8A57 / #C9480F) */
+        public final int accentText;
+        /** Thin border of the small buttons (Braise #5A524B / #B8AA9B) */
+        public final int chipBorder;
+        /** Colour of the page veils (Braise rgb of the background) */
+        public final int veil;
+        /** Ludique: navy block (#1B1530), inverted in dark (#F3EEFF); Affiche: ink band (#111 / #EDEDE8) */
+        public final int band, onBand;
+        /** Ludique: inner chip of the navy block (#2E2650 / #DCD3FF) and its text (#D9D2F5 / #5A527A) */
+        public final int bandChip, onBandChip;
+        /** Live text on the band (Affiche #FFD60A / #7A6000; Ludique #C6F432 / #3F5A00) */
+        public final int bandLive;
+        /** Ludique's purple (go button, chips): #5B3DF5 / #8C77FF */
+        public final int purple;
+        /** Ludique: app card blocks (Bureau #FF7A59, Playnite #C6F432) */
+        public final int coral, lime;
+        /** Ludique: the white surface (#FFFFFF / #221C3D) */
+        public final int card;
+
+        Lit(String id, boolean dark) {
+            if (AFFICHE.equals(id)) {
+                text2 = dark ? c("#EDEDE8") : c("#111111");
+                muted2 = dark ? c("#A3A39C") : c("#555550");
+                accentText = text2;
+                chipBorder = text2;
+                veil = dark ? c("#141414") : c("#ECECE8");
+                band = dark ? c("#EDEDE8") : c("#111111");
+                onBand = dark ? c("#141414") : c("#ECECE8");
+                bandChip = band;
+                onBandChip = onBand;
+                bandLive = dark ? c("#7A6000") : YELLOW;
+                purple = band;
+                coral = c("#FF7A59");
+                lime = c("#C6F432");
+                card = veil;
+            } else if (LUDIQUE.equals(id)) {
+                text2 = dark ? c("#F3EEFF") : c("#1B1530");
+                muted2 = dark ? c("#B3A9D6") : c("#5A527A");
+                accentText = text2;
+                chipBorder = dark ? c("#4A3F7A") : c("#B9AEE6");
+                veil = dark ? c("#15112A") : c("#F3EEFF");
+                band = dark ? c("#F3EEFF") : c("#1B1530");
+                onBand = dark ? c("#221C3D") : c("#FFFFFF");
+                bandChip = dark ? c("#DCD3FF") : c("#2E2650");
+                onBandChip = dark ? c("#5A527A") : c("#D9D2F5");
+                bandLive = dark ? c("#3F5A00") : c("#C6F432");
+                purple = dark ? c("#8C77FF") : c("#5B3DF5");
+                coral = c("#FF7A59");
+                lime = c("#C6F432");
+                card = dark ? c("#221C3D") : c("#FFFFFF");
+            } else {
+                text2 = dark ? c("#E7E0D8") : c("#3E3731");
+                muted2 = dark ? c("#CFC6BC") : c("#6B6158");
+                accentText = dark ? c("#FF8A57") : c("#C9480F");
+                chipBorder = dark ? c("#5A524B") : c("#B8AA9B");
+                veil = dark ? c("#0E0D0C") : c("#F6F1EA");
+                band = dark ? c("#1A1816") : c("#FFFFFF");
+                onBand = dark ? c("#F3EEE8") : c("#1E1A16");
+                bandChip = dark ? c("#24201D") : c("#EFE7DD");
+                onBandChip = muted2;
+                bandLive = accentText;
+                purple = c("#FF6A2B");
+                coral = c("#FF7A59");
+                lime = c("#C6F432");
+                card = dark ? c("#1A1816") : c("#FFFFFF");
+            }
+        }
     }
 
     private static int c(String hex) {

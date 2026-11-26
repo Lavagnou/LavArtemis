@@ -12,7 +12,6 @@ import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
@@ -184,7 +183,7 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         } else if (PreferenceConfiguration.DEFAULT_LANGUAGE.equals(now)) {
-            Toast.makeText(this, R.string.v2_set_language_restart, Toast.LENGTH_LONG).show();
+            toast(R.string.v2_set_language_restart);
             System.exit(0);
         }
     }
@@ -237,7 +236,7 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_MIC && (grantResults.length == 0 || grantResults[0] != PackageManager.PERMISSION_GRANTED)) {
             store.putBool("checkbox_mic_passthrough", false);
-            Toast.makeText(this, R.string.toast_microphone_permission_denied, Toast.LENGTH_LONG).show();
+            toast(R.string.toast_microphone_permission_denied);
             if (screen != null) {
                 screen.refresh();
             }
@@ -322,7 +321,7 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
                 V2Dialogs.confirm(this, theme, getString(R.string.v2_set_osc_reset), getString(R.string.v2_set_reset_confirm),
                         getString(R.string.v2_set_reset), getString(R.string.v2_cancel), () -> {
                             getSharedPreferences(VirtualControllerConfigurationLoader.OSC_PREFERENCE, Context.MODE_PRIVATE).edit().clear().apply();
-                            Toast.makeText(this, R.string.toast_reset_osc_success, Toast.LENGTH_SHORT).show();
+                            toast(R.string.toast_reset_osc_success);
                         }, null);
                 break;
             case "option_reset_osc":
@@ -334,7 +333,7 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
                                 name = KeyBoardControllerConfigurationLoader.OSC_PREFERENCE_VALUE;
                             }
                             getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().apply();
-                            Toast.makeText(this, R.string.toast_reset_osc_success, Toast.LENGTH_SHORT).show();
+                            toast(R.string.toast_reset_osc_success);
                         }, null);
                 break;
             case "import_keyboard_file":
@@ -367,7 +366,7 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
         try {
             startActivityForResult(SettingsFileActions.openJsonIntent(), request);
         } catch (android.content.ActivityNotFoundException e) {
-            Toast.makeText(this, R.string.pref_error_occurred, Toast.LENGTH_SHORT).show();
+            toast(R.string.pref_error_occurred);
         }
     }
 

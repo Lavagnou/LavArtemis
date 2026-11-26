@@ -8,7 +8,6 @@ import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 import androidx.preference.PreferenceManager;
 
@@ -281,8 +280,7 @@ public class HostsActivity extends V2HostActivity {
                 sent = false;
             }
             final boolean ok = sent;
-            runOnUiThread(() -> Toast.makeText(this, getString(ok ? R.string.v2_wake_sent : R.string.v2_wake_failed, name),
-                    Toast.LENGTH_LONG).show());
+            runOnUiThread(() -> toast(getString(ok ? R.string.v2_wake_sent : R.string.v2_wake_failed, name)));
         }).start();
     }
 
@@ -361,7 +359,7 @@ public class HostsActivity extends V2HostActivity {
     /** PcView.removeComputer(), step for step */
     private void forget(ComputerDetails d) {
         if (managerBinder == null) {
-            Toast.makeText(this, R.string.error_manager_not_running, Toast.LENGTH_LONG).show();
+            toast(R.string.error_manager_not_running);
             return;
         }
         managerBinder.removeComputer(d);
@@ -398,7 +396,7 @@ public class HostsActivity extends V2HostActivity {
     private void addByAddress(final String input) {
         final ComputerManagerService.ComputerManagerBinder binder = managerBinder;
         if (binder == null) {
-            Toast.makeText(this, R.string.error_manager_not_running, Toast.LENGTH_LONG).show();
+            toast(R.string.error_manager_not_running);
             return;
         }
         final Uri uri = AddComputerManually.parseRawUserInputToUri(input);
@@ -410,7 +408,7 @@ public class HostsActivity extends V2HostActivity {
         for (ComputerDetails d : HostCards.pairedByName(computers.values())) {
             pairedBefore.add(d.uuid);
         }
-        Toast.makeText(this, getString(R.string.v2_searching_address, input), Toast.LENGTH_SHORT).show();
+        toast(getString(R.string.v2_searching_address, input));
         new Thread(() -> {
             String host = uri.getHost();
             int port = uri.getPort() == -1 ? NvHTTP.DEFAULT_HTTP_PORT : uri.getPort();
@@ -469,9 +467,9 @@ public class HostsActivity extends V2HostActivity {
         if (d.pairState != PairingManager.PairState.PAIRED) {
             pair(d, null, null);
         } else if (pairedBefore.contains(d.uuid)) {
-            Toast.makeText(this, R.string.v2_already_listed, Toast.LENGTH_LONG).show();
+            toast(R.string.v2_already_listed);
         } else {
-            Toast.makeText(this, getString(R.string.v2_added, d.name), Toast.LENGTH_LONG).show();
+            toast(getString(R.string.v2_added, d.name));
         }
         refresh();
     }
@@ -484,7 +482,7 @@ public class HostsActivity extends V2HostActivity {
      */
     private void pair(final ComputerDetails computer, final String otp, final String passphrase) {
         if (managerBinder == null) {
-            Toast.makeText(this, R.string.error_manager_not_running, Toast.LENGTH_LONG).show();
+            toast(R.string.error_manager_not_running);
             return;
         }
         if (computer.state == ComputerDetails.State.OFFLINE || computer.activeAddress == null) {
@@ -561,7 +559,7 @@ public class HostsActivity extends V2HostActivity {
             return;
         }
         if (success) {
-            Toast.makeText(this, getString(R.string.v2_paired, computer.name), Toast.LENGTH_LONG).show();
+            toast(getString(R.string.v2_paired, computer.name));
             openHost(computer);
             return;
         }

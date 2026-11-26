@@ -9,7 +9,6 @@ import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewConfiguration;
 import android.view.Window;
 import android.view.WindowInsetsController;
 
@@ -17,6 +16,8 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.limelight.utils.UiHelper;
+
+import java.util.List;
 
 /**
  * Base of the v2 activities: paints the window in the theme (light/dark follows the device live
@@ -202,13 +203,22 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
 
         switch (code) {
             case KeyEvent.KEYCODE_BUTTON_A:
-                // Android has no default for A in a normal view: click the focused item on release;
-                // held, A opens its options (as Y), and the release then does nothing
+                // Android has no default for A in a normal view. Prototype pressA(): on an item
+                // that has options (app card, game, PC card) A starts a 500 ms timer, held it opens
+                // the options (as Y) and the release does nothing, released before it activates the
+                // item; anything else activates on the press.
                 if (down && event.getRepeatCount() == 0) {
+                    if (focused != null && !isHoldable(focused)) {
+                        aPressed = false;
+                        if (focused.isClickable()) {
+                            focused.performClick();
+                        }
+                        return true;
+                    }
                     aPressed = true;
                     aHeldFired = false;
                     handler.removeCallbacks(aHeld);
-                    handler.postDelayed(aHeld, ViewConfiguration.getLongPressTimeout());
+                    handler.postDelayed(aHeld, HOLD_MS);
                 } else if (up) {
                     handler.removeCallbacks(aHeld);
                     if (aPressed && !aHeldFired && !event.isCanceled() && focused != null && focused.isClickable()) {
@@ -218,6 +228,7 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
                 }
                 return true;
             case KeyEvent.KEYCODE_BUTTON_B:
+            case KeyEvent.KEYCODE_BUTTON_START:
             case KeyEvent.KEYCODE_ESCAPE:
                 if (up) {
                     onV2Back();
@@ -249,10 +260,69 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
                     return true;
                 }
                 break;
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                if (down) {
+                    List<List<View>> rows = focusRows();
+                    if (rows != null && !rows.isEmpty()) {
+                        int dx = code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : (code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0);
+                        int dy = code == KeyEvent.KEYCODE_DPAD_UP ? -1 : (code == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : 0);
+                        View target = FocusGrid.move(rows, focusedItem(rows, focused), dx, dy);
+                        if (target != null && target != focused) {
+                            target.requestFocus();
+                            onGridFocus(target);
+                        }
+                        return true;
+                    }
+                } else if (focusRows() != null) {
+                    return true;
+                }
+                break;
             default:
                 break;
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    /** A themed toast at the top of the screen (prototype toast, 2.4 s) */
+    public void toast(CharSequence text) {
+        com.limelight.v2.ui.V2Toast.show(this, theme, text);
+    }
+
+    public void toast(int resId) {
+        toast(getString(resId));
+    }
+
+    /** Hold time of A before the options open (prototype pressA) */
+    public static final long HOLD_MS = 500;
+
+    /**
+     * The screen's focus grid (prototype grid()): rows of focusable views, moved through by the
+     * D-pad with the prototype's rule ({@link FocusGrid}). Null leaves Android's own focus search.
+     */
+    protected List<List<View>> focusRows() {
+        return null;
+    }
+
+    /** The focus moved to a grid item (scroll it into view, update captions...) */
+    protected void onGridFocus(View target) {
+    }
+
+    /** Items with options (A held = options, A released early = activate): those with a long press */
+    protected boolean isHoldable(View v) {
+        return v.isLongClickable();
+    }
+
+    /** The grid item that holds the focused view (the focus may sit on a child of an item) */
+    private static View focusedItem(List<List<View>> rows, View focused) {
+        for (View v = focused; v != null; v = v.getParent() instanceof View ? (View) v.getParent() : null) {
+            if (FocusGrid.find(rows, v) != null) {
+                return v;
+            }
+        }
+        return null;
     }
 
     /** LB / RB / Q / E switch PCs (home only) */
