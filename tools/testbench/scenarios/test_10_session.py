@@ -78,27 +78,14 @@ def close_dialog(c):
     c.call("key", key="Escape", target="qt")
 
 
-# V8 menu in tiles: these entries are in the dialog that a tile opens (prototype: « Presse-papiers » → send / fetch,
-# « Plus » → the touch mode)
-IN_TILE_DIALOG = {
-    "Envoyer au PC ce que j’ai copié": "Presse-papiers",
-    "Récupérer ce qui est copié sur le PC": "Presse-papiers",
-    "Passer en trackpad": "Plus",
-    "Passer en multitouch": "Plus",
-}
 CLIP_SEND = "Envoyer au PC ce que j’ai copié"
 CLIP_FETCH = "Récupérer ce qui est copié sur le PC"
 
 
 def menu_click(c, text, qm):
     """Click an entry of the open in-game menu, scrolling its list down to it when it is below the fold."""
-    if text == "Quitter la session":
-        helpers.quick_menu_click(c, text, qm)  # V8: through the « Quitter <app> » tile
-        return
-    if text in IN_TILE_DIALOG:
-        helpers.quick_menu_click(c, IN_TILE_DIALOG[text], qm)
-        helpers.wait_quick_text(c, text, qm)
-        helpers.quick_menu_click(c, text, qm)
+    if text == "Quitter la session" or text in helpers.QUICK_MENU_PATHS:
+        helpers.quick_menu_click(c, text, qm)  # a tile, or through the tiles that lead to it (« Plus »…)
         return
     # The list keeps its scroll position from one opening to the next: down, then back up
     for dy in [0] + [-2] * 6 + [2] * 12:

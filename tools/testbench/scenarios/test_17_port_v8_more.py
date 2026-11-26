@@ -2,8 +2,12 @@
 
 S1 « Reprendre » / « Rejoindre » (choice 23): another device streams from the PC (LavApollo
    OtherClientsConnected, faked by POST /api/test/session) -> the Scène says « Rejoindre »; nobody -> « Reprendre ».
-S2 the in-game menu in tiles (V8-26): Reprendre, the 9 entries, Plus; « Micro non envoyé » greyed while the micro is
-   not sent (V8-61); « Plus » lists Capturer le clavier and Plein écran / fenêtre; Zoom goes 100 % <-> 200 %.
+S2 the in-game menu in tiles, laid out in the menu workshop of 2026-11-26: Reprendre, Déconnecter, Quitter la session,
+   Micro (« Micro non envoyé » greyed while the micro is not sent, V8-61), Libérer la souris et le clavier,
+   Statistiques de performance, Plus, in that order; no « Quitter Bureau » (only a game inside Playnite has its
+   « Quitter {jeu} », scenario 6), none of the retired entries (Envoyer des touches…); « Plus » lists Plein écran /
+   fenêtre, Presse-papiers, Commandes du PC hôte, Zoom, Réduire la fenêtre, Capturer le clavier, Comportement de la
+   souris, in that order; Zoom goes 100 % <-> 200 %; « Comportement de la souris » switches Bureau <-> Jeu.
 S3 Mes PC (V8-36): a card says the PC's type and link (« Tour · réseau filaire », pc.json form_factor / link).
 S4 Réglages (V8-48): expert mode off, a page with expert rows ends with « N réglages avancés masqués · activer le
    mode expert », which turns expert mode on; rows saved in the profile carry « ● ».
@@ -45,26 +49,59 @@ def test_s2_ingame_menu_tiles(bench):
     helpers.launch(c, "Bureau")
     qm = helpers.open_quick_menu(c)
     helpers.assert_quick_menu_tiles(c, qm)
-    assert helpers.find(c, "Micro non envoyé", window=qm), helpers.texts(c, window=qm)
-    assert helpers.find(c, "Quitter Bureau", window=qm), helpers.texts(c, window=qm)
+    helpers.wait_quick_text(c, "Plus", qm)
+    tiles = ["Reprendre", "Déconnecter", "Quitter la session", "Micro non envoyé", "Libérer la souris et le clavier",
+             "Statistiques de performance", "Plus"]
+    items = {t: helpers.find(c, t, window=qm) for t in tiles}
+    assert all(items.values()), {t: bool(v) for t, v in items.items()}
+    order = sorted(tiles, key=lambda t: helpers.reading_order(items[t][0]))
+    assert order == tiles, f"tiles in the order {order}"
+    shown = helpers.texts(c, window=qm)
+    assert not [t for t in shown if t.startswith("Quitter ") and t != "Quitter la session"], \
+        f"a « Quitter {{app}} » tile for the Bureau: {shown}"
+    retired = [t for t in helpers.QUICK_MENU_RETIRED if t in shown]
+    assert not retired, f"retired entries still in the menu: {retired}"
     bench.shot("01-menu", window=qm)
 
-    # Plus: the PC's other entries
+    # Plus: the PC's other entries, in the workshop's order
     helpers.quick_menu_click(c, "Plus", qm)
-    helpers.wait_quick_text(c, "Capturer le clavier", qm)
-    assert helpers.find(c, "Plein écran / fenêtre", contains=True, window=qm)
+    helpers.wait_quick_text(c, "Comportement de la souris", qm)
+    plus = [t for t in helpers.popup_texts(c)
+            if any(t == e or t.startswith(e + " · ") for e in helpers.QUICK_MENU_PLUS)]
+    assert [next(e for e in helpers.QUICK_MENU_PLUS if t == e or t.startswith(e + " · ")) for t in plus] \
+        == helpers.QUICK_MENU_PLUS, f"« Plus » lists {plus}"
+    assert "Zoom · 100 %" in plus, plus
     bench.shot("02-plus", window=qm)
     c.call("key", key="Escape", target="qt", window=qm)
     time.sleep(0.5)
 
-    # Zoom: 200 % then 100 % (PanZoom, as Ctrl+Alt+Shift + / 0)
+    # Zoom (« Plus »): 200 % then 100 % (PanZoom, as Ctrl+Alt+Shift + / 0)
     helpers.quick_menu_click(c, "Zoom", qm)
     c.wait_for(lambda s: not s.get("quickMenu"), 10)
     c.wait_for(lambda s: s["session"]["zoom"] == 2, 10)
     qm = helpers.open_quick_menu(c)
-    assert helpers.find(c, "200 %", window=qm)
+    helpers.quick_menu_click(c, "Plus", qm)
+    assert helpers.wait_quick_text(c, "Zoom", qm) == "Zoom · 200 %", helpers.popup_texts(c)
     helpers.quick_menu_click(c, "Zoom", qm)
     c.wait_for(lambda s: s["session"]["zoom"] == 1, 10)
+
+    # Comportement de la souris (« Plus », Ctrl+Alt+Shift+M): Bureau <-> Jeu, said over the stream
+    c.wait_for(lambda s: not s.get("quickMenu"), 10)
+    qm = helpers.open_quick_menu(c)
+    helpers.quick_menu_click(c, "Plus", qm)
+    before = helpers.wait_quick_text(c, "Comportement de la souris", qm)
+    assert before in ("Comportement de la souris · Bureau", "Comportement de la souris · Jeu"), before
+    after = "Jeu" if before.endswith("Bureau") else "Bureau"
+    helpers.quick_menu_click(c, "Comportement de la souris", qm)
+    c.wait_for(lambda s: not s.get("quickMenu"), 10)
+    c.wait_for(lambda s: f"Comportement de la souris : {after}" in s["session"]["statusMessage"], 10)
+    qm = helpers.open_quick_menu(c)
+    helpers.quick_menu_click(c, "Plus", qm)
+    assert helpers.wait_quick_text(c, "Comportement de la souris", qm) == f"Comportement de la souris · {after}"
+    c.call("key", key="Escape", target="qt", window=qm)
+    time.sleep(0.5)
+    helpers.quick_menu_click(c, "Reprendre", qm)
+    c.wait_for(lambda s: not s.get("quickMenu"), 10)
 
     # Reprendre closes the menu, the stream goes on
     qm = helpers.open_quick_menu(c)

@@ -1,6 +1,6 @@
 """Scenario 5: a real stream of « Bureau ».  Frames decoded and shown (the stream window captured by PrintWindow:
-not black, the host's frame numbers moving forward), the stream negotiated at the expected size, a shortcut sent
-from the in-game menu reaching the host as keys, the microphone (enabled in Réglages) reaching the host, and
+not black, the host's frame numbers moving forward), the stream negotiated at the expected size, the in-game menu's
+tiles, the microphone (enabled in Réglages) reaching the host, and
 « Quitter la session » quitting the app on the host.  The test client never takes the foreground (conftest)."""
 import time
 
@@ -65,25 +65,13 @@ def test_stream_desktop_frames_keys_mic_quit(bench):
     bench.note(f"mic_frames {m1[-3:]} then {m2[-3:]}")
     assert m1 and m2 and m2[-1] > m1[-1] > 0, (m1[-3:], m2[-3:])
 
-    # In-game menu › Envoyer des touches › Alt+Entrée: the host gets Alt down, Enter down/up, Alt up
+    # In-game menu: its tiles (« Envoyer des touches » left the menu on 2026-11-26; keys sent to the stream are
+    # scenario 5b), « Reprendre » goes back to the stream
     qm = helpers.open_quick_menu(c)
     bench.shot("04-quick-menu", window=qm)
     helpers.assert_quick_menu_tiles(c, qm)
-    helpers.quick_menu_click(c, "Envoyer des touches", qm)
-    helpers.wait_any_text(c, ["Alt+Entrée"])
-    bench.shot("05-send-keys", window=qm)
-    before = len(helpers.host_events(atlas, "input"))
-    helpers.quick_menu_click(c, "Alt+Entrée", qm)
+    helpers.quick_menu_click(c, "Reprendre", qm)
     c.wait_for(lambda s: not s.get("quickMenu"), 10)
-    deadline = time.time() + 5
-    keys = []
-    while time.time() < deadline:
-        keys = [(e["vk"], e["down"]) for e in helpers.host_events(atlas, "input")[before:] if e.get("type") == "key"]
-        if (164, False) in keys:
-            break
-        time.sleep(0.2)
-    bench.note(f"keys after Alt+Entrée: {keys}")
-    assert keys == [(164, True), (13, True), (13, False), (164, False)], keys  # VK_LMENU, VK_RETURN
 
     # Still streaming after the menu
     assert c.state()["session"]["streaming"]

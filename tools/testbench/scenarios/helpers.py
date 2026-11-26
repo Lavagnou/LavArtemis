@@ -382,9 +382,26 @@ def open_quick_menu(c):
 
 # The confirmation of « Quitter la session » in the V8 menu (its note; the title is « Quitter <app> ? »)
 QUIT_CONFIRM = "Assure-toi d’avoir sauvegardé"
-# The V8 menu's tiles that are always there (PC: Reprendre, the 9 entries, Plus)
-QUICK_MENU_TILES = ["Reprendre", "Envoyer des touches", "Presse-papiers", "Commandes du PC hôte",
-                    "Statistiques de performance", "Zoom", "Libérer la souris et le clavier", "Plus", "Déconnecter"]
+# The in-game menu's tiles that are always there (menu workshop of 2026-11-26, PC): Reprendre, Déconnecter,
+# [Quitter {jeu}: a game inside Playnite], Quitter la session, [Passer en trackpad / multitouch: a touch screen], Micro,
+# Libérer la souris et le clavier, Statistiques de performance, Plus.  « Micro » reads « Micro non envoyé » while the
+# micro is not sent.
+QUICK_MENU_TILES = ["Reprendre", "Déconnecter", "Quitter la session", "Libérer la souris et le clavier",
+                    "Statistiques de performance", "Plus"]
+# « Plus », in its order (workshop): an entry with a value reads « Zoom · 100 % »
+QUICK_MENU_PLUS = ["Plein écran / fenêtre", "Presse-papiers", "Commandes du PC hôte", "Zoom", "Réduire la fenêtre",
+                   "Capturer le clavier", "Comportement de la souris"]
+# What is no longer in the menu (its Ctrl+Alt+Shift shortcut stays, « Envoyer des touches » has none)
+QUICK_MENU_RETIRED = ["Envoyer des touches", "Masquer le curseur local", "Verrouiller le pointeur", "Coller du texte"]
+# Entries behind a tile: the tiles to click first
+QUICK_MENU_PATHS = {
+    "Presse-papiers": ["Plus"],
+    "Commandes du PC hôte": ["Plus"],
+    "Envoyer au PC ce que j’ai copié": ["Plus", "Presse-papiers"],
+    "Récupérer ce qui est copié sur le PC": ["Plus", "Presse-papiers"],
+}
+for _entry in QUICK_MENU_PLUS:
+    QUICK_MENU_PATHS.setdefault(_entry, ["Plus"])
 
 
 def assert_quick_menu_tiles(c, window):
@@ -414,28 +431,44 @@ def assert_quick_menu_footer_clear(c, window):
     TRACE.append(f"quick menu: list ends at y={lv['y'] + lv['h']}, footer at y={footer['y']}, {len(rows)} rows clear")
 
 
+def quick_menu_text(c, text, window):
+    """The text an entry of the in-game menu shows: `text` itself, or « text · value » (« Zoom · 100 % »,
+    « Comportement de la souris · Bureau » in « Plus »).  None when it is not shown."""
+    for t in texts(c, window=window):
+        if t == text:
+            return t
+    for t in texts(c, window=window):
+        if t.startswith(text + " · "):
+            return t
+    return None
+
+
 def quick_menu_click(c, text, window):
-    """Click an entry of the in-game menu or of its dialog.  « Quitter la session » is no tile of the V8 menu: the
-    first call opens its confirmation (the « Quitter <app> » tile; or « Plus › Quitter la session » when that tile
-    quits the game inside Playnite), a second call confirms."""
-    if text == "Quitter la session" and not find(c, text, window=window):
-        if find(c, "Retour à Playnite, le stream continue", window=window):
-            c.call("click", text="Plus", window=window)
-            wait_quick_text(c, "Quitter la session", window)
-        else:
-            quit_tile = [t for t in texts(c, window=window) if t.startswith("Quitter ") and t != text]
-            assert quit_tile, f"no « Quitter … » tile in the in-game menu: {texts(c, window=window)}"
-            text = quit_tile[0]
+    """Click an entry of the in-game menu or of its dialogs, through the tiles that lead to it (QUICK_MENU_PATHS:
+    « Zoom » is in « Plus », « Récupérer… » in « Plus › Presse-papiers »).  « Quitter la session » is a tile: a first
+    call opens its confirmation, a second one confirms (the confirmation's entry has the tile's text: it is the last
+    one in the tree, the dialog being drawn above the menu)."""
+    if quick_menu_text(c, text, window) is None:
+        for step in QUICK_MENU_PATHS.get(text, []):
+            if quick_menu_text(c, step, window) is not None and step != text:
+                wait_quick_text(c, step, window)
+                c.call("click", text=quick_menu_text(c, step, window), window=window)
+                time.sleep(0.4)
     # The tiles come in one after the other when the menu opens: « Reprendre » (the first) can be there while
-    # « Déconnecter » (the last) is not yet
-    wait_quick_text(c, text, window)
-    c.call("click", text=text, window=window)
+    # « Plus » (the last) is not yet
+    shown = wait_quick_text(c, text, window)
+    index = -1 if text == "Quitter la session" and find(c, QUIT_CONFIRM, contains=True, window=window) else 0
+    c.call("click", text=shown, window=window, index=index)
     time.sleep(0.4)
 
 
 def wait_quick_text(c, text, window, timeout=10.0):
+    """Wait for an entry of the in-game menu (exact, or « text · value »); returns the text it shows."""
     deadline = time.time() + timeout
-    while not find(c, text, window=window):
+    while True:
+        shown = quick_menu_text(c, text, window)
+        if shown is not None:
+            return shown
         assert time.time() < deadline, f"no {text!r} in the in-game menu: {texts(c, window=window)}"
         time.sleep(0.2)
 

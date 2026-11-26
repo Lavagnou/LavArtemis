@@ -261,7 +261,21 @@ def shot_ingame(sh, ctx):
                     out = sh.out / "ingame" / f"{theme}-{mode_name}-{inp}.png"
                     _composite(raw, backdrop, out)
                     sh.taken.append(out)
-                    sh.c.call("key", key="Escape", target="qt", window=idx)
+                    # « Plus » (V8-28, entries of the menu workshop): its dialog over the menu
+                    if inp == "mouse":
+                        helpers.quick_menu_click(sh.c, "Plus", idx)
+                        helpers.wait_quick_text(sh.c, "Comportement de la souris", idx)
+                        time.sleep(0.8)
+                        raw = sh.out / "ingame" / f"_plus-{theme}-{mode_name}.png"
+                        sh.c.screenshot(raw, idx)
+                        out = sh.out / "ingame" / f"plus-{theme}-{mode_name}.png"
+                        _composite(raw, backdrop, out)
+                        sh.taken.append(out)
+                        # « Annuler » closes the dialog only (the menu stays), « Reprendre » the menu
+                        helpers.quick_menu_click(sh.c, "Annuler", idx)
+                        helpers.quick_menu_click(sh.c, "Reprendre", idx)
+                    else:
+                        sh.c.call("key", key="Escape", target="qt", window=idx)
                     sh.c.wait_for(lambda s: not s.get("quickMenu"), 10)
     finally:
         sh.c.call("key", key="Q", modifiers="Ctrl+Alt+Shift", target="stream")
