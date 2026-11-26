@@ -581,6 +581,14 @@
     <string name="clipboard_sync_unsupported">Ce serveur ne gère pas la synchronisation du presse-papiers. Installez ou mettez à jour LavApollo sur le PC.</string>
     <string name="send_clipboard_failed">Échec de l\'envoi du presse-papiers : </string>
     <string name="get_clipboard_failed">Échec de la récupération du presse-papiers : </string>
+    <string name="host_error_http">erreur %1$d</string>
+    <string name="host_error_unknown_host">adresse introuvable</string>
+    <string name="host_error_timeout">pas de réponse à temps</string>
+    <string name="host_error_refused">connexion refusée</string>
+    <string name="host_error_closed">connexion fermée par le PC</string>
+    <string name="host_error_tls">échec de la connexion sécurisée</string>
+    <string name="host_error_network">erreur réseau</string>
+    <string name="quit_app_failed">Impossible de quitter %1$s sur le PC (%2$s).</string>
     <string name="send_clipboard_success">Presse-papiers envoyé avec succès</string>
     <string name="get_clipboard_success">Presse-papiers récupéré avec succès</string>
     <string name="proceed">Continuer</string>

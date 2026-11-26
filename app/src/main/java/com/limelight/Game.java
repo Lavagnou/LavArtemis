@@ -50,6 +50,7 @@ import com.limelight.ui.StreamContainer;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
+import com.limelight.utils.HostErrorText;
 import com.limelight.utils.StreamEndPolicy;
 import com.limelight.utils.PanZoomHandler;
 import com.limelight.utils.RotationPolicy;
@@ -2599,7 +2600,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     } catch (Exception e) {
                         e.printStackTrace();
                         if (prefConfig.smartClipboardSyncToast) {
-                            Game.this.runOnUiThread(() -> Toast.makeText(Game.this, getString(R.string.send_clipboard_failed) + e.getMessage(), Toast.LENGTH_SHORT).show());
+                            Game.this.runOnUiThread(() -> Toast.makeText(Game.this, getString(R.string.send_clipboard_failed) + HostErrorText.detail(getResources(), e), Toast.LENGTH_SHORT).show());
                         }
                     }
                 }
@@ -2653,7 +2654,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 } catch (Exception e) {
                     e.printStackTrace();
                     if (prefConfig.smartClipboardSyncToast) {
-                        Game.this.runOnUiThread(() -> Toast.makeText(Game.this, getString(R.string.get_clipboard_failed) + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        Game.this.runOnUiThread(() -> Toast.makeText(Game.this, getString(R.string.get_clipboard_failed) + HostErrorText.detail(getResources(), e), Toast.LENGTH_SHORT).show());
                     }
                 }
                 clipboardSyncRunning = false;
@@ -3761,7 +3762,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                             httpConn.quitApp();
                             Game.this.runOnUiThread(() -> Toast.makeText(Game.this, Game.this.getResources().getString(R.string.applist_quit_success) + " " + appName, Toast.LENGTH_LONG).show());
                         } catch (Exception e) {
-                            Game.this.runOnUiThread(() -> Toast.makeText(Game.this, e.getMessage(), Toast.LENGTH_LONG).show());
+                            // In French, as the desktop (ComputerManager::quitErrorText): 599 has
+                            // its own sentence, never the exception's English message
+                            final String message = HostErrorText.quitFailed(getResources(), appName, e);
+                            Game.this.runOnUiThread(() -> Toast.makeText(Game.this, message, Toast.LENGTH_LONG).show());
                         }
                     }
                 }

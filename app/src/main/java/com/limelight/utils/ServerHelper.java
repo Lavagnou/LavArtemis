@@ -26,9 +26,7 @@ import com.limelight.preferences.PreferenceConfiguration;
 
 import org.xmlpull.v1.XmlPullParserException;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.UnknownHostException;
 import java.security.cert.CertificateEncodingException;
 import java.util.ArrayList;
 
@@ -204,25 +202,16 @@ public class ServerHelper {
                     } else {
                         message = parent.getResources().getString(R.string.applist_quit_fail) + " " + appName;
                     }
-                } catch (HostHttpResponseException e) {
-                    failed = true;
-                    if (e.getErrorCode() == 599) {
-                        // Same text as the desktop client (computermanager.cpp), translated
-                        message = parent.getResources().getString(R.string.applist_quit_not_started_here);
-                    }
-                    else {
-                        message = e.getMessage();
-                    }
-                } catch (UnknownHostException e) {
-                    failed = true;
-                    message = parent.getResources().getString(R.string.error_unknown_host);
-                } catch (FileNotFoundException e) {
-                    failed = true;
-                    message = parent.getResources().getString(R.string.error_404);
                 } catch (IOException | XmlPullParserException e) {
+                    // The desktop's sentences (ComputerManager::quitErrorText), translated: 599
+                    // (started by another device) has its own, the rest says why in a few words
+                    // (« Impossible de quitter Bureau sur le PC (connexion refusée). »), never the
+                    // exception's English message
                     failed = true;
-                    message = e.getMessage();
-                    e.printStackTrace();
+                    message = HostErrorText.quitFailed(parent.getResources(), appName, e);
+                    if (!(e instanceof HostHttpResponseException)) {
+                        e.printStackTrace();
+                    }
                 } finally {
                     if (failed) {
                         if (onFail != null) {

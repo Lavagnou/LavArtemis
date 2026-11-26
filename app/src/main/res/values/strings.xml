@@ -701,6 +701,15 @@
     <string name="no_external_display">No external display detected</string>
     <string name="no_game_instance">No game instance available</string>
     <string name="get_clipboard_failed">Failed to get clipboard: </string>
+    <!-- A host's refusal or a lost connection, ending a sentence (utils/HostErrorText; the desktop's ComputerManager::hostErrorDetail) -->
+    <string name="host_error_http">error %1$d</string>
+    <string name="host_error_unknown_host">address not found</string>
+    <string name="host_error_timeout">no answer in time</string>
+    <string name="host_error_refused">connection refused</string>
+    <string name="host_error_closed">connection closed by the PC</string>
+    <string name="host_error_tls">secure connection failed</string>
+    <string name="host_error_network">network error</string>
+    <string name="quit_app_failed">Could not quit %1$s on the PC (%2$s).</string>
     <string name="send_clipboard_success">Clipboard sent successfully</string>
     <string name="get_clipboard_success">Clipboard get successfully</string>
     <string name="proceed">Proceed</string>
