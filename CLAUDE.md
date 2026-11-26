@@ -294,7 +294,10 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   l'appairage → l'accueil montre ce PC (`PREF_LAST_HOST`, relu par `HomeActivity.onResume`).
 - **Lien d'appairage** (`art://host?pin=…&passphrase=…`) : `AddComputerManually` ajoute le PC puis lance
   `PcView` avec `hostname/port/pin/passphrase`, que `PcView` passe en Dev à `HostsActivity`, qui appaire le
-  PC dès qu'il répond à cette adresse (`HostCards.matchesLink`, port absent = 47989).
+  PC dès qu'il répond à cette adresse (`HostCards.matchesLink`, port absent = 47989). Un code de lien expiré
+  (3 min) ou déjà servi : LavApollo répond `503 « OTP auth not available. »`, `utils/PairingErrorText` en fait la
+  phrase du desktop (« Le code du lien n'est plus valable sur %1… ») ; toute autre panne d'appairage finit par le
+  motif court de `HostErrorText`, jamais par le texte anglais de l'exception (`PairingErrorTextTest`).
 - **Renommer** : `ComputerManagerBinder.renameComputer(uuid, nom)`. Le schéma de `computers4.db` ne bouge
   pas : le nom choisi vit dans les prefs `HostNames` (uuid → nom) et **réappliqué après chaque poll**
   (`pollComputer` → `HostNames.apply`), sinon le `hostname` du `serverinfo` l'écraserait au poll suivant
@@ -339,8 +342,11 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     clé, sinon les prefs de base). **Lignes `global()`** (base, jamais dans un profil) : thème et clair/sombre,
     et deux clés que leur lecteur prend dans les prefs de base (`checkbox_auto_update` par `UpdateChecker`,
     `keyboard_axi_list` par le chargeur des touches) — sinon l'écriture partirait dans le profil et ne serait
-    jamais lue. Un nouveau profil est un **instantané complet** (toutes les lignes, défauts compris), langue et
-    apparence exclues ; « Appliquer comme profil » du benchmark aussi (`BenchmarkSettings.applyAsProfile` part de
+    jamais lue. Sont aussi `global()` toutes les clés de **`ProfilesManager.APP_WIDE_KEYS`** (micro, tampon audio,
+    presse-papiers ×3, CSV des perfs : ce que le desktop garde dans `ArtemisSettings`, hors profils) ; une clé
+    ajoutée à `APP_WIDE_KEYS` doit l'être aussi (`AppWideKeysTest`), et sa valeur est un booléen, une chaîne ou un
+    entier (seuls types que `migrateAppWideKeys` recopie). Un nouveau profil est un **instantané complet** (toutes
+    les lignes, défauts compris), langue, apparence et lignes `global()` exclues ; « Appliquer comme profil » du benchmark aussi (`BenchmarkSettings.applyAsProfile` part de
     `SettingsStore.snapshot()`), comme `ProfileManager::createProfile()` sur le desktop (`BenchmarkProfileTest`).
   - **Effets de bord repris** de `StreamSettings` : nouvelle résolution / fréquence → débit remis au défaut **tant
     qu'il est le débit recommandé** (`SettingsStore.bitrateIsRecommended()` : jamais écrit, ou égal au défaut ; bougé
@@ -707,7 +713,7 @@ Déjà présent côté desktop (hérité du portage wjbeckett) : clipboard sync,
 
 | Feature | Où | Notes |
 |---|---|---|
-| **Profils de réglages** | `settings/profilemanager.{h,cpp}`, page « Profil » de `gui/v2/SettingsView2.qml` | `profiles.json` dans `AppConfigLocation`. Un profil est un **snapshot complet**, pas un patch épars : `save()` écrit toutes les clés, donc un profil créé capture l'état courant puis vit sa vie. Ce qui tient à l'appareil **bypasse** les profils : `language`, `defaultver`, `k_AppWideKeys` (recherche des PC, détection des connexions bloquées, fenêtre au démarrage, trace VRR) et les réglages globaux d'`ArtemisSettings` (micro…). Même principe côté Android (`ProfilesManager.APP_WIDE_KEYS`). |
+| **Profils de réglages** | `settings/profilemanager.{h,cpp}`, page « Profil » de `gui/v2/SettingsView2.qml` | `profiles.json` dans `AppConfigLocation`. Un profil est un **snapshot complet**, pas un patch épars : `save()` écrit toutes les clés, donc un profil créé capture l'état courant puis vit sa vie. Ce qui tient à l'appareil **bypasse** les profils : `language`, `defaultver`, `k_AppWideKeys` (recherche des PC, détection des connexions bloquées, fenêtre au démarrage, trace VRR) et les réglages globaux d'`ArtemisSettings` (micro, tampon audio, presse-papiers, CSV des perfs…). Même principe côté Android (`ProfilesManager.APP_WIDE_KEYS`, les mêmes réglages depuis le 2026-11-26). |
 | **Send keys + macros clavier** | `backend/keymacromanager.{h,cpp}`, sous-menu « Envoyer des touches » de `gui/QuickMenu.qml` | 15 presets intégrés (ceux de la Dev Android) + macros utilisateur dans `keyboard-macros.json` (`AppConfigLocation`). **Même format JSON et mêmes noms `VK_` que l'Android** → un fichier marche sur les deux. La table des 174 noms est extraite de `utils/KeyMapper.java`, pas retapée. |
 | **Liens `art://` + fichiers `.art`** | `cli/artlink.{h,cpp}`, enregistrement OS dans `wix/LavArtemis/Product.wxs` (HKCU) et `deploy/linux/com.lavartemis.LavArtemis.{desktop,xml}` | `ArtLink::rewriteArguments()` **traduit le lien en ligne de commande existante** (`stream <host> <app>` / `pair <host> --pin --passphrase`) au lieu d'ajouter un chemin de lancement parallèle → hérite du host seeking, du wake-on-LAN et de l'UI de segue. Formats identiques à l'Android. |
 
@@ -967,7 +973,9 @@ valeurs de référence.
   adaptatif montait le débit puis confirmait sur la supposition (HEVC). `BenchmarkControllerTest`.
 - **Notes en anglais dans le JSON, traduites à l'affichage**, mêmes phrases des deux côtés (`BenchmarkNotes.java`,
   `Benchmark::Notes` du desktop ; liste dans `LavApollo/docs/benchmark.md`, « Notes ») : chacun traduit aussi les
-  formes de l'autre, un rapport s'ouvre des deux côtés.
+  formes de l'autre, un rapport s'ouvre des deux côtés. Les identifiants qu'une note contient (codec `hevc`, pacing
+  `vrr-balanced`, ceux des deux clients) s'affichent par leur nom (`BenchmarkNotes.codecLabel` / `pacingLabel`, les
+  mêmes que les libellés de `BenchmarkActivity`), comme `Benchmark::Notes::localized`.
 - Android n'a pas d'étage « rendu » mesurable (SurfaceFlinger) et ne mesure pas PyroWave (décodé en natif,
   hors des stats Java) : ses scores ne se comparent pas un pour un à ceux du desktop. Chaque rapport compare
   ses propres runs.

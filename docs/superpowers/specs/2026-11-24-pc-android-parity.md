@@ -109,7 +109,8 @@ Les textes qui nomment l'appareil restent différents exprès : « suit le mode 
 **Premier passage — Android (Dev seulement, la stable ne change pas)**
 
 - Réglages : description du profil (« Un jeu de réglages de stream par usage… Ce qui tient à cet appareil
-  reste commun : langue, apparence, micro, mises à jour. »), débit recommandé (« …, ajusté ensuite
+  reste commun : langue, apparence, micro, mises à jour. » ; « …micro et tampon audio, presse-papiers… » depuis la
+  nuit du 26), débit recommandé (« …, ajusté ensuite
   automatiquement »), codec (« « Auto » choisit le meilleur format que cet appareil sait décoder. » et ordre
   Auto, H.264, HEVC, AV1), Couper le son du PC distant (« Relance le jeu en cours pour que ça
   s'applique. »), Tampon audio (« Effet à la prochaine connexion. »), Langue, Chercher les mises à jour,
@@ -201,8 +202,8 @@ Les textes qui nomment l'appareil restent différents exprès : « suit le mode 
 
 Écarts gardés, PC seulement : la première requête d'appairage attend le code **3 minutes au plus** (« %1 n'a
 pas reçu le code à temps… » ; Android attend sans limite, mais un appairage abandonné bloquerait ici tous les
-autres) ; un code de lien expiré a son message (« Le code du lien n'est plus valable sur %1… » ; Android
-affiche l'erreur réseau brute de l'hôte, à aligner). Un PC non appairé ne peut pas être oublié, des deux
+autres). Un code de lien expiré a son message des deux côtés depuis la nuit du 26 (« Le code du lien n'est plus
+valable sur %1… », voir 3 octies). Un PC non appairé ne peut pas être oublié, des deux
 côtés (Android ne le propose que dans « Ajouter un PC »).
 
 ## 3 quater. Aligné le 2026-11-25 (Réglages, logique, banc de test scénario 11)
@@ -234,8 +235,8 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
   côtés (le PC les écrivait en français) ; le PC traduit toutes les formes d'Android, Android celles du PC
   (« Le stream n'a pas démarré. », « …n'a pas pu démarrer. », « Le débit a été plafonné à %1 Mbit/s. ») ;
   textes français repris d'Android (« Passé en %1, %2 à la place. », « Échec au démarrage (%1) : erreur %2. »,
-  « l'appareil est revenu à »…). Écart d'affichage : le PC montre les codecs et le pacing par leur nom
-  (« Passé en HEVC, V-Sync à la place. »), Android par leur identifiant (« hevc, vsync »).
+  « l'appareil est revenu à »…). Les codecs et le pacing s'affichent par leur nom des deux côtés (« Passé en
+  HEVC, V-Sync à la place. ») : Android montrait leur identifiant (« hevc, vsync ») jusqu'à la nuit du 26.
 - PC seulement : noms de mode et d'objectif traduits dans le rapport et l'historique (« quick », « balanced »
   s'affichaient) ; « Arrêter » avant le premier passage ramène la page de départ (page vide avant) ; « Arrêter »
   pendant le redémarrage de la scène n'est plus suivi d'un passage.
@@ -270,13 +271,36 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
 - Écart restant, minime : le motif d'une erreur réseau inconnue porte son numéro sur PC (« erreur réseau 99 »,
   code Qt), pas sur Android (« erreur réseau ») : les deux piles n'ont pas les mêmes codes.
 
+## 3 octies. Aligné la nuit du 26 (Android)
+
+- **Lien d'appairage expiré** : LavApollo répond `503 « OTP auth not available. »` à un code de lien expiré (3 min)
+  ou déjà servi. Android affichait « La connexion avec %1 a été perdue pendant l'appairage (Host PC returned error:
+  OTP auth not available. (Error code: 503)) » ; il affiche maintenant la phrase du PC, « Le code du lien n'est plus
+  valable sur %1 : il ne sert qu'une fois et expire au bout de 3 minutes. Crée un nouveau lien dans LavApollo. »
+  (même test que le PC : 503 et « OTP » dans le message). Toute autre panne d'appairage finit par le motif court
+  commun (« erreur 500 », « connexion refusée »), comme `ComputerManager::pairingErrorText` : plus jamais le texte
+  anglais de l'exception (`utils/PairingErrorText`, test `PairingErrorTextTest`).
+- **Notes du benchmark** : Android nomme les codecs et le pacing (« Passé en HEVC, rythme par défaut à la place. »,
+  « AV1 n'est pas disponible : l'appareil est revenu à HEVC »), identifiants d'Android et du PC
+  (`BenchmarkNotes.codecLabel` / `pacingLabel`, aussi utilisés par `BenchmarkActivity`). Libellés VRR repris du PC
+  (« VRR, faible latence / équilibré / fluide », au lieu de « rythme VRR, … »). Le planificateur Android écrit la
+  note VRR de la spécification (« VRR is not available on this display » ; l'ancienne forme reste traduite).
+  Tests `BenchmarkNotesTest`, `BenchmarkTest`.
+- **Profils** : tampon audio, presse-papiers (synchroniser, notifier, masquer le contenu) et « Enregistrer les
+  performances (CSV) » sont hors profils sur Android aussi (`ProfilesManager.APP_WIDE_KEYS`, lignes `global()` des
+  Réglages), comme les `ArtemisSettings` du PC. Un profil enregistré les perd au chargement, la valeur du profil actif
+  devient la valeur commune. Description du profil alignée sur le PC (« …langue, apparence, micro et tampon audio,
+  presse-papiers, mises à jour. », sans la recherche des PC, qui n'existe que sur PC). Tests `AppWideKeysTest`,
+  `SettingsCatalogTest`.
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)
 
 | Écart | Estimation | Recommandation |
 |---|---|---|
-| Profils : le PC garde aussi tampon audio, presse-papiers et recherche des PC hors profil ; Android seulement langue, apparence, micro, mises à jour | ½ jour (même mécanisme que le micro : `APP_WIDE_KEYS`) | À décider : le tampon audio dépend de l'appareil, le presse-papiers moins. |
+| Noms des modes de pacing d'Android dans un rapport ouvert sur PC (« Frame pacing par défaut », « Latence ultra faible avec pacing », « Pacing prédictif ») ≠ ceux d'Android (« rythme par défaut », « latence ultra faible rythmée », « rythme prédictif ») | ¼ h, côté PC (`Benchmark::pacingLabel`, `qml_fr.ts`) | Prendre ceux d'Android : ce sont ses modes. |
+| Le planificateur du PC écrit « the **client** fell back to », la spécification dit « device » (les deux clients lisent les deux formes) | 5 min, côté PC (`benchmarkplanner.cpp`) | Écrire la forme de la spécification, comme Android. |
 
 ### À décider (changement visible ou retrait)
 
