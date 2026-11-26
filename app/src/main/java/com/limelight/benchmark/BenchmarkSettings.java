@@ -11,6 +11,7 @@ import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.profiles.SettingsProfile;
+import com.limelight.v2.settings.SettingsStore;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -177,13 +178,23 @@ public final class BenchmarkSettings {
         editor.apply();
     }
 
-    /** A new profile holding the active one's settings plus this configuration, made active. */
+    /**
+     * A new profile, made active: a full snapshot of the settings in effect (as a profile made in
+     * Réglages, SettingsStore.snapshot, and on the desktop) plus this configuration. It used to
+     * copy the active profile's map only: with no profile active it held the run's keys alone,
+     * and everything else followed the base preferences from then on.
+     */
     public static void applyAsProfile(Context context, RunConfig c, String name) {
         ProfilesManager profiles = ProfilesManager.getInstance();
         SettingsProfile active = profiles.getActive();
-        Map<String, Object> options = new LinkedHashMap<>();
+        Map<String, Object> options = new LinkedHashMap<>(new SettingsStore(context).snapshot());
         if (active != null && active.getOptions() != null) {
-            options.putAll(active.getOptions());
+            // Whatever else the active profile holds (keys without a row in Réglages)
+            for (Map.Entry<String, Object> e : active.getOptions().entrySet()) {
+                if (!options.containsKey(e.getKey()) && !ProfilesManager.isAppWideKey(e.getKey())) {
+                    options.put(e.getKey(), e.getValue());
+                }
+            }
         }
         options.putAll(preferenceValues(c));
         long now = System.currentTimeMillis();
