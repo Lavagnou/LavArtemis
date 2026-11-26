@@ -333,6 +333,13 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   tous les réglages sont visibles » / « Mode expert désactivé », en-tête « Thème {nom} · LavArtemis {version} »,
   LB / RB = page précédente / suivante.
 
+- **Étape 9 Android (2026-11-26)** : répétition de la manette 380 ms puis 110 ms (le desktop a encore 150 ms) ;
+  dialogues du prototype pour « Oups », l'écran virtuel pas prêt (« Lancer quand même »), la mise à jour (« LavArtemis
+  {v} est disponible », « Télécharger et installer » / « Ignorer cette version » / « Plus tard », « Téléchargement de
+  LavArtemis {v}… » avec barre et « Annuler le téléchargement », « est prête à installer » / « Installer et
+  redémarrer »), « Quitter {X} ? » + segue « Fermeture sur {PC}… » puis « Session terminée ». Le desktop les a déjà
+  pour la plupart dans son style (LavDialog) : à vérifier mot pour mot quand il passe au dialogue du prototype.
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)
