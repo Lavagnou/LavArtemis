@@ -105,7 +105,9 @@ def test_home_cards_recents_and_hide(bench):
     helpers.wait_text(c, f"{atlas.name} · {visible} jeux")
     assert not helpers.find(c, "affichés sur", contains=True), helpers.texts(c)
     helpers.click_item(c, helpers.wait_text(c, "Masqués · 1")[0])
-    helpers.wait_text(c, f"{atlas.name} · 1 affiché sur {visible}")
+    # « Masqués » counts the hidden games it lists (« 1 jeu masqué »), not « 1 affiché sur 3 »
+    helpers.wait_text(c, f"{atlas.name} · 1 jeu masqué")
+    assert not helpers.find(c, "affiché sur", contains=True), helpers.texts(c)
     time.sleep(0.8)
     tiles = cover_tiles(c)
     assert len(tiles) == 1, f"the Masqués filter should hold the hidden game only: {len(tiles)} tiles"
