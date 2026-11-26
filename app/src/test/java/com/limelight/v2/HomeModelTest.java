@@ -204,4 +204,14 @@ public class HomeModelTest {
             assertEquals("Game " + i, m.games.get(i).getAppName());
         }
     }
+
+    /** "N jeux" (Tout voir) counts the whole library, hidden games included, as the prototype's "266 jeux" */
+    @Test
+    public void libraryCountsHiddenGames() {
+        Set<Integer> hidden = new HashSet<>(Arrays.asList(100, 101));
+        HomeModel m = HomeModel.build(hostList(), 0, null, false, hidden, false);
+        assertEquals(12, m.games.size());
+        assertEquals(14, m.library.size());
+        assertEquals(2, m.hiddenCount);
+    }
 }

@@ -942,7 +942,7 @@ public final class HomeScreen {
         boolean hasGames = ready && !m.games.isEmpty();
         Ui.setVisible(sectionRow, hasGames);
         Ui.setVisible(recentsScroll, hasGames);
-        bindRecents(rec, m, hasGames ? m.games.size() : 0);
+        bindRecents(rec, m, hasGames ? m.library.size() : 0);
 
         updateFocusTexts();
         applyInput();

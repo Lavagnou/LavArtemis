@@ -42,6 +42,8 @@ public final class HomeModel {
     /** First games of the library, hidden ones never */
     public final List<NvApp> recents;
     public final int hiddenCount;
+    /** Every Playnite game, hidden ones included, most recently played first (the "266 jeux" of the prototype) */
+    public final List<NvApp> library;
     public final int runningId;
     /** Game running inside Playnite ("" when none) */
     public final String playniteGame;
@@ -102,6 +104,7 @@ public final class HomeModel {
         }
         recents = Collections.unmodifiableList(r);
         hiddenCount = hiddenGames;
+        library = Collections.unmodifiableList(allGames);
     }
 
     public static HomeModel build(List<NvApp> apps, int runningId, String playniteGame,
