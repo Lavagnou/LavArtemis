@@ -292,15 +292,17 @@ côtés (Android ne le propose que dans « Ajouter un PC »).
   devient la valeur commune. Description du profil alignée sur le PC (« …langue, apparence, micro et tampon audio,
   presse-papiers, mises à jour. », sans la recherche des PC, qui n'existe que sur PC). Tests `AppWideKeysTest`,
   `SettingsCatalogTest`.
+- **Benchmark, PC** : le planificateur écrit la note de la spécification (« av1 is not available: the **device** fell
+  back to hevc » ; l'ancienne forme « client » reste traduite) ; un rapport Android ouvert sur PC nomme ses modes de
+  pacing comme Android (« rythme par défaut », « latence ultra faible », « latence ultra faible rythmée », « rythme
+  prédictif » ; en anglais « default pacing »…), les modes communs (V-Sync, VRR) l'étaient déjà
+  (`Benchmark::pacingLabel`, `qml_fr.ts`, test `tests/benchmark`).
 
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)
 
-| Écart | Estimation | Recommandation |
-|---|---|---|
-| Noms des modes de pacing d'Android dans un rapport ouvert sur PC (« Frame pacing par défaut », « Latence ultra faible avec pacing », « Pacing prédictif ») ≠ ceux d'Android (« rythme par défaut », « latence ultra faible rythmée », « rythme prédictif ») | ¼ h, côté PC (`Benchmark::pacingLabel`, `qml_fr.ts`) | Prendre ceux d'Android : ce sont ses modes. |
-| Le planificateur du PC écrit « the **client** fell back to », la spécification dit « device » (les deux clients lisent les deux formes) | 5 min, côté PC (`benchmarkplanner.cpp`) | Écrire la forme de la spécification, comme Android. |
+Rien hors portage du prototype.
 
 ### À décider (changement visible ou retrait)
 
