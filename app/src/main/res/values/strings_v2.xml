@@ -254,7 +254,7 @@
 
     <!-- Vidéo -->
     <string name="v2_set_bitrate">Débit vidéo</string>
-    <string name="v2_set_bitrate_d">Baisse-le si le réseau est lent, monte-le pour une image plus nette.</string>
+    <string name="v2_set_bitrate_d">Suit la résolution et les images/s tant que tu ne le changes pas.</string>
     <string name="v2_set_bitrate_default">Revenir au débit recommandé</string>
     <string name="v2_set_bitrate_default_d">%1$s pour cette résolution et ces images par seconde, ajusté ensuite automatiquement.</string>
     <string name="v2_set_bitrate_default_button">Rétablir</string>
@@ -267,7 +267,7 @@
     <string name="v2_set_metered_auto">Auto (¼)</string>
     <string name="v2_set_codec">Format vidéo (codec)</string>
     <string name="v2_set_codec_d">« Auto » choisit le meilleur format que cet appareil sait décoder.</string>
-    <string name="v2_set_codec_auto">Auto</string>
+    <string name="v2_set_codec_auto">Automatique (HEVC)</string>
     <string name="v2_set_auto_av1">AV1 en mode Auto</string>
     <string name="v2_set_auto_av1_d">Auto ne propose l\'AV1 qu\'avec un décodeur matériel reconnu, à faible débit (15 Mbit/s au plus) ou en 4K.</string>
     <string name="v2_set_444">Couleurs complètes (4:4:4)</string>
@@ -494,12 +494,12 @@
 
     <!-- Apparence -->
     <string name="v2_set_theme">Thème</string>
-    <string name="v2_set_theme_d">Couleurs, formes et polices de toute l\'appli.</string>
+    <string name="v2_set_theme_d">Change l’allure de toute l’appli.</string>
     <string name="v2_set_theme_mode">Clair ou sombre</string>
     <string name="v2_set_theme_mode_d">« Système » suit le mode clair ou sombre de l\'appareil, en direct.</string>
     <string name="v2_set_language">Langue</string>
-    <string name="v2_set_language_d">Langue de l\'appli ; la nouvelle interface est en français.</string>
-    <string name="v2_set_language_auto">Automatique</string>
+    <string name="v2_set_language_d">Prend effet au redémarrage.</string>
+    <string name="v2_set_language_auto">Automatique (français)</string>
     <string name="v2_set_language_restart">Langue revenue à celle du système : relance LavArtemis.</string>
     <string name="v2_set_warnings">Avertir quand la connexion se dégrade</string>
     <string name="v2_set_warnings_d">Un message à l\'écran quand le réseau faiblit pendant le stream.</string>
@@ -738,4 +738,17 @@
     <string name="v2_rename_label">Nom</string>
     <string name="v2_pair_code_desc">Code d’appairage %1$s</string>
     <string name="v2_hint_open">Ouvrir</string>
+    <!-- Réglages as the prototype V8 -->
+    <string name="v2_set_about">Thème %1$s · LavArtemis %2$s</string>
+    <string name="v2_hint_page">Page</string>
+    <string name="v2_set_bitrate_auto">" · auto"</string>
+    <string name="v2_set_bitrate_default_already">Le débit suit déjà la résolution et les images par seconde.</string>
+    <string name="v2_set_follows_profile">Suit le profil</string>
+    <string name="v2_set_expert_on">Mode expert activé : tous les réglages sont visibles</string>
+    <string name="v2_set_expert_off">Mode expert désactivé</string>
+    <plurals name="v2_set_hidden_rows">
+        <item quantity="one">%1$d réglage avancé masqué · activer le mode expert</item>
+        <item quantity="many">%1$d réglages avancés masqués · activer le mode expert</item>
+        <item quantity="other">%1$d réglages avancés masqués · activer le mode expert</item>
+    </plurals>
 </resources>

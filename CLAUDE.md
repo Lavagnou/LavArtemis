@@ -303,6 +303,17 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   qui gagne un **champ texte** (`Spec.inputLabel`, lu par `Spec.text()`) et un **code PIN** (`Spec.pin`).
 >   ⚠️ Affiche : le remplissage jaune du focus repeint tous les textes en encre ; un enfant qui garde ses couleurs
 >   (bouton noir, pastille noire) passe par `V2Frame.keepColors()`, et `setFocusFillStroke()` garde le cadre 3 px.
+> - **Réglages** (V8-48 à 57) : mêmes `SettingsScreen` / `SettingRowView` / `SettingsCatalog`, aux mesures du
+>   prototype (scène 1280 × 720 × `k`, texte × `kt` ≥ 0,9 ; l'étroit < 640 dp garde liste puis page) : Mode expert en
+>   tête (carte 64), pages h40 (page courante = accent / onAccent, « EXPERT » pour une page toute experte), lignes en
+>   cartes (libellé 15/700, **●** = `SettingsCatalog.followsProfile`, étiquette EXPERT pleine surface2, description 13),
+>   interrupteur 46 × 26 (`V2Theme.switchKnob`), curseur 330 avec la valeur au-dessus (« 20 Mbit/s · auto » tant que le
+>   débit suit), liste déroulante h40 240–330, action en pilule h38 fg / bg, choix du thème en cartes 108 × 74, en bas
+>   **« N réglages avancés masqués · activer le mode expert »** (`SettingsCatalog.hiddenCount`, pluriel `v2_set_hidden_rows`).
+>   En-tête « Thème {nom} · LavArtemis {version} », barre A Changer · LB RB Page · B Retour, **LB / RB = page
+>   précédente / suivante** en boucle (`SettingsCatalog.stepPage`), toasts du mode expert ; le couper remet le codec
+>   Auto s'il était PyroWave et une page qui se vide revient à Affichage. Tests : `SettingsV8Test` ; captures
+>   `SettingsScreenshotTest.protoVideo` / `protoPages` (préfixes `settings-video-`, `settings-<page>-`).
 > - **Écran de détails** (« Afficher les détails » des options, V8-68) : `DetailsActivity` + `DetailsScreen` (3 mises en
 >   page), règles dans `LaunchRows` (note, verrou de l'Écran quand on rejoint, pas des rangées). Les rangées « Réglages
 >   de ce lancement » changent les **vrais** réglages (profil actif, écran virtuel, codec, débit), comme le desktop.

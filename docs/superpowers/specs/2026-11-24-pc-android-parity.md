@@ -324,6 +324,15 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   (« Menu du stream », « Envoyées au PC comme si tu les tapais là-bas. », « Accéder aux commandes de contrôle du PC
   hôte », « Commande envoyée : … ») : à reprendre au desktop avec son menu en tuiles.
 
+- **Écart ouvert (2026-11-26, Android, Réglages V8)** : textes choisis appliqués côté Android, à reprendre au desktop :
+  description du débit « Suit la résolution et les images/s tant que tu ne le changes pas. » (choix 49, le desktop dit
+  encore « Baisse-le si le réseau est lent… »), valeur auto du codec « Automatique (HEVC) » (choix 55), « Revenir au
+  débit recommandé » qui dit « Le débit suit déjà la résolution et les images par seconde. » tant qu'il suit, Thème
+  « Change l’allure de toute l’appli. » (choix 101), Langue « Prend effet au redémarrage. » / « Automatique
+  (français) » (choix 103-104), « N réglages avancés masqués · activer le mode expert », toasts « Mode expert activé :
+  tous les réglages sont visibles » / « Mode expert désactivé », en-tête « Thème {nom} · LavArtemis {version} »,
+  LB / RB = page précédente / suivante.
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)

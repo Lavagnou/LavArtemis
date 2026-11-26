@@ -15,7 +15,6 @@ import android.widget.TextView;
 import com.limelight.R;
 import com.limelight.v2.V2Input;
 import com.limelight.v2.V2Theme;
-import com.limelight.v2.ui.PillButton;
 import com.limelight.v2.ui.Ui;
 import com.limelight.v2.ui.V2Frame;
 import com.limelight.v2.ui.V2Slider;
@@ -57,6 +56,7 @@ public final class SettingRowView extends V2Frame {
     private final Body body;
     private final TextView label;
     private TextView tag;
+    private TextView dot;
     private final TextView desc;
 
     private V2Switch toggle;
@@ -64,7 +64,7 @@ public final class SettingRowView extends V2Frame {
     private TextView dropdown;
     private V2Slider slider;
     private TextView sliderValue;
-    private final List<PillButton> buttons = new ArrayList<>();
+    private final List<View> buttons = new ArrayList<>();
 
     private boolean rowEnabled = true;
     private boolean checked;
@@ -74,9 +74,33 @@ public final class SettingRowView extends V2Frame {
     // Top of the slider track for the current settings (SettingDef.maxFor), set by bindSlider
     private int sliderMax;
     private final float radius;
+    /** dp per prototype px (blocks) and for text (SettingsScreen.k / kt) */
+    private final float k, kt;
+    /** « ● » after the label: the value follows the profile (SettingsCatalog.followsProfile) */
+    private final boolean followsProfile;
 
     public SettingRowView(Context context, V2Theme theme, boolean compact, SettingDef def, Listener listener) {
+        this(context, theme, compact, def, listener, compact ? 0.85f : 1f, compact ? 0.95f : 1f);
+    }
+
+    private int px(float protoPx) {
+        return Ui.dp(getContext(), protoPx * k);
+    }
+
+    private float pxf(float protoPx) {
+        return Ui.dpf(getContext(), protoPx * k);
+    }
+
+    /**
+     * One row of the prototype's Réglages (V8-48 to 57): a card (surface, border, radius rs, padding
+     * 14 / 18) with the label 15/700, « ● » when it follows the profile, the EXPERT tag, the
+     * description 13 and the control on the right. Sizes are prototype px x {@code k} (text x {@code kt}).
+     */
+    public SettingRowView(Context context, V2Theme theme, boolean compact, SettingDef def, Listener listener, float k, float kt) {
         super(context, theme);
+        this.k = k;
+        this.kt = kt;
+        this.followsProfile = SettingsCatalog.followsProfile(def);
         this.def = def;
         this.sliderMax = def.max;
         this.theme = theme;
@@ -93,9 +117,9 @@ public final class SettingRowView extends V2Frame {
         }
 
         body = new Body(context);
-        int ph = Ui.dp(context, compact ? 16 : 20);
-        int pv = Ui.dp(context, compact ? 12 : 15);
-        body.setPadding(ph, pv, ph, pv);
+        // CSS border-box: the card's border (Braise 1, Affiche 3) sits inside, before the padding
+        int bw = theme.border > 0 ? Ui.dp(context, theme.border) : 0;
+        body.setPadding(px(18) + bw, px(14) + bw, px(18) + bw, px(14) + bw);
         addView(body, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout texts = new LinearLayout(context);
@@ -103,32 +127,37 @@ public final class SettingRowView extends V2Frame {
         LinearLayout labelRow = new LinearLayout(context);
         labelRow.setOrientation(LinearLayout.HORIZONTAL);
         labelRow.setGravity(Gravity.CENTER_VERTICAL);
-        label = Ui.text(context, theme, compact ? 16 : 18, 700, theme.fg);
+        label = Ui.text(context, theme, 15 * kt, 700, theme.fg);
         label.setMaxLines(2);
         label.setText(context.getString(def.label));
-        // With the tag, the label takes its own width (shrinking if needed) and the tag follows it
-        // With the tag, the label takes its own width (capped by Body.onMeasure) and the tag follows
-        labelRow.addView(label, def.expert
-                ? new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                : new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        // The label takes its own width (capped by Body.onMeasure), « ● » and EXPERT follow it
+        labelRow.addView(label, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        if (followsProfile) {
+            dot = Ui.text(context, theme, 10 * kt, 400, theme.muted);
+            dot.setText("●");
+            dot.setContentDescription(context.getString(R.string.v2_set_follows_profile));
+            LinearLayout.LayoutParams dlp0 = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dlp0.setMarginStart(px(8));
+            labelRow.addView(dot, dlp0);
+        }
         if (def.expert) {
-            tag = Ui.text(context, theme, 10, 700, theme.muted);
+            // Prototype: 10/800 .04em, padding 1 6, radius 6, surface2 / muted, no border
+            tag = Ui.text(context, theme, 10 * kt, 800, theme.muted);
             tag.setText(R.string.v2_set_expert_tag);
-            tag.setLetterSpacing(0.08f);
+            tag.setLetterSpacing(0.04f);
             tag.setGravity(Gravity.CENTER);
-            int th = Ui.dp(context, 20);
-            tag.setPadding(Ui.dp(context, 7), 0, Ui.dp(context, 7), 0);
-            tag.setBackground(Ui.roundRect(0, theme.square() ? 0 : th / 2f, Ui.dp(context, 1), theme.muted));
-            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, th);
-            tlp.setMarginStart(Ui.dp(context, 10));
+            tag.setPadding(px(6), px(1), px(6), px(1));
+            tag.setBackground(Ui.roundRect(theme.surface2, pxf(6), 0, 0));
+            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            tlp.setMarginStart(px(8));
             labelRow.addView(tag, tlp);
         }
         texts.addView(labelRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        desc = Ui.text(context, theme, compact ? 13.5f : 15, 400, theme.muted);
+        desc = Ui.text(context, theme, 13 * kt, 400, theme.muted);
         desc.setMaxLines(4);
         desc.setLineSpacing(0, 1.12f);
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        dlp.topMargin = Ui.dp(context, 4);
+        dlp.topMargin = px(3);
         texts.addView(desc, dlp);
         setDescription(def.desc != 0 ? context.getString(def.desc) : null);
         body.setTexts(texts);
@@ -142,15 +171,18 @@ public final class SettingRowView extends V2Frame {
     private View buildControl(Context context) {
         switch (def.type) {
             case TOGGLE:
-                toggle = new V2Switch(context, theme, compact ? 50 : 56, compact ? 28 : 32);
+                toggle = new V2Switch(context, theme, 46 * k, 26 * k);
                 return toggle;
             case CHOICE:
                 return null; // built when the options are known (bindChoice)
             case SLIDER: {
+                // Prototype: 330 wide, the value (15/700, accent; Ludique fg) above the track at the right
                 LinearLayout row = new LinearLayout(context);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                slider = new V2Slider(context, theme, compact ? 170 : 230);
+                row.setOrientation(LinearLayout.VERTICAL);
+                sliderValue = Ui.text(context, theme, 15 * kt, 700, theme.isLudique() ? theme.fg : theme.accent);
+                sliderValue.setGravity(Gravity.END);
+                row.addView(sliderValue, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                slider = new V2Slider(context, theme, 330 * k, 24 * k, 11 * k);
                 slider.setListener((p, finished) -> {
                     if (!rowEnabled) {
                         return;
@@ -159,15 +191,9 @@ public final class SettingRowView extends V2Frame {
                     showSliderValue(v);
                     listener.onSlide(def, v, finished);
                 });
-                row.addView(slider, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-                sliderValue = Ui.display(context, theme, compact ? 16 : 18, theme.fg);
-                sliderValue.setAllCaps(false);
-                sliderValue.setTypeface(theme.displayFont(context, 700));
-                sliderValue.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-                sliderValue.setMinWidth(Ui.dp(context, compact ? 92 : 112));
-                LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                vlp.setMarginStart(Ui.dp(context, 10));
-                row.addView(sliderValue, vlp);
+                LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                slp.topMargin = px(6);
+                row.addView(slider, slp);
                 return row;
             }
             case ACTION:
@@ -178,17 +204,29 @@ public final class SettingRowView extends V2Frame {
                 Ui.noClip(row);
                 for (int i = 0; i < def.buttons.size(); i++) {
                     final int index = i;
-                    PillButton b = new PillButton(context, theme, PillButton.Style.SECONDARY, 0,
-                            context.getString(def.buttons.get(i)), compact ? 42 : 46, compact ? 15 : 16);
+                    // Prototype: an action is a pill h38 in fg on bg; of several buttons the first one is, the
+                    // others surface2
+                    TextView t = Ui.text(context, theme, 14 * kt, 700, i == 0 ? theme.bg : theme.fg);
+                    t.setText(context.getString(def.buttons.get(i)));
+                    t.setGravity(Gravity.CENTER);
+                    int padH = px(def.type == SettingDef.Type.ACTION ? 18 : 16);
+                    t.setPadding(padH, 0, padH, 0);
+                    float pr = theme.square() ? 0 : pxf(38) / 2f;
+                    V2Frame b = new V2Frame(context, theme);
+                    b.setBackground(Ui.roundRect(i == 0 ? theme.fg : theme.surface2, pr,
+                            def.type == SettingDef.Type.BUTTONS ? Math.max(1, Ui.dp(context, theme.border)) : 0, theme.borderColor));
+                    b.setRing(pr / getResources().getDisplayMetrics().density, 0, 0);
+                    b.addView(t, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                    b.setClickable(true);
                     b.setFocusable(def.type == SettingDef.Type.BUTTONS);
                     b.setOnClickListener(v -> {
                         if (rowEnabled && v.isEnabled()) {
                             listener.onAction(def, index);
                         }
                     });
-                    LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(38));
                     if (i > 0) {
-                        blp.setMarginStart(Ui.dp(context, 10));
+                        blp.setMarginStart(px(8));
                     }
                     row.addView(b, blp);
                     buttons.add(b);
@@ -233,6 +271,10 @@ public final class SettingRowView extends V2Frame {
 
     /** Options and current value; segmented for a few short ones, a dropdown otherwise */
     public void bindChoice(List<Option> opts, String current) {
+        if (V2Theme.PREF_THEME.equals(def.key)) {
+            bindThemes(opts, current);
+            return;
+        }
         boolean wantDropdown = useDropdown(opts);
         boolean rebuild = !opts.equals(options) || (wantDropdown != (dropdown != null)) || (segments == null && dropdown == null);
         options = opts;
@@ -250,6 +292,70 @@ public final class SettingRowView extends V2Frame {
             for (int i = 0; i < segments.getChildCount(); i++) {
                 paintSegment((TextView) segments.getChildAt(i), options.get(i).value.equals(current));
             }
+        }
+    }
+
+    private LinearLayout themeCards;
+
+    /**
+     * Prototype theme picker: one 108 x 74 card per theme in its own colours (Braise dark, Affiche and
+     * Ludique light), three dots (bg, accent, fg), its name in its display font 15/800; the chosen one
+     * has a 3 px accent border, the others 1 px line
+     */
+    private void bindThemes(List<Option> opts, String current) {
+        Context c = getContext();
+        boolean rebuild = themeCards == null || !opts.equals(options);
+        options = opts;
+        value = current;
+        if (rebuild) {
+            themeCards = new LinearLayout(c);
+            themeCards.setOrientation(LinearLayout.HORIZONTAL);
+            for (int i = 0; i < opts.size(); i++) {
+                final Option o = opts.get(i);
+                V2Theme t = V2Theme.of(o.value, V2Theme.BRAISE.equals(o.value));
+                LinearLayout card = new LinearLayout(c);
+                card.setOrientation(LinearLayout.VERTICAL);
+                card.setPadding(px(10), px(9), px(10), px(9));
+                LinearLayout dots = new LinearLayout(c);
+                dots.setOrientation(LinearLayout.HORIZONTAL);
+                int accent = t.accent == t.fg ? 0xFFFFD60A : t.accent;
+                for (int color : new int[]{t.bg, accent, t.fg}) {
+                    View dotView = new View(c);
+                    dotView.setBackground(Ui.roundRect(color, pxf(7), 0, 0));
+                    LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(px(14), px(14));
+                    if (dots.getChildCount() > 0) {
+                        dl.setMarginStart(px(4));
+                    }
+                    dots.addView(dotView, dl);
+                }
+                card.addView(dots);
+                card.addView(new android.widget.Space(c), new LinearLayout.LayoutParams(1, 0, 1f));
+                TextView name = Ui.text(c, t, 15 * kt, 800, t.fg);
+                name.setTypeface(t.displayFont(c, 800));
+                name.setText(o.label);
+                card.addView(name);
+                card.setTag(o);
+                card.setOnClickListener(v -> {
+                    if (rowEnabled) {
+                        requestFocusIfKeys();
+                        listener.onChoose(def, o);
+                    }
+                });
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px(108), px(74));
+                if (i > 0) {
+                    lp.setMarginStart(px(10));
+                }
+                themeCards.addView(card, lp);
+            }
+            body.setControl(themeCards, false);
+        }
+        for (int i = 0; i < themeCards.getChildCount(); i++) {
+            View card = themeCards.getChildAt(i);
+            Option o = (Option) card.getTag();
+            V2Theme t = V2Theme.of(o.value, V2Theme.BRAISE.equals(o.value));
+            boolean on = o.value.equals(current);
+            card.setBackground(Ui.roundRect(t.bg, Ui.dpf(c, theme.rs), on ? Ui.dp(c, 3) : Math.max(1, Ui.dp(c, 1)),
+                    on ? theme.accent : theme.line));
         }
     }
 
@@ -271,26 +377,26 @@ public final class SettingRowView extends V2Frame {
         Context c = getContext();
         segments = new LinearLayout(c);
         segments.setOrientation(LinearLayout.HORIZONTAL);
-        int pad = Ui.dp(c, 4);
+        // Prototype: padding 3, radius rs, surface2, segments h34 min 58, 13/700, gap 3
+        int pad = px(3);
         segments.setPadding(pad, pad, pad, pad);
-        float r = Ui.dpf(c, theme.square() ? 0 : theme.pill);
-        segments.setBackground(Ui.roundRect(theme.surface2, r, theme.isAffiche() ? Ui.dp(c, 2) : 0, theme.fg));
+        segments.setBackground(Ui.roundRect(theme.surface2, Ui.dpf(c, theme.rs), 0, 0));
         for (int i = 0; i < options.size(); i++) {
             final Option o = options.get(i);
-            TextView s = Ui.text(c, theme, compact ? 14.5f : 16, 600, theme.fg);
+            TextView s = Ui.text(c, theme, 13 * kt, 700, theme.fg);
             s.setText(o.label);
             s.setGravity(Gravity.CENTER);
-            s.setMinWidth(Ui.dp(c, compact ? 52 : 64));
-            s.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0);
+            s.setMinWidth(px(58));
+            s.setPadding(px(12), 0, px(12), 0);
             s.setOnClickListener(v -> {
                 if (rowEnabled) {
                     requestFocusIfKeys();
                     listener.onChoose(def, o);
                 }
             });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(c, compact ? 38 : 42), 1f);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(34), 1f);
             if (i > 0) {
-                lp.setMarginStart(Ui.dp(c, 3));
+                lp.setMarginStart(px(3));
             }
             segments.addView(s, lp);
         }
@@ -299,26 +405,25 @@ public final class SettingRowView extends V2Frame {
 
     private void paintSegment(TextView s, boolean selected) {
         Context c = getContext();
-        float r = Ui.dpf(c, theme.square() ? 0 : Math.max(0, theme.pill - 4));
-        s.setBackground(selected ? Ui.roundRect(theme.accent, r, 0, 0) : null);
+        s.setBackground(selected ? Ui.roundRect(theme.accent, Ui.dpf(c, theme.rs), 0, 0) : null);
         s.setTextColor(selected ? theme.onAccent : theme.fg);
-        s.setTypeface(theme.textFont(c, selected ? 700 : 600));
+        s.setTypeface(theme.textFont(c, 700));
     }
 
     private View buildDropdown() {
         Context c = getContext();
-        dropdown = Ui.text(c, theme, compact ? 15 : 16, 600, theme.fg);
+        // Prototype: h40, 240 to 330 wide, padding 0 12 0 14, radius rs, tk.border, surface2, 14/700, chevron
+        dropdown = Ui.text(c, theme, 14 * kt, 700, theme.fg);
         dropdown.setGravity(Gravity.CENTER_VERTICAL);
         dropdown.setEllipsize(TextUtils.TruncateAt.END);
-        int ph = Ui.dp(c, 14);
-        dropdown.setPadding(ph, 0, Ui.dp(c, 10), 0);
-        dropdown.setMinHeight(Ui.dp(c, compact ? 42 : 46));
-        dropdown.setMinWidth(Ui.dp(c, compact ? 170 : 220));
-        dropdown.setMaxWidth(Ui.dp(c, compact ? 260 : 340));
-        float r = Ui.dpf(c, theme.square() ? 0 : Math.min(theme.rs, 12));
-        dropdown.setBackground(Ui.roundRect(theme.surface2, r, theme.isAffiche() ? Ui.dp(c, 2) : Math.max(1, Ui.dp(c, theme.border)), theme.isAffiche() ? theme.fg : theme.line));
-        dropdown.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, sized(Ui.icon(c, R.drawable.v2_ic_chevron_down, theme.fg), 18), null);
-        dropdown.setCompoundDrawablePadding(Ui.dp(c, 8));
+        dropdown.setPadding(px(14), 0, px(12), 0);
+        dropdown.setMinHeight(px(40));
+        dropdown.setMinWidth(px(240));
+        dropdown.setMaxWidth(px(330));
+        int b = theme.border > 0 ? Math.max(1, Ui.dp(c, theme.border)) : 0;
+        dropdown.setBackground(Ui.roundRect(theme.surface2, Ui.dpf(c, theme.rs), b, theme.borderColor));
+        dropdown.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, sized(Ui.icon(c, R.drawable.v2_ic_chevron_down, theme.fg), 16 * k), null);
+        dropdown.setCompoundDrawablePadding(px(10));
         dropdown.setOnClickListener(v -> {
             if (rowEnabled) {
                 requestFocusIfKeys();
@@ -368,19 +473,27 @@ public final class SettingRowView extends V2Frame {
 
     private void showSliderValue(int v) {
         if (sliderValue != null) {
-            sliderValue.setText(def.formatValue(getContext(), v));
+            sliderValue.setText(def.formatValue(getContext(), v) + valueSuffix);
         }
+    }
+
+    private String valueSuffix = "";
+
+    /** After the slider's value: « · auto » while the bitrate follows the resolution (prototype) */
+    public void setValueSuffix(String suffix) {
+        valueSuffix = suffix == null ? "" : suffix;
+        showSliderValue(intValue);
     }
 
     public void setButtonEnabled(int index, boolean enabled) {
         if (index >= 0 && index < buttons.size()) {
-            PillButton b = buttons.get(index);
+            View b = buttons.get(index);
             b.setEnabled(enabled);
             b.setAlpha(enabled ? 1f : 0.4f);
         }
     }
 
-    public List<PillButton> getButtons() {
+    public List<View> getButtons() {
         return buttons;
     }
 
@@ -515,11 +628,11 @@ public final class SettingRowView extends V2Frame {
         }
 
         private int minTextPx() {
-            return Ui.dp(getContext(), compact ? 190 : 260);
+            return Ui.dp(getContext(), compact ? 190 : 240);
         }
 
         private int gapPx() {
-            return Ui.dp(getContext(), compact ? 16 : 24);
+            return px(22);
         }
 
         @Override
@@ -534,12 +647,16 @@ public final class SettingRowView extends V2Frame {
             }
             stacked = control != null && inner - cw - gapPx() < minTextPx();
             int textW = stacked || control == null ? inner : inner - cw - gapPx();
-            if (tag != null) {
-                tag.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-                int max = Math.max(0, textW - tag.getMeasuredWidth() - Ui.dp(getContext(), 10));
-                if (label.getMaxWidth() != max) {
-                    label.setMaxWidth(max);
+            int extra = 0;
+            for (TextView t : new TextView[]{tag, dot}) {
+                if (t != null) {
+                    t.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+                    extra += t.getMeasuredWidth() + px(8);
                 }
+            }
+            int max = Math.max(0, textW - extra);
+            if (label.getMaxWidth() != max) {
+                label.setMaxWidth(max);
             }
             texts.measure(MeasureSpec.makeMeasureSpec(textW, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
             int h;

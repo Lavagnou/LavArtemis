@@ -47,28 +47,17 @@ public class V2Switch extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        // Prototype switch, every theme: 46 x 26 pill, 3 px padding, 20 px round knob in onFg / offFg
         float w = getWidth(), h = getHeight();
-        boolean square = theme.square();
-        float r = square ? 0 : h / 2f;
+        float r = h / 2f;
         rect.set(0, 0, w, h);
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(on ? theme.on : theme.off);
         canvas.drawRoundRect(rect, r, r, paint);
-        if (theme.isAffiche()) {
-            float b = Ui.dpf(getContext(), 2);
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(b);
-            paint.setColor(theme.fg);
-            rect.inset(b / 2f, b / 2f);
-            canvas.drawRect(rect, paint);
-            paint.setStyle(Paint.Style.FILL);
-        }
-        float inset = Ui.dpf(getContext(), 4);
+        float inset = h * 3f / 26f;
         float d = h - 2 * inset;
         float x = on ? w - inset - d : inset;
-        paint.setColor(on ? theme.onAccent : theme.fg);
-        rect.set(x, inset, x + d, inset + d);
-        float tr = square ? 0 : d / 2f;
-        canvas.drawRoundRect(rect, tr, tr, paint);
+        paint.setColor(theme.switchKnob(on));
+        canvas.drawCircle(x + d / 2f, h / 2f, d / 2f, paint);
     }
 }

@@ -332,6 +332,17 @@ public final class V2Theme {
         return BRAISE.equals(id);
     }
 
+    /** Knob of a switch (prototype tk.onFg / tk.offFg), on the track {@link #on} / {@link #off} */
+    public int switchKnob(boolean isOn) {
+        if (AFFICHE.equals(id)) {
+            return isOn ? (dark ? c("#111111") : c("#ECECE8")) : (dark ? c("#EDEDE8") : c("#111111"));
+        }
+        if (LUDIQUE.equals(id)) {
+            return isOn ? c("#1B1530") : (dark ? c("#B3A9D6") : c("#5A527A"));
+        }
+        return isOn ? (dark ? c("#0E0D0C") : c("#FFFFFF")) : (dark ? c("#CFC6BC") : c("#6B6158"));
+    }
+
     /** Theme.qml dim(): a card or cover dimmed while another app runs. */
     public Dim dim(boolean focused) {
         if (BRAISE.equals(id)) {

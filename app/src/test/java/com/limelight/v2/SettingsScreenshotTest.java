@@ -187,6 +187,68 @@ public class SettingsScreenshotTest {
         save(bmp, file);
     }
 
+    // ---- prototype stage (V8-48 to 57: 1280 x 720) ----------------------------------------------------
+
+    private void protoShot(String file, String themeId, boolean dark, V2Input.Kind input, String page, boolean onExpertRow,
+                           String focusKey) throws Exception {
+        RuntimeEnvironment.setQualifiers("fr-w1280dp-h720dp-land-mdpi");
+        V2Input.reset(input);
+        useTheme(themeId, dark);
+        Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+        SettingsScreen s = new SettingsScreen(ctx, V2Theme.of(themeId, dark), Density.forSize(1280, 720), env(),
+                new SettingsStore(ctx), new NoActions(), page, true);
+        View root = s.getView();
+        draw(root, 1280, 720);
+        if (input != V2Input.Kind.TOUCH) {
+            View target = focusKey != null ? s.rowFor(focusKey) : s.navFor(page);
+            assertNotNull(target);
+            focus(target);
+            s.refreshInput();
+        }
+        Bitmap bmp = draw(root, 1280, 720);
+        checkFrench(root);
+        save(bmp, file);
+    }
+
+    /** V8-49: Vidéo, expert off (3 hidden rows), focus on the page at the gamepad; the prototype's values */
+    @Test
+    public void protoVideo() throws Exception {
+        Context app = ApplicationProvider.getApplicationContext();
+        for (String t : new String[]{"braise", "affiche", "ludique"}) {
+            for (boolean dark : new boolean[]{false, true}) {
+                for (V2Input.Kind input : new V2Input.Kind[]{V2Input.Kind.PAD, V2Input.Kind.TOUCH}) {
+                    setUp();
+                    PreferenceManager.getDefaultSharedPreferences(app).edit()
+                            .putBoolean("checkbox_enable_perf_overlay", false).commit();
+                    expert(false);
+                    protoShot("settings-video-" + t + "-" + (dark ? "sombre" : "clair") + "-"
+                            + (input == V2Input.Kind.TOUCH ? "tactile" : "manette"), t, dark, input, SettingsCatalog.VIDEO, false, null);
+                }
+            }
+        }
+    }
+
+    /** The other pages of the planches (V8-50 Profil, 53 Apparence, 54 Entrées, 55 Manettes, 56 Contrôles), expert on and off */
+    @Test
+    public void protoPages() throws Exception {
+        String[][] pages = {
+                {"profil", SettingsCatalog.PROFIL, "0"}, {"apparence", SettingsCatalog.APPARENCE, "0"},
+                {"entrees", SettingsCatalog.ENTREES, "0"}, {"manettes", SettingsCatalog.MANETTES, "1"},
+                {"controles", SettingsCatalog.CONTROLES, "0"}, {"video-expert", SettingsCatalog.VIDEO, "1"}};
+        for (String[] p : pages) {
+            for (String t : new String[]{"braise", "affiche", "ludique"}) {
+                for (boolean dark : new boolean[]{false, true}) {
+                    setUp();
+                    expert("1".equals(p[2]));
+                    protoShot("settings-" + p[0] + "-" + t + "-" + (dark ? "sombre" : "clair") + "-manette", t, dark,
+                            V2Input.Kind.PAD, p[1], false, null);
+                    protoShot("settings-" + p[0] + "-" + t + "-" + (dark ? "sombre" : "clair") + "-tactile", t, dark,
+                            V2Input.Kind.TOUCH, p[1], false, null);
+                }
+            }
+        }
+    }
+
     // ---- pages ------------------------------------------------------------------------------------
 
     @Test

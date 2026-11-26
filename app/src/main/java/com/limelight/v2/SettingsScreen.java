@@ -19,6 +19,7 @@ import com.limelight.v2.settings.SettingRowView;
 import com.limelight.v2.settings.SettingsCatalog;
 import com.limelight.v2.settings.SettingsEnv;
 import com.limelight.v2.settings.SettingsStore;
+import com.limelight.v2.ui.HintsBar;
 import com.limelight.v2.ui.IconButton;
 import com.limelight.v2.ui.Ui;
 import com.limelight.v2.ui.V2Frame;
@@ -56,6 +57,11 @@ public final class SettingsScreen {
     private final ExpertCard expertCard;
     private final List<NavItem> navItems = new ArrayList<>();
     private final List<SettingRowView> rows = new ArrayList<>();
+    /** « N réglages avancés masqués · activer le mode expert » (prototype smore), null when none */
+    private V2Frame moreButton;
+    private final HintsBar hints;
+    /** dp per prototype px for blocks, and for text (it shrinks less on small screens) */
+    final float k, kt;
 
     private boolean expert;
     private String page;
@@ -72,13 +78,18 @@ public final class SettingsScreen {
         this.actions = actions;
         this.narrow = density.widthDp < 640;
         this.expert = store.expertMode();
+        // The prototype's stage is 1280 x 720: a tablet shows it as it is, smaller screens shrink it
+        // (text less than blocks), never under three quarters
+        float fit = Math.min(density.widthDp / 1280f, density.heightDp / 720f);
+        this.k = Math.max(0.75f, Math.min(1.111f, narrow ? 1f : fit));
+        this.kt = Math.max(0.9f, k);
 
         root = new FrameLayout(context);
         root.setBackgroundColor(theme.bg);
         LinearLayout pageLayout = new LinearLayout(context);
         pageLayout.setOrientation(LinearLayout.VERTICAL);
-        int side = Ui.dp(context, d.side);
-        pageLayout.setPadding(side, Ui.dp(context, d.top), side, 0);
+        int side = narrow ? Ui.dp(context, d.side) : px(40);
+        pageLayout.setPadding(side, narrow ? Ui.dp(context, d.top) : px(24), side, narrow ? 0 : px(58));
         root.addView(pageLayout, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         Ui.noClip(root, pageLayout);
 
@@ -87,22 +98,32 @@ public final class SettingsScreen {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
         Ui.noClip(header);
-        pageLayout.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(context, d.headerHeight)));
-        IconButton back = new IconButton(context, theme, R.drawable.v2_ic_chevron_left, 48, 44, 20, theme.surface, true);
+        pageLayout.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                narrow ? Ui.dp(context, d.headerHeight) : px(48)));
+        // Prototype: back 44 (pill, border, surface, arrow 20), « Réglages » display 34, on the right
+        // « Thème {nom} · LavArtemis {version} » 14 muted
+        float bs = narrow ? 48 : 44 * k;
+        IconButton back = new IconButton(context, theme, R.drawable.v2_ic_back, bs, bs, 20 * k, theme.surface, true);
         back.setContentDescription(context.getString(R.string.v2_back));
         back.setOnClickListener(v -> actions.back());
-        header.addView(back, new LinearLayout.LayoutParams(Ui.dp(context, 48), Ui.dp(context, 48)));
-        title = Ui.display(context, theme, d.compact ? 26 : 32, theme.fg);
+        header.addView(back, new LinearLayout.LayoutParams(Ui.dp(context, bs), Ui.dp(context, bs)));
+        title = Ui.display(context, theme, narrow ? (d.compact ? 26 : 32) : 34 * kt, theme.fg);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        tlp.setMarginStart(Ui.dp(context, 14));
+        tlp.setMarginStart(narrow ? Ui.dp(context, 14) : px(16));
         header.addView(title, tlp);
+        if (!narrow) {
+            TextView about = Ui.text(context, theme, 14 * kt, 400, theme.muted);
+            about.setText(context.getString(R.string.v2_set_about, themeName(context, theme),
+                    com.limelight.BuildConfig.VERSION_NAME));
+            header.addView(about);
+        }
 
         // ---- body: page list | rows ---------------------------------------------------------------
         LinearLayout body = new LinearLayout(context);
         body.setOrientation(LinearLayout.HORIZONTAL);
         // The body clips: the scrolled rows must not draw over the header
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        blp.topMargin = Ui.dp(context, d.compact ? 6 : 14);
+        blp.topMargin = narrow ? Ui.dp(context, d.compact ? 6 : 14) : px(18);
         pageLayout.addView(body, blp);
 
         navScroll = scroll(context);
@@ -112,8 +133,10 @@ public final class SettingsScreen {
         navColumn.addView(expertCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         for (SettingsCatalog.Page p : SettingsCatalog.PAGES) {
             NavItem item = new NavItem(context, p);
-            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(context, d.compact ? 48 : 54));
-            ilp.topMargin = Ui.dp(context, navItems.isEmpty() ? 14 : 6);
+            // Prototype: pages h40, gap 4, 12 under the Mode expert card
+            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    narrow ? Ui.dp(context, d.compact ? 48 : 54) : Math.max(px(40), Ui.dp(context, 36)));
+            ilp.topMargin = narrow ? Ui.dp(context, navItems.isEmpty() ? 14 : 6) : px(navItems.isEmpty() ? 12 : 4);
             navColumn.addView(item, ilp);
             navItems.add(item);
         }
@@ -128,16 +151,25 @@ public final class SettingsScreen {
             stack.addView(navScroll, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             stack.addView(rowsScroll, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         } else {
-            body.addView(navScroll, new LinearLayout.LayoutParams(Ui.dp(context, d.compact ? 250 : 290), ViewGroup.LayoutParams.MATCH_PARENT));
+            // Prototype: page list 260 wide at left 40, rows from left 330 (30 between, minus the column's padding)
+            body.addView(navScroll, new LinearLayout.LayoutParams(px(260) + 2 * colPad(), ViewGroup.LayoutParams.MATCH_PARENT));
             LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-            rlp.setMarginStart(Ui.dp(context, d.compact ? 6 : 12));
+            rlp.setMarginStart(Math.max(0, px(30) - 2 * colPad()));
             body.addView(rowsScroll, rlp);
+            // The page list starts at the prototype's left 40: the column's padding is taken back
+            LinearLayout.LayoutParams nl = (LinearLayout.LayoutParams) navScroll.getLayoutParams();
+            nl.setMarginStart(-colPad());
+            navScroll.setLayoutParams(nl);
         }
+
+        hints = new HintsBar(context, theme, Math.max(0.85f, k));
+        root.addView(hints, hints.layoutParams());
 
         page = initialPage;
         showingRows = narrow && showRows;
         refreshNav();
         showPage(page, false);
+        updateHints();
     }
 
     private ScrollView scroll(Context context) {
@@ -152,10 +184,23 @@ public final class SettingsScreen {
     private LinearLayout column(Context context) {
         LinearLayout c = new LinearLayout(context);
         c.setOrientation(LinearLayout.VERTICAL);
-        int pad = Ui.dp(context, 10);
+        int pad = colPad();
         c.setPadding(pad, pad, pad, Ui.dp(context, 24));
         Ui.noClip(c);
         return c;
+    }
+
+    /** Room around a column for the focus rings drawn outside its items */
+    private int colPad() {
+        return Ui.dp(ctx, 10);
+    }
+
+    private int px(float protoPx) {
+        return Ui.dp(ctx, protoPx * k);
+    }
+
+    static String themeName(Context c, V2Theme t) {
+        return c.getString(t.isAffiche() ? R.string.v2_theme_affiche : t.isLudique() ? R.string.v2_theme_ludique : R.string.v2_theme_braise);
     }
 
     public View getView() {
@@ -191,12 +236,13 @@ public final class SettingsScreen {
 
     private void refreshNav() {
         if (!pageVisible(page)) {
-            List<SettingsCatalog.Page> pages = visiblePages();
-            page = pages.isEmpty() ? SettingsCatalog.PROFIL : pages.get(0).id;
+            // Prototype setExpert: a page that empties goes to Affichage (else the first page)
+            page = pageVisible(SettingsCatalog.AFFICHAGE) ? SettingsCatalog.AFFICHAGE : firstPage();
         }
         for (NavItem item : navItems) {
             Ui.setVisible(item, pageVisible(item.page.id));
             item.setSelected(!narrow && item.page.id.equals(page));
+            item.setExpertOnly(expert && SettingsCatalog.expertOnly(item.page.id, env));
         }
         expertCard.sw.setOn(expert);
         Ui.setVisible(navScroll, !narrow || !showingRows);
@@ -204,6 +250,24 @@ public final class SettingsScreen {
         SettingsCatalog.Page p = SettingsCatalog.page(page);
         String t = narrow && showingRows && p != null ? ctx.getString(p.title) : ctx.getString(R.string.v2_settings);
         title.setText(theme.displayText(t));
+    }
+
+    private String firstPage() {
+        List<SettingsCatalog.Page> pages = visiblePages();
+        return pages.isEmpty() ? SettingsCatalog.PROFIL : pages.get(0).id;
+    }
+
+    /** LB / RB: the previous / next page, wrapping, focus on it (prototype shoulder) */
+    public void stepPage(int delta) {
+        String next = SettingsCatalog.stepPage(visiblePages(), page, delta);
+        showPage(next, false);
+        if (!narrow && V2Input.showFocus(ctx)) {
+            NavItem item = navItem(next);
+            if (item != null) {
+                item.requestFocus();
+            }
+        }
+        updateHints();
     }
 
     /** Shows a page's rows (and, narrow, switches to them); keeps the scroll on the same page */
@@ -267,24 +331,34 @@ public final class SettingsScreen {
     private void buildRows(String unused) {
         rowsColumn.removeAllViews();
         rows.clear();
+        moreButton = null;
         if (!narrow) {
+            // Prototype: page title display 26, 4 px in, 4 under (then the 10 px gap)
             SettingsCatalog.Page p = SettingsCatalog.page(page);
-            TextView pageTitle = Ui.display(ctx, theme, d.compact ? 24 : 30, theme.fg);
+            TextView pageTitle = Ui.display(ctx, theme, 26 * kt, theme.fg);
             pageTitle.setText(theme.displayText(p == null ? "" : ctx.getString(p.title)));
             LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            plp.bottomMargin = Ui.dp(ctx, d.compact ? 10 : 14);
-            plp.topMargin = Ui.dp(ctx, 4);
+            plp.bottomMargin = px(4);
+            plp.setMarginStart(px(4));
             rowsColumn.addView(pageTitle, plp);
         }
         for (SettingDef def : SettingsCatalog.visibleRows(page, env, expert)) {
-            SettingRowView row = new SettingRowView(ctx, theme, d.compact, def, actions);
+            SettingRowView row = new SettingRowView(ctx, theme, d.compact, def, actions, narrow ? (d.compact ? 0.85f : 1f) : k,
+                    narrow ? (d.compact ? 0.95f : 1f) : kt);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (!rows.isEmpty()) {
-                lp.topMargin = Ui.dp(ctx, d.compact ? 10 : 12);
+            if (!rows.isEmpty() || !narrow) {
+                lp.topMargin = narrow ? Ui.dp(ctx, d.compact ? 10 : 12) : px(10);
             }
             rowsColumn.addView(row, lp);
             rows.add(row);
             bind(row);
+        }
+        int hidden = SettingsCatalog.hiddenCount(page, env, expert);
+        if (hidden > 0) {
+            moreButton = new MoreButton(ctx, hidden);
+            LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(px(46), Ui.dp(ctx, 40)));
+            mlp.topMargin = narrow ? Ui.dp(ctx, d.compact ? 10 : 12) : px(10);
+            rowsColumn.addView(moreButton, mlp);
         }
     }
 
@@ -315,10 +389,15 @@ public final class SettingsScreen {
             }
             case SLIDER:
                 row.bindSlider(store.getInt(def.key), def.maxFor(store));
+                if (SettingsCatalog.KEY_BITRATE.equals(def.key)) {
+                    row.setValueSuffix(store.bitrateIsRecommended() ? ctx.getString(R.string.v2_set_bitrate_auto) : "");
+                }
                 break;
             case ACTION:
                 if (SettingsCatalog.KEY_BITRATE_DEFAULT.equals(def.key)) {
-                    row.setDescription(ctx.getString(R.string.v2_set_bitrate_default_d, SettingsCatalog.mbps(ctx, store.defaultBitrate())));
+                    // Prototype: already following, or the bitrate it will go back to
+                    row.setDescription(store.bitrateIsRecommended() ? ctx.getString(R.string.v2_set_bitrate_default_already)
+                            : ctx.getString(R.string.v2_set_bitrate_default_d, SettingsCatalog.mbps(ctx, store.defaultBitrate())));
                 } else if ("option_check_update".equals(def.key)) {
                     // As on the desktop: the installed version
                     row.setDescription(ctx.getString(R.string.v2_set_check_update_d, com.limelight.BuildConfig.VERSION_NAME));
@@ -347,6 +426,16 @@ public final class SettingsScreen {
 
     public List<SettingRowView> rows() {
         return rows;
+    }
+
+    /** The dashed « N réglages avancés masqués » button, or null */
+    public View moreButton() {
+        return moreButton;
+    }
+
+    /** The page list's item of a page (focus in tests) */
+    public View navFor(String id) {
+        return navItem(id);
     }
 
     // ---- expert mode ------------------------------------------------------------------------------
@@ -393,7 +482,7 @@ public final class SettingsScreen {
                 return r.getButtons().get(0).requestFocus();
             }
         }
-        return false;
+        return moreButton != null && moreButton.requestFocus();
     }
 
     public boolean requestInitialFocus() {
@@ -438,6 +527,25 @@ public final class SettingsScreen {
             n.paint();
         }
         expertCard.paint();
+        updateHints();
+    }
+
+    /** Prototype hints of the settings: A Changer · LB RB Page · B Retour (not at touch) */
+    public void updateHints() {
+        if (hints == null) {
+            return;
+        }
+        hints.clear();
+        V2Input.Kind kind = V2Input.get(ctx);
+        if (kind == V2Input.Kind.TOUCH || narrow) {
+            hints.setVisibility(View.GONE);
+            return;
+        }
+        hints.setVisibility(View.VISIBLE);
+        boolean pad = kind == V2Input.Kind.PAD;
+        hints.add(pad ? "A" : ctx.getString(R.string.v2_key_enter), ctx.getString(R.string.v2_details_change), null);
+        hints.add(pad ? "LB RB" : "Q E", ctx.getString(R.string.v2_hint_page), () -> stepPage(1));
+        hints.add(pad ? "B" : ctx.getString(R.string.v2_key_escape), ctx.getString(R.string.v2_hint_back), actions::back);
     }
 
     // ---- views --------------------------------------------------------------------------------------
@@ -450,28 +558,29 @@ public final class SettingsScreen {
             super(context, SettingsScreen.this.theme);
             setFocusable(true);
             setClickable(true);
-            setRing(theme.r, 5, theme.fg);
+            setRing(theme.rs, 5, theme.fg);
+            // Prototype: min-h 64, radius rs, border, surface, padding 10 16; « Mode expert » 15/700,
+            // « Affiche les réglages avancés » 12 muted; switch 46 x 26
             LinearLayout row = new LinearLayout(context);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            int ph = Ui.dp(context, d.compact ? 16 : 20);
-            int pv = Ui.dp(context, d.compact ? 12 : 16);
-            row.setPadding(ph, pv, ph, pv);
+            row.setPadding(px(16), px(10), px(16), px(10));
+            row.setMinimumHeight(px(64));
             LinearLayout texts = new LinearLayout(context);
             texts.setOrientation(LinearLayout.VERTICAL);
-            TextView t = Ui.text(context, theme, d.compact ? 16 : 18, 700, theme.fg);
+            TextView t = Ui.text(context, theme, 15 * kt, 700, theme.fg);
             t.setText(R.string.v2_set_expert);
             texts.addView(t);
-            TextView s = Ui.text(context, theme, d.compact ? 13 : 14, 400, theme.muted);
+            TextView s = Ui.text(context, theme, 12 * kt, 400, theme.muted);
             s.setMaxLines(2);
             s.setText(R.string.v2_set_expert_d);
             LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            slp.topMargin = Ui.dp(context, 3);
+            slp.topMargin = px(2);
             texts.addView(s, slp);
             row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            sw = new V2Switch(context, theme, d.compact ? 50 : 56, d.compact ? 28 : 32);
+            sw = new V2Switch(context, theme, 46 * k, 26 * k);
             LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            wlp.setMarginStart(Ui.dp(context, 12));
+            wlp.setMarginStart(px(10));
             row.addView(sw, wlp);
             addView(row, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             setOnClickListener(v -> actions.setExpert(!expert));
@@ -479,8 +588,8 @@ public final class SettingsScreen {
         }
 
         void paint() {
-            setBackground(Ui.roundRect(isPressed() ? theme.surface2 : theme.surface, Ui.dpf(getContext(), theme.r),
-                    Ui.dp(getContext(), Math.max(1, theme.border)), theme.borderColor));
+            int b = theme.border > 0 ? Ui.dp(getContext(), theme.border) : 0;
+            setBackground(Ui.roundRect(isPressed() ? theme.surface2 : theme.surface, Ui.dpf(getContext(), theme.rs), b, theme.borderColor));
         }
 
         @Override
@@ -502,26 +611,75 @@ public final class SettingsScreen {
         }
     }
 
+    /**
+     * « N réglages avancés masqués · activer le mode expert » (prototype smore): 46 high, radius rs,
+     * 2 px dashed muted border, muted 14/600; turns expert mode on and puts the focus on the first row
+     */
+    private final class MoreButton extends V2Frame {
+        MoreButton(Context context, int hidden) {
+            super(context, SettingsScreen.this.theme);
+            setFocusable(true);
+            setClickable(true);
+            setRing(theme.rs, 5, theme.fg);
+            android.graphics.drawable.GradientDrawable g = Ui.roundRect(0, Ui.dpf(context, theme.rs), 0, 0);
+            g.setStroke(Ui.dp(context, 2), theme.muted, Ui.dpf(context, 6), Ui.dpf(context, 4));
+            setBackground(g);
+            TextView t = Ui.text(context, theme, 14 * kt, 600, theme.muted);
+            t.setGravity(Gravity.CENTER);
+            t.setText(context.getResources().getQuantityString(R.plurals.v2_set_hidden_rows, hidden, hidden));
+            addView(t, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            setOnClickListener(v -> {
+                actions.setExpert(true);
+                if (V2Input.showFocus(getContext())) {
+                    focusRows();
+                }
+            });
+        }
+
+        @Override
+        public boolean onKeyDown(int keyCode, KeyEvent event) {
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                return leaveRows() || true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                return true;
+            }
+            return super.onKeyDown(keyCode, event);
+        }
+    }
+
     /** A page of the list: accent fill when it is the page shown (wide layout) */
     private final class NavItem extends V2Frame {
         final SettingsCatalog.Page page;
         private final TextView text;
         private final ImageView chevron;
+        private final TextView expertTag;
         private boolean selected;
+
+        void setExpertOnly(boolean on) {
+            Ui.setVisible(expertTag, on && !narrow);
+        }
 
         NavItem(Context context, SettingsCatalog.Page p) {
             super(context, SettingsScreen.this.theme);
             this.page = p;
             setFocusable(true);
             setClickable(true);
-            setRing(Math.min(theme.pill, 24), 5, theme.fg);
+            setRing(narrow ? Math.min(theme.pill, 24) : theme.rs, 5, theme.fg);
             LinearLayout row = new LinearLayout(context);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(Ui.dp(context, 18), 0, Ui.dp(context, 14), 0);
-            text = Ui.display(context, theme, d.compact ? 17 : 20, theme.fg);
-            text.setText(theme.displayText(context.getString(p.title)));
+            row.setPadding(narrow ? Ui.dp(context, 18) : px(16), 0, narrow ? Ui.dp(context, 14) : px(16), 0);
+            // Prototype: the display font, 16/700, never upper case (the page names keep their case)
+            text = Ui.display(context, theme, narrow ? (d.compact ? 17 : 20) : 16 * kt, theme.fg);
+            text.setAllCaps(false);
+            text.setText(context.getString(p.title));
             row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            expertTag = Ui.text(context, theme, 11 * kt, 700, theme.fg);
+            expertTag.setText(R.string.v2_set_expert_tag);
+            expertTag.setAlpha(0.7f);
+            expertTag.setVisibility(GONE);
+            row.addView(expertTag);
             chevron = new ImageView(context);
             int cs = Ui.dp(context, 18);
             row.addView(chevron, new LinearLayout.LayoutParams(cs, cs));
@@ -553,11 +711,12 @@ public final class SettingsScreen {
         void paint() {
             boolean pressed = isPressed();
             int fill = selected ? theme.accent : (pressed ? theme.surface2 : 0);
-            float r = Ui.dpf(getContext(), theme.square() ? 0 : Math.min(theme.pill, 24));
-            setBackground(fill == 0 ? null : Ui.roundRect(fill, r, theme.isAffiche() && selected ? Ui.dp(getContext(), 3) : 0, theme.fg));
+            float r = Ui.dpf(getContext(), narrow ? (theme.square() ? 0 : Math.min(theme.pill, 24)) : theme.rs);
+            setBackground(fill == 0 ? null : Ui.roundRect(fill, r, 0, 0));
             int fg = selected ? theme.onAccent : theme.fg;
             text.setTextColor(fg);
-            text.setTypeface(theme.displayFont(getContext(), selected ? 700 : 600));
+            expertTag.setTextColor(fg);
+            text.setTypeface(theme.displayFont(getContext(), 700));
             chevron.setImageDrawable(Ui.icon(getContext(), R.drawable.v2_ic_chevron_right, theme.muted));
         }
 

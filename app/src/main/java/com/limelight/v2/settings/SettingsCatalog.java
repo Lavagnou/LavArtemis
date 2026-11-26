@@ -149,6 +149,56 @@ public final class SettingsCatalog {
         return out;
     }
 
+    /**
+     * Rows of a page hidden by expert mode alone (prototype sHidden): « N réglages avancés masqués
+     * · activer le mode expert ». 0 in expert mode, and rows the device does not offer never count.
+     */
+    public static int hiddenCount(String page, SettingsEnv env, boolean expert) {
+        if (expert) {
+            return 0;
+        }
+        return visibleRows(page, env, true).size() - visibleRows(page, env, false).size();
+    }
+
+    /** Every row this device shows on the page is an expert one (prototype expertOnly: EXPERT in the page list) */
+    public static boolean expertOnly(String page, SettingsEnv env) {
+        List<SettingDef> rows = visibleRows(page, env, true);
+        if (rows.isEmpty()) {
+            return false;
+        }
+        for (SettingDef d : rows) {
+            if (!d.expert) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * « ● Suit le profil » (prototype p): the row's value goes into a profile. Global rows (theme,
+     * update check…), the language, the app-wide keys (micro…) and rows without a value (actions)
+     * stay common to every profile (SettingsStore.snapshot).
+     */
+    public static boolean followsProfile(SettingDef d) {
+        return d.kind != SettingDef.Kind.NONE && !d.global && !"list_languages".equals(d.key)
+                && !ProfilesManager.isAppWideKey(d.key);
+    }
+
+    /** The page after {@code current} in the visible ones, wrapping (LB / RB, prototype shoulder) */
+    public static String stepPage(List<Page> visible, String current, int delta) {
+        if (visible.isEmpty()) {
+            return current;
+        }
+        int i = 0;
+        for (int k = 0; k < visible.size(); k++) {
+            if (visible.get(k).id.equals(current)) {
+                i = k;
+            }
+        }
+        int n = visible.size();
+        return visible.get(((i + delta) % n + n) % n).id;
+    }
+
     /** A page with no row to show disappears (desktop SettingsView2 visiblePages) */
     public static List<Page> visiblePages(SettingsEnv env, boolean expert) {
         List<Page> out = new ArrayList<>();
@@ -280,7 +330,7 @@ public final class SettingsCatalog {
         slider(l, VIDEO, "seekbar_metered_bitrate_kbps", R.string.v2_set_metered, 0).desc(R.string.v2_set_metered_d).expert()
                 .range(0, 300000, 500, 1000).curve(3f)
                 .format((c, v) -> v == 0 ? c.getString(R.string.v2_set_metered_auto) : mbps(c, v));
-        choice(l, VIDEO, "video_format", R.string.v2_set_codec, "auto").desc(R.string.v2_set_codec_d)
+        choice(l, VIDEO, "video_format", R.string.v2_set_codec, "auto").desc(R.string.v2_set_codec_d).segments(0)
                 .options((c, env, v, expert) -> {
                     List<Option> out = new ArrayList<>();
                     out.add(new Option("auto", c.getString(R.string.v2_set_codec_auto)));

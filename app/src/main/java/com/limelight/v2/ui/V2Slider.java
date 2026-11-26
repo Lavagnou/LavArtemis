@@ -31,12 +31,20 @@ public class V2Slider extends View {
     private final int heightPx;
 
     public V2Slider(Context context, V2Theme theme, float naturalWidthDp) {
+        this(context, theme, naturalWidthDp, 44, 12);
+    }
+
+    /** Prototype slider: a 24 px band, 22 px knob ({@code knobRadiusDp} 11) */
+    public V2Slider(Context context, V2Theme theme, float naturalWidthDp, float heightDp, float knobRadiusDp) {
         super(context);
         this.theme = theme;
         naturalWidthPx = Ui.dp(context, naturalWidthDp);
-        heightPx = Ui.dp(context, 44);
+        heightPx = Ui.dp(context, heightDp);
+        knobRadiusPx = Ui.dpf(context, knobRadiusDp);
         setFocusable(false);
     }
+
+    private final float knobRadiusPx;
 
     public void setListener(Listener l) {
         listener = l;
@@ -61,7 +69,7 @@ public class V2Slider extends View {
     }
 
     private float thumbRadius() {
-        return Ui.dpf(getContext(), 12);
+        return knobRadiusPx;
     }
 
     private float grooveStart() {
@@ -78,7 +86,8 @@ public class V2Slider extends View {
         float gh = Ui.dpf(getContext(), 6);
         float x0 = grooveStart();
         float gw = grooveWidth();
-        float r = theme.square() ? 0 : gh / 2f;
+        // Prototype: rounded 6 px track (off), filled part (on), plain round knob in fg, every theme
+        float r = gh / 2f;
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(theme.off);
         rect.set(x0, cy - gh / 2f, x0 + gw, cy + gh / 2f);
@@ -89,17 +98,8 @@ public class V2Slider extends View {
 
         float tr = thumbRadius() * (dragging ? 1.12f : 1f);
         float tx = x0 + gw * position;
-        float border = Ui.dpf(getContext(), 3);
-        paint.setColor(theme.surface);
-        if (theme.square()) {
-            canvas.drawRect(tx - tr, cy - tr, tx + tr, cy + tr, paint);
-            paint.setColor(theme.fg);
-            canvas.drawRect(tx - tr + border, cy - tr + border, tx + tr - border, cy + tr - border, paint);
-        } else {
-            canvas.drawCircle(tx, cy, tr, paint);
-            paint.setColor(theme.fg);
-            canvas.drawCircle(tx, cy, tr - border, paint);
-        }
+        paint.setColor(theme.fg);
+        canvas.drawCircle(tx, cy, tr, paint);
     }
 
     @Override

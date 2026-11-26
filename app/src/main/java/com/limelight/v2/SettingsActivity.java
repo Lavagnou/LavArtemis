@@ -193,7 +193,28 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
     @Override
     public void setExpert(boolean on) {
         store.setExpertMode(on);
+        if (!on && "forcepyrowave".equals(store.getString("video_format"))) {
+            // Prototype setExpert: PyroWave is an expert choice, leaving expert mode leaves it
+            SettingDef codec = SettingsCatalog.find("video_format");
+            if (codec != null) {
+                store.setChoice(codec, "auto");
+            }
+        }
         screen.setExpert(on);
+        toast(on ? R.string.v2_set_expert_on : R.string.v2_set_expert_off);
+    }
+
+    @Override
+    protected boolean shoulderKeysEnabled() {
+        return screen != null && !screen.narrow;
+    }
+
+    @Override
+    protected boolean onV2Shoulder(int delta) {
+        if (screen != null) {
+            screen.stepPage(delta);
+        }
+        return true;
     }
 
     // ---- rows ---------------------------------------------------------------------------------------
