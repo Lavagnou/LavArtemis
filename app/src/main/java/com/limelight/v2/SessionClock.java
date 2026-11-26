@@ -4,8 +4,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 /**
- * "EN COURS · depuis 42 min": the host does not say when a session started, so the duration counts
- * from the first time this device saw that app running on that PC. Kept in preferences so a
+ * "EN COURS · depuis 42 min" for a host that does not say when a session started (LavApollo does:
+ * ComputerDetails.sessionStartedAt, preferred by HomeActivity): the duration counts from the first
+ * time this device saw that app running on that PC. Kept in preferences so a
  * relaunch of the app (or a stream in between) does not reset it; forgotten when nothing runs.
  */
 public final class SessionClock {

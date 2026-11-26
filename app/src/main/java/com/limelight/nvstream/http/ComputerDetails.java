@@ -96,6 +96,16 @@ public class ComputerDetails {
     // LavApollo Link (Playnite): the running app is the Playnite front end, and its running game
     public boolean playniteHostRunning;
     public String playniteGameName;
+    // When the running app and the game running in Playnite started, ms since the epoch on this
+    // device's clock (LavApollo sends how long ago: CurrentGameElapsed, PlayniteGameElapsed); 0 = unknown
+    public long sessionStartedAt;
+    public long playniteGameStartedAt;
+    // What kind of PC the host is ("tower", "mini", "laptop") and its link toward this device
+    // ("wired", "wifi"): LavApollo's HostFormFactor / HostLink, null when unknown
+    public String hostFormFactor;
+    public String hostLink;
+    // Round trip to the host in ms (TCP connect of the latest poll, HostLatency), -1 when unknown
+    public int latencyMs = -1;
     // ApolloVersion of serverinfo (Apollo / LavApollo), null on other hosts
     public String apolloVersion;
     // appversion of serverinfo (the protocol generation), null until the PC answered:
@@ -107,6 +117,14 @@ public class ComputerDetails {
     public ComputerDetails() {
         // Use defaults
         state = State.UNKNOWN;
+    }
+
+    /** A start time recomputed at every poll keeps its value unless it moved by more than 5 s */
+    static long stableStart(long current, long fresh) {
+        if ((current == 0) != (fresh == 0) || Math.abs(current - fresh) > 5000) {
+            return fresh;
+        }
+        return current;
     }
 
     public ComputerDetails(ComputerDetails details) {
@@ -185,6 +203,12 @@ public class ComputerDetails {
         this.benchmarkAppUuid = details.benchmarkAppUuid;
         this.playniteHostRunning = details.playniteHostRunning;
         this.playniteGameName = details.playniteGameName;
+        // Recomputed from whole seconds at every poll: only a real change counts (another session)
+        this.sessionStartedAt = stableStart(this.sessionStartedAt, details.sessionStartedAt);
+        this.playniteGameStartedAt = stableStart(this.playniteGameStartedAt, details.playniteGameStartedAt);
+        this.hostFormFactor = details.hostFormFactor;
+        this.hostLink = details.hostLink;
+        this.latencyMs = details.latencyMs;
         this.apolloVersion = details.apolloVersion;
         this.serverAppVersion = details.serverAppVersion;
         this.serverCodecModeSupport = details.serverCodecModeSupport;

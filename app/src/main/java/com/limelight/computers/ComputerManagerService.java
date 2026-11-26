@@ -619,6 +619,7 @@ public class ComputerManagerService extends Service {
                 return null;
             }
 
+            newDetails.latencyMs = HostLatency.measure(address.address, address.port, 1000);
             return newDetails;
         } catch (XmlPullParserException e) {
             e.printStackTrace();

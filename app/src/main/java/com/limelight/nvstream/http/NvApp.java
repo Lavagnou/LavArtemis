@@ -14,6 +14,15 @@ public class NvApp {
     // (where those games start without ending the session)
     private boolean playniteGame;
     private boolean playniteHost;
+    // A Playnite game's state, from LavApollo's applist (absent on older hosts: these defaults).
+    // A game that is not installed is installed by Playnite when launched.
+    private boolean playniteInstalled = true;
+    // Last time it was played, Unix seconds (0: never, or an older host)
+    private long playniteLastActivity;
+    // Play time, seconds
+    private long playnitePlaytime;
+    // The host serves a background image for it (NvHTTP.getBackground)
+    private boolean playniteBackground;
     
     public NvApp() {}
     
@@ -82,6 +91,40 @@ public class NvApp {
 
     public boolean isPlayniteHost() {
         return this.playniteHost;
+    }
+
+    public void setPlayniteInstalled(boolean installed) {
+        this.playniteInstalled = installed;
+    }
+
+    public boolean isPlayniteInstalled() {
+        return this.playniteInstalled;
+    }
+
+    public void setPlayniteLastActivity(long unixSeconds) {
+        this.playniteLastActivity = Math.max(0, unixSeconds);
+    }
+
+    /** Unix seconds, 0 when never played (or the host does not say) */
+    public long getPlayniteLastActivity() {
+        return this.playniteLastActivity;
+    }
+
+    public void setPlaynitePlaytime(long seconds) {
+        this.playnitePlaytime = Math.max(0, seconds);
+    }
+
+    /** Seconds */
+    public long getPlaynitePlaytime() {
+        return this.playnitePlaytime;
+    }
+
+    public void setPlayniteBackground(boolean hasBackground) {
+        this.playniteBackground = hasBackground;
+    }
+
+    public boolean hasPlayniteBackground() {
+        return this.playniteBackground;
     }
     
     public String getAppName() {

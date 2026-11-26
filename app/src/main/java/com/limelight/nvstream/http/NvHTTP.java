@@ -453,6 +453,14 @@ public class NvHTTP {
         details.benchmarkAppUuid = getXmlString(serverInfo, "BenchmarkAppUuid", false);
         details.playniteHostRunning = isPlayniteHostRunning(serverInfo);
         details.playniteGameName = getXmlString(serverInfo, "PlayniteGameName", false);
+        // LavApollo (prototype data): how long ago the running app and the Playnite game started,
+        // as dates on this device's clock, what kind of PC it is, and its link toward this device
+        long now = System.currentTimeMillis();
+        details.sessionStartedAt = startFromElapsed(getXmlString(serverInfo, "CurrentGameElapsed", false), now);
+        details.playniteGameStartedAt = details.playniteGameName == null ? 0
+                : startFromElapsed(getXmlString(serverInfo, "PlayniteGameElapsed", false), now);
+        details.hostFormFactor = oneOf(getXmlString(serverInfo, "HostFormFactor", false), "tower", "mini", "laptop");
+        details.hostLink = oneOf(getXmlString(serverInfo, "HostLink", false), "wired", "wifi");
         // Apollo / LavApollo version, shown on the « Mes PC » cards of the v2 interface
         details.apolloVersion = getXmlString(serverInfo, "ApolloVersion", false);
         details.serverAppVersion = getXmlString(serverInfo, "appversion", false);
@@ -462,6 +470,32 @@ public class NvHTTP {
         details.state = ComputerDetails.State.ONLINE;
 
         return details;
+    }
+
+    /** now - elapsed seconds, in ms; 0 when absent or unreadable */
+    static long startFromElapsed(String elapsedSeconds, long nowMs) {
+        if (elapsedSeconds == null) {
+            return 0;
+        }
+        try {
+            long s = Long.parseLong(elapsedSeconds.trim());
+            return s >= 0 ? nowMs - s * 1000 : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** value when it is one of allowed, else null */
+    static String oneOf(String value, String... allowed) {
+        if (value == null) {
+            return null;
+        }
+        for (String a : allowed) {
+            if (a.equals(value.trim())) {
+                return a;
+            }
+        }
+        return null;
     }
 
     public String getCurrentGameUUID(String serverInfo) throws IOException, XmlPullParserException {
@@ -817,6 +851,15 @@ public class NvHTTP {
                     app.setPlayniteGame(xpp.getText().equals("1"));
                 } else if (currentTag.peek().equals("IsPlayniteHost")) {
                     app.setPlayniteHost(xpp.getText().equals("1"));
+                } else if (currentTag.peek().equals("PlayniteInstalled")) {
+                    // LavApollo: a Playnite game's state (LavArtemis Dev, prototype data)
+                    app.setPlayniteInstalled(!xpp.getText().trim().equals("0"));
+                } else if (currentTag.peek().equals("PlayniteLastActivity")) {
+                    app.setPlayniteLastActivity(parseLongOrZero(xpp.getText()));
+                } else if (currentTag.peek().equals("PlaynitePlaytime")) {
+                    app.setPlaynitePlaytime(parseLongOrZero(xpp.getText()));
+                } else if (currentTag.peek().equals("PlayniteBackground")) {
+                    app.setPlayniteBackground(xpp.getText().trim().equals("1"));
                 }
                 break;
             }
@@ -875,6 +918,23 @@ public class NvHTTP {
         openHttpConnectionToString(httpClientLongConnectTimeout, baseUrlHttp, "unpair");
     }
     
+    static long parseLongOrZero(String text) {
+        try {
+            return text == null ? 0 : Long.parseLong(text.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * A Playnite game's background image (LavApollo, apps with hasPlayniteBackground()). Ask only for
+     * those: an older host ignores asset= and answers with the cover.
+     */
+    public InputStream getBackground(NvApp app) throws IOException {
+        ResponseBody resp = openHttpConnection(httpClientLongConnectTimeout, getHttpsUrl(true), "appasset", "appid=" + app.getAppId() + "&asset=background", null);
+        return resp.byteStream();
+    }
+
     public InputStream getBoxArt(NvApp app) throws IOException {
         ResponseBody resp = openHttpConnection(httpClientLongConnectTimeout, getHttpsUrl(true), "appasset", "appid=" + app.getAppId() + "&AssetType=2&AssetIdx=0", null);
         return resp.byteStream();

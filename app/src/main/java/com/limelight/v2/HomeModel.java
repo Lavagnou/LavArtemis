@@ -4,6 +4,7 @@ import com.limelight.nvstream.http.NvApp;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -33,7 +34,10 @@ public final class HomeModel {
     public final List<NvApp> apps;
     /** Bureau then Playnite Fullscreen cards (hidden apps ignored: these cards always show) */
     public final List<NvApp> cards;
-    /** Playnite games, host order (most recently played first), hidden ones only when shown */
+    /**
+     * Playnite games, most recently played first (PlayniteLastActivity, never played last; a host
+     * that does not send it: its own order), hidden ones only when shown
+     */
     public final List<NvApp> games;
     /** First games of the library, hidden ones never */
     public final List<NvApp> recents;
@@ -83,6 +87,8 @@ public final class HomeModel {
         List<NvApp> c = new ArrayList<>(desktop);
         c.addAll(playnite);
         cards = Collections.unmodifiableList(c);
+        sortRecentFirst(allGames);
+        sortRecentFirst(shownGames);
         games = Collections.unmodifiableList(shownGames);
 
         List<NvApp> r = new ArrayList<>();
@@ -103,6 +109,28 @@ public final class HomeModel {
         return new HomeModel(apps == null ? Collections.<NvApp>emptyList() : new ArrayList<>(apps),
                 runningId, playniteGame, playniteHostRunning,
                 hidden == null ? Collections.<Integer>emptySet() : hidden, showHidden);
+    }
+
+    /**
+     * Most recently played first, never played (0) last; equal dates keep their order (stable), so
+     * a host without PlayniteLastActivity keeps its own order. Same rule as the desktop's
+     * NvComputer::sortApps.
+     */
+    public static void sortRecentFirst(List<NvApp> games) {
+        Collections.sort(games, new Comparator<NvApp>() {
+            @Override
+            public int compare(NvApp a, NvApp b) {
+                long x = a.getPlayniteLastActivity();
+                long y = b.getPlayniteLastActivity();
+                if (x == y) {
+                    return 0;
+                }
+                if (x == 0 || y == 0) {
+                    return x == 0 ? 1 : -1;
+                }
+                return x > y ? -1 : 1;
+            }
+        });
     }
 
     /** Port of AppModel::kindOf (desktop). */

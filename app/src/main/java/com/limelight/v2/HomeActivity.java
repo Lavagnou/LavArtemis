@@ -163,6 +163,10 @@ public class HomeActivity extends V2HostActivity {
         s.model = currentModel();
         if (c != null && s.model != null && HostList.isOnline(c)) {
             long since = SessionClock.observe(this, c.uuid, s.model.runningId, System.currentTimeMillis());
+            // LavApollo says when the running app started; the device's own clock is for older hosts
+            if (s.model.runningId != 0 && c.sessionStartedAt > 0) {
+                since = c.sessionStartedAt;
+            }
             s.sessionMinutes = SessionClock.minutes(since, System.currentTimeMillis());
         }
         screen.bind(s);

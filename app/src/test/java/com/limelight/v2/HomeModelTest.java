@@ -169,4 +169,39 @@ public class HomeModelTest {
         assertEquals("", m.sceneTitle("Bureau", "Playnite Fullscreen"));
         assertTrue(m.isDimmed(m.cards.get(0)));
     }
+
+    static NvApp played(String name, int id, long lastActivity) {
+        NvApp a = game(name, id);
+        a.setPlayniteLastActivity(lastActivity);
+        return a;
+    }
+
+    @Test
+    public void recentsFollowTheLastActivity() {
+        // The host's order is stale (LavApollo before wave 5 rebuilt it only when nothing ran): the
+        // dates decide, never played last, equal dates keep the host's order
+        List<NvApp> apps = new ArrayList<>();
+        apps.add(app("Desktop", 1));
+        apps.add(played("Old", 10, 1_700_000_000L));
+        apps.add(played("Never A", 11, 0));
+        apps.add(played("Just played", 12, 1_795_000_000L));
+        apps.add(played("Never B", 13, 0));
+        apps.add(played("Middle", 14, 1_750_000_000L));
+        HomeModel m = HomeModel.build(apps, 0, null, false, null, false);
+        List<String> names = new ArrayList<>();
+        for (NvApp g : m.recents) {
+            names.add(g.getAppName());
+        }
+        assertEquals(Arrays.asList("Just played", "Middle", "Old", "Never A", "Never B"), names);
+        assertEquals("Just played", m.games.get(0).getAppName());
+    }
+
+    @Test
+    public void anOlderHostKeepsItsOrder() {
+        // No PlayniteLastActivity at all: the host's order, untouched
+        HomeModel m = HomeModel.build(hostList(), 0, null, false, null, false);
+        for (int i = 0; i < m.games.size(); i++) {
+            assertEquals("Game " + i, m.games.get(i).getAppName());
+        }
+    }
 }
