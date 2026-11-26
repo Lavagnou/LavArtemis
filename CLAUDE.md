@@ -265,7 +265,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 `setContentView` ; la stable garde l'ancienne interface, intacte.
 
 > 🧭 **Portage exact du prototype V8 (branche `port-v8`, 2026-11-26, pas encore fusionné)** — notes, écarts et
-> reste : `docs/superpowers/verif-2026-11-25/port-notes.md` (hors git). Fait : fondations, accueil, options, détails, bibliothèque, menu en jeu.
+> reste : `docs/superpowers/verif-2026-11-25/port-notes.md` (hors git). Fait : fondations, accueil, options, détails, bibliothèque, menu en jeu, Mes PC.
 > - **Jetons du prototype** dans `V2Theme` : `warnBg/warnLine`, `popR/popRow/thumbR`, anneau par thème
 >   (`focusGap/focusOuter/focusColor`, Affiche `focusFill` : remplissage jaune + encre ; le contour 4 px n'est que sur
 >   les jaquettes, `V2Frame.setFocusFill(false)`), lueur par thème (`glowColor/glowPeriodMs…` : braise 2,6 s, prune
@@ -295,6 +295,14 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   avec **fenêtre de 8 lignes** à la manette, Ludique grille 8 + barre), RecyclerView (jaquettes chargées à
 >   l'affichage), D-pad par `V2Activity.onV2Move` ; filtres et « joué hier » dans `LibraryModel` (= desktop), LB / RB
 >   = filtre suivant.
+> - **Mes PC** (V8-36 à 42, 65) : `HostsScreen` aux mesures du prototype (`HomeLayout`, carte 400, colonnes
+>   min(5, max(3, PC + 1)) bornées par la largeur), icône par type (`hostFormFactor`, tour par défaut), ligne « Tour ·
+>   réseau filaire · 4 ms » (`HostCards.meta`, les parties inconnues sont omises), « En cours : {jeu} dans Playnite »,
+>   ⋯ toujours visible, barre d'aide A Ouvrir · Y Options · B Retour. Pas de « Réveiller » pour un PC sans adresse MAC
+>   (carte ni menu). Dialogues options / ajout / adresse / appairage (PIN en grand) / renommer / oublier en `V2Sheet`,
+>   qui gagne un **champ texte** (`Spec.inputLabel`, lu par `Spec.text()`) et un **code PIN** (`Spec.pin`).
+>   ⚠️ Affiche : le remplissage jaune du focus repeint tous les textes en encre ; un enfant qui garde ses couleurs
+>   (bouton noir, pastille noire) passe par `V2Frame.keepColors()`, et `setFocusFillStroke()` garde le cadre 3 px.
 > - **Écran de détails** (« Afficher les détails » des options, V8-68) : `DetailsActivity` + `DetailsScreen` (3 mises en
 >   page), règles dans `LaunchRows` (note, verrou de l'Écran quand on rejoint, pas des rangées). Les rangées « Réglages
 >   de ce lancement » changent les **vrais** réglages (profil actif, écran virtuel, codec, débit), comme le desktop.

@@ -271,10 +271,8 @@ public class HostsScreenshotTest {
         save(overlay(page, ShadowDialog.getLatestDialog(), 0.45f), "hosts-phone-braise-dark-add");
         ShadowDialog.getLatestDialog().dismiss();
         // The text dialog of Renommer / Saisir une adresse…
-        Dialog rename = com.limelight.v2.ui.V2Dialogs.prompt(a, V2Theme.load(a), a.getString(R.string.v2_rename_title),
-                a.getString(R.string.v2_rename_text), "ATLAS-PC", null, android.text.InputType.TYPE_CLASS_TEXT, 64,
-                a.getString(R.string.v2_host_rename), a.getString(R.string.v2_cancel), t -> { });
-        save(overlay(page, rename, 0.45f), "hosts-phone-braise-dark-rename");
+        Dialog rename = a.rename(atlas());
+        save(overlay(page, rename, 0f), "hosts-phone-braise-dark-rename");
         rename.dismiss();
 
         HostsActivity l = activity("ludique", true, 960, 540, V2Input.Kind.PAD);
@@ -379,6 +377,154 @@ public class HostsScreenshotTest {
                 a.getString(R.string.game_dialog_message_server_cmd_empty), a.getString(R.string.v2_ok));
         focusFirst(d);
         save(overlay(stream(915 * DENSITY, 412 * DENSITY), d, 0.5f), "gamemenu-phone-braise-dark-message");
+    }
+
+    // ---- prototype size (1280 x 720 dp), the prototype's PCs (Proto HOSTS, V8-37) ----------------------
+
+    private static final String[] THEMES = {"braise", "affiche", "ludique"};
+
+    /** ATLAS-PC tower, wired, 4 ms, RDR2 inside Playnite; SALON-HTPC mini-PC, Wi-Fi, 6 ms; PORTABLE laptop offline */
+    private static List<ComputerDetails> protoPcs() {
+        ComputerDetails atlas = new ComputerDetails();
+        atlas.uuid = "uuid-atlas";
+        atlas.name = "ATLAS-PC";
+        atlas.state = ComputerDetails.State.ONLINE;
+        atlas.pairState = PairingManager.PairState.PAIRED;
+        atlas.activeAddress = new ComputerDetails.AddressTuple("192.168.1.24", 47989);
+        atlas.macAddress = "00:11:22:33:44:55";
+        atlas.apolloVersion = "1.2.0";
+        atlas.hostFormFactor = "tower";
+        atlas.hostLink = "wired";
+        atlas.latencyMs = 4;
+        atlas.runningGameId = 2;
+        atlas.playniteHostRunning = true;
+        atlas.playniteGameName = "Red Dead Redemption 2";
+        ComputerDetails salon = new ComputerDetails();
+        salon.uuid = "uuid-salon";
+        salon.name = "SALON-HTPC";
+        salon.state = ComputerDetails.State.ONLINE;
+        salon.pairState = PairingManager.PairState.PAIRED;
+        salon.activeAddress = new ComputerDetails.AddressTuple("192.168.1.31", 47989);
+        salon.macAddress = "00:11:22:33:44:66";
+        salon.apolloVersion = "1.2.0";
+        salon.hostFormFactor = "mini";
+        salon.hostLink = "wifi";
+        salon.latencyMs = 6;
+        ComputerDetails portable = new ComputerDetails();
+        portable.uuid = "uuid-portable";
+        portable.name = "PORTABLE";
+        portable.state = ComputerDetails.State.OFFLINE;
+        portable.pairState = PairingManager.PairState.PAIRED;
+        portable.localAddress = new ComputerDetails.AddressTuple("192.168.1.40", 47989);
+        portable.macAddress = "00:11:22:33:44:77";
+        portable.hostFormFactor = "laptop";
+        portable.hostLink = "wifi";
+        ComputerDetails found = new ComputerDetails();
+        found.uuid = "uuid-papa";
+        found.name = "BUREAU-PAPA";
+        found.state = ComputerDetails.State.ONLINE;
+        found.pairState = PairingManager.PairState.NOT_PAIRED;
+        found.activeAddress = new ComputerDetails.AddressTuple("192.168.1.57", 47989);
+        return java.util.Arrays.asList(atlas, salon, portable, found);
+    }
+
+    private static Bitmap protoPage(String themeId, boolean dark, V2Input.Kind input, boolean focus) {
+        RuntimeEnvironment.setQualifiers("fr-w1280dp-h720dp-land-mdpi");
+        V2Input.reset(input);
+        Context ctx = new ContextThemeWrapper(ApplicationProvider.getApplicationContext(), R.style.Theme_LavV2);
+        HostsScreen screen = new HostsScreen(ctx, V2Theme.of(themeId, dark), HomeLayout.forSize(1280, 720), new NoActions());
+        HostCards.Labels l = HostCards.Labels.from(ctx);
+        List<HostCards.Card> list = new ArrayList<>();
+        for (ComputerDetails d : protoPcs()) {
+            if (HostList.isPaired(d)) {
+                list.add(HostCards.of(d, null, l));
+            }
+        }
+        screen.bind(list);
+        View root = screen.getView();
+        Bitmap bmp = draw(root, 1280, 720);
+        if (focus && input != V2Input.Kind.TOUCH) {
+            for (List<View> row : screen.focusRows()) {
+                for (View v : row) {
+                    v.setFocusableInTouchMode(true);
+                }
+            }
+            screen.requestInitialFocus();
+            bmp = draw(root, 1280, 720);
+        }
+        return bmp;
+    }
+
+    private static HostsActivity protoActivity(String themeId, boolean dark, V2Input.Kind input) {
+        RuntimeEnvironment.setQualifiers("fr-w1280dp-h720dp-land-mdpi");
+        useTheme(themeId, dark);
+        V2Input.reset(input);
+        HostsActivity a = Robolectric.buildActivity(HostsActivity.class).setup().get();
+        for (ComputerDetails d : protoPcs()) {
+            a.computers.put(d.uuid, d);
+        }
+        a.refresh();
+        return a;
+    }
+
+    /** V8-37: « Mes PC » in every theme, light and dark, at the gamepad (focus on ATLAS-PC) and on touch */
+    @Test
+    public void protoHosts() throws Exception {
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                String m = dark ? "sombre" : "clair";
+                save(protoPage(t, dark, V2Input.Kind.PAD, true), "hosts-" + t + "-" + m + "-manette");
+                save(protoPage(t, dark, V2Input.Kind.TOUCH, false), "hosts-" + t + "-" + m + "-tactile");
+            }
+        }
+    }
+
+    /** V8-38 options, V8-41 renommer, V8-39 appairage, V8-65 ajouter, V8-40 adresse, V8-42 oublier, at the gamepad */
+    @Test
+    public void protoHostDialogs() throws Exception {
+        for (String t : THEMES) {
+            for (boolean dark : new boolean[]{false, true}) {
+                String m = dark ? "sombre" : "clair";
+                HostsActivity a = protoActivity(t, dark, V2Input.Kind.PAD);
+                // The page under the dialog without its own hints (the dialog shows its own), then the gamepad again
+                Bitmap page = protoPage(t, dark, V2Input.Kind.TOUCH, false);
+                V2Input.reset(V2Input.Kind.PAD);
+                ComputerDetails atlas = protoPcs().get(0);
+                a.showHostOptions("uuid-atlas");
+                dialogShot(page, ShadowDialog.getLatestDialog(), "hostopts-" + t + "-" + m + "-manette");
+                dialogShot(page, a.rename(atlas), "rename-" + t + "-" + m + "-manette");
+                dialogShot(page, a.showPairDialog("BUREAU-PAPA", "4821", false), "pair-" + t + "-" + m + "-manette");
+                a.showAddMenu();
+                dialogShot(page, ShadowDialog.getLatestDialog(), "addpc-" + t + "-" + m + "-manette");
+                dialogShot(page, a.promptAddress(), "addr-" + t + "-" + m + "-manette");
+                dialogShot(page, a.confirmForget(atlas), "forget-" + t + "-" + m + "-manette");
+            }
+        }
+    }
+
+    /** The V2Sheet of the dialog drawn over the page at full size (its own backdrop), focus on its first row */
+    private static void dialogShot(Bitmap page, Dialog d, String name) throws Exception {
+        ShadowLooper.idleMainLooper();
+        android.view.ViewGroup content = d.findViewById(android.R.id.content);
+        View sheet = content.getChildAt(0);
+        content.removeView(sheet);
+        draw(sheet, page.getWidth(), page.getHeight());
+        // The gamepad's focus: the first row of the dialog (not the text field, as V2Sheet.show)
+        ArrayList<View> focusables = new ArrayList<>();
+        sheet.addFocusables(focusables, View.FOCUS_DOWN, View.FOCUSABLES_ALL);
+        for (View v : focusables) {
+            if (!(v instanceof com.limelight.v2.ui.V2Frame)) {
+                continue;
+            }
+            v.setFocusableInTouchMode(true);
+            v.requestFocus();
+            break;
+        }
+        Bitmap over = draw(sheet, page.getWidth(), page.getHeight());
+        Bitmap out = page.copy(Bitmap.Config.ARGB_8888, true);
+        new Canvas(out).drawBitmap(over, 0, 0, null);
+        save(out, name);
+        d.dismiss();
     }
 
     private static final class NoActions implements HostsScreen.Actions {

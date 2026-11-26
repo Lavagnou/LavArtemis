@@ -61,7 +61,22 @@ public final class V2Sheet {
         public boolean warn;
         /** A calm note, in the muted colour (sub-menus of the stream, Mes PC) */
         public boolean info;
+        /** The pairing code in big letters (prototype ctx.hasPin), « 4 8 2 1 »; null: none */
+        public String pin;
+        /** A text field under the note (prototype ctx.hasInput): its label; null: none */
+        public String inputLabel;
+        public String inputHint;
+        public String inputValue;
+        public int inputType = android.text.InputType.TYPE_CLASS_TEXT;
+        public int inputMax;
+        /** The field once the dialog is built (read it with {@link #text()}) */
+        android.widget.EditText field;
         public final List<Option> options = new ArrayList<>();
+
+        /** What is typed in the field, trimmed ("" without a field) */
+        public String text() {
+            return field == null ? (inputValue == null ? "" : inputValue.trim()) : field.getText().toString().trim();
+        }
 
         public Spec option(String label, boolean main, boolean play, Runnable action) {
             options.add(new Option(label, main, play, action));
@@ -217,6 +232,67 @@ public final class V2Sheet {
             LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             nlp.bottomMargin = px(ctx, l, 12);
             box.addView(note, nlp);
+        }
+
+        if (spec.pin != null) {
+            // Prototype: surface2 block, display font 54 with .2em letter spacing
+            TextView pin = HomeParts.text(ctx, th, l, 54, th.displayWeight, th.fg, true);
+            pin.setGravity(Gravity.CENTER);
+            pin.setLetterSpacing(0.2f);
+            pin.setText(spec.pin);
+            pin.setContentDescription(ctx.getString(R.string.v2_pair_code_desc, spec.pin));
+            pin.setPadding(0, px(ctx, l, 14), 0, px(ctx, l, 14));
+            pin.setBackground(rect(th.surface2, pxf(ctx, l, th.rs), 0, 0));
+            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            plp.bottomMargin = px(ctx, l, 12);
+            box.addView(pin, plp);
+        }
+
+        if (spec.inputLabel != null) {
+            // Prototype: label 13/700 muted, then the field h52 r(rs) 2px line border, surface2, 18/600
+            TextView label = HomeParts.text(ctx, th, l, 13, 700, th.muted, false);
+            label.setText(spec.inputLabel);
+            box.addView(label);
+            final android.widget.EditText field = new android.widget.EditText(ctx);
+            field.setTypeface(th.textFont(ctx, 600));
+            field.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, l.t(18));
+            field.setTextColor(th.fg);
+            field.setHintTextColor(th.muted);
+            field.setSingleLine(true);
+            field.setInputType(spec.inputType);
+            field.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+                    | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+            if (spec.inputMax > 0) {
+                field.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(spec.inputMax)});
+            }
+            if (spec.inputHint != null) {
+                field.setHint(spec.inputHint);
+            }
+            if (spec.inputValue != null) {
+                field.setText(spec.inputValue);
+                field.setSelection(field.getText().length());
+            }
+            field.setPadding(px(ctx, l, 16), 0, px(ctx, l, 16), 0);
+            field.setBackground(rect(th.surface2, pxf(ctx, l, th.rs), Math.max(1, px(ctx, l, 2)), th.line));
+            field.setOnEditorActionListener((v, actionId, event) -> {
+                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE && !spec.options.isEmpty()) {
+                    if (dialog != null) {
+                        dialog.dismiss();
+                    }
+                    Runnable first = spec.options.get(0).action;
+                    if (first != null) {
+                        first.run();
+                    }
+                    return true;
+                }
+                return false;
+            });
+            spec.field = field;
+            LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    Math.max(px(ctx, l, 52), Ui.dp(ctx, 44)));
+            flp.topMargin = px(ctx, l, 6);
+            flp.bottomMargin = px(ctx, l, 12);
+            box.addView(field, flp);
         }
 
         LinearLayout rows = new LinearLayout(ctx);

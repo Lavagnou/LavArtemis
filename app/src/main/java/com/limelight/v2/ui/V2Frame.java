@@ -56,6 +56,19 @@ public class V2Frame extends FrameLayout implements V2Input.Listener {
     /** Affiche: fill the focused item yellow (buttons, cards); false on images (outline only) */
     private boolean focusFill = true;
     private boolean fillApplied;
+    /** Affiche: the border kept around the yellow fill (Mes PC cards keep their 3 px ink frame) */
+    private int fillStrokePx, fillStrokeColor;
+
+    /** Affiche's yellow fill keeps this border (prototype cards of Mes PC) */
+    public void setFocusFillStroke(int strokePx, int color) {
+        fillStrokePx = strokePx;
+        fillStrokeColor = color;
+    }
+
+    /** A child that keeps its own colours under Affiche's yellow fill (a black button, a black pill) */
+    public static void keepColors(View v) {
+        v.setTag(com.limelight.R.id.v2_keep_colors, Boolean.TRUE);
+    }
     private Drawable savedBackground;
     private final Map<TextView, ColorStateList> savedText = new HashMap<>();
     private final Map<ImageView, android.graphics.ColorFilter> savedImage = new HashMap<>();
@@ -191,7 +204,7 @@ public class V2Frame extends FrameLayout implements V2Input.Listener {
         if (want) {
             savedBackground = getBackground();
             float r = ringRadiusPx;
-            setBackground(Ui.roundRect(V2Theme.YELLOW, r, 0, 0));
+            setBackground(Ui.roundRect(V2Theme.YELLOW, r, fillStrokePx, fillStrokeColor));
             recolor(this, true);
         } else {
             setBackground(savedBackground);
@@ -201,6 +214,9 @@ public class V2Frame extends FrameLayout implements V2Input.Listener {
     }
 
     private void recolor(View v, boolean fill) {
+        if (v != this && v.getTag(com.limelight.R.id.v2_keep_colors) != null) {
+            return;
+        }
         if (v instanceof TextView) {
             TextView t = (TextView) v;
             if (fill) {

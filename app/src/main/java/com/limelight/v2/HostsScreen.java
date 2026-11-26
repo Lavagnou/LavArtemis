@@ -1,5 +1,9 @@
 package com.limelight.v2;
 
+import static com.limelight.v2.HomeParts.px;
+import static com.limelight.v2.HomeParts.pxf;
+import static com.limelight.v2.HomeParts.rect;
+
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -7,14 +11,14 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Space;
 import android.widget.TextView;
 
 import com.limelight.R;
 import com.limelight.v2.ui.DotDrawable;
-import com.limelight.v2.ui.IconButton;
+import com.limelight.v2.ui.HintsBar;
 import com.limelight.v2.ui.Ui;
 import com.limelight.v2.ui.V2Frame;
 
@@ -23,10 +27,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * « Mes PC » (LavArtemis-Qt gui/v2/HostsView.qml, prototype board "hosts"): a card per paired PC,
- * then « Ajouter un PC », in a grid whose columns follow the width; the help line of the current
- * input under it. Built from plain data ({@link HostCards.Card}): no service, the activity (and the
- * screenshot test) feeds it.
+ * « Mes PC » (prototype « hosts », planches V8-36 / V8-37; design-port-spec §1.10): back + « Mes PC »
+ * + « Appairés avec cet appareil », a card per paired PC (icon of its type, name, state, address,
+ * « Tour · réseau filaire · 4 ms », « En cours : … », Ouvrir / Réveiller, ⋯), « Ajouter un PC » in
+ * dashes, the help line of the current input and the hints bar. The markup of this page is common
+ * to the three themes in the prototype: tokens only. Prototype px through {@link HomeLayout}. Built
+ * from plain data ({@link HostCards.Card}): no service, the activity (and the screenshot test) feeds it.
  */
 public final class HostsScreen {
     public interface Actions {
@@ -35,7 +41,7 @@ public final class HostsScreen {
         /** Tap, A, Entrée */
         void activate(String uuid);
 
-        /** Long press, « … », Y / A held, Menu */
+        /** Long press, ⋯, Y / A held, Menu */
         void options(String uuid);
 
         void add();
@@ -45,31 +51,28 @@ public final class HostsScreen {
     private static final int OFFLINE_DOT = Color.parseColor("#8A8178");
 
     private final Context ctx;
-    private final V2Theme theme;
-    private final Density d;
+    private final V2Theme th;
+    private final HomeLayout l;
     private final Actions actions;
 
     private final FrameLayout root;
     private final LinearLayout grid;
     private final TextView help;
-    private final IconButton back;
     private final AddCard addCard;
+    private final HintsBar hints;
     private final List<HostCard> cards = new ArrayList<>();
     private List<String> shownUuids = Collections.emptyList();
     private int shownColumns = -1;
 
-    private final float gapDp;
-    private final float cardHeightDp;
-
     public HostsScreen(Context context, V2Theme theme, Density density, Actions actions) {
+        this(context, theme, HomeLayout.forSize(density.widthDp, density.heightDp), actions);
+    }
+
+    public HostsScreen(Context context, V2Theme theme, HomeLayout layout, Actions actions) {
         this.ctx = context;
-        this.theme = theme;
-        this.d = density;
+        this.th = theme;
+        this.l = layout;
         this.actions = actions;
-        gapDp = d.compact ? 14 : 16;
-        // Prototype cards are 400 px tall at 1280 px: 300 dp on a 960 dp console; a phone in
-        // landscape keeps the header, a row of cards and the help line on its 412 dp
-        cardHeightDp = d.compact ? 256 : 300;
 
         root = new FrameLayout(context);
         root.setBackgroundColor(theme.bg);
@@ -80,57 +83,65 @@ public final class HostsScreen {
         root.addView(scroll, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         LinearLayout page = new LinearLayout(context);
         page.setOrientation(LinearLayout.VERTICAL);
-        int side = Ui.dp(context, d.side);
-        page.setPadding(side, Ui.dp(context, d.top), side, Ui.dp(context, 24));
+        int side = px(context, l, 48);
+        page.setPadding(side, px(context, l, 28), side, 0);
         scroll.addView(page, new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         Ui.noClip(root, scroll, page);
 
-        // ---- header: back, « Mes PC », « Appairés avec cet appareil » --------------------------
-        boolean narrow = d.widthDp < 600;
+        // ---- header (top 28, left / right 48): back 44, « Mes PC » 40, « Appairés avec cet appareil » ----
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
         Ui.noClip(header);
-        page.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(context, d.headerHeight)));
-        back = new IconButton(context, theme, R.drawable.v2_ic_chevron_left, 48, 44, 20, theme.surface, true);
+        int bs = Math.max(px(context, l, 44), Ui.dp(context, 40));
+        page.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, bs));
+        HomeParts.Button back = new HomeParts.Button(context, theme);
+        back.setFocusable(false);
+        back.setBackground(rect(theme.surface, pillRadius(bs), Math.max(1, px(context, l, theme.border)), theme.borderColor));
+        int cs = px(context, l, 20);
+        back.addView(HomeParts.icon(context, R.drawable.v2_ic_p_chevron_left, theme.fg), new FrameLayout.LayoutParams(cs, cs, Gravity.CENTER));
         back.setContentDescription(context.getString(R.string.v2_back));
         back.setOnClickListener(v -> actions.back());
-        header.addView(back, new LinearLayout.LayoutParams(Ui.dp(context, 48), Ui.dp(context, 48)));
-        TextView title = Ui.display(context, theme, d.compact ? 26 : 32, theme.fg);
+        header.addView(back, new LinearLayout.LayoutParams(bs, bs));
+        TextView title = HomeParts.text(context, theme, l, 40, theme.displayWeight, theme.fg, true);
+        title.setLetterSpacing(theme.tracking);
         title.setText(theme.displayText(context.getString(R.string.v2_hosts_title)));
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        tlp.setMarginStart(Ui.dp(context, 14));
+        tlp.setMarginStart(px(context, l, 18));
         header.addView(title, tlp);
-        TextView subtitle = Ui.text(context, theme, narrow ? 14 : 15, 500, theme.muted);
+        TextView subtitle = HomeParts.text(context, theme, l, 15, 400, theme.muted, false);
         subtitle.setText(R.string.v2_hosts_subtitle);
-        if (narrow) {
-            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            slp.setMarginStart(Ui.dp(context, 62));
-            page.addView(subtitle, slp);
-        } else {
-            header.addView(subtitle);
-        }
+        header.addView(subtitle);
 
-        // ---- grid ---------------------------------------------------------------------------
+        // ---- grid (top 130, gap 16) ------------------------------------------------------------
         grid = new LinearLayout(context);
         grid.setOrientation(LinearLayout.VERTICAL);
         Ui.noClip(grid);
         LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        glp.topMargin = Ui.dp(context, d.compact ? 14 : 22);
+        glp.topMargin = Math.max(Ui.dp(context, 14), px(context, l, 130 - 28) - bs);
         page.addView(grid, glp);
 
-        addCard = new AddCard(context, theme, d.compact);
+        addCard = new AddCard(context);
         addCard.setOnClickListener(v -> actions.add());
 
-        // ---- help line -------------------------------------------------------------------------
-        help = Ui.text(context, theme, d.compact ? 13 : 15, 400, theme.muted);
-        help.setMaxLines(4);
-        help.setLineSpacing(0, 1.15f);
+        // ---- help line (left 48, bottom 70, 14 muted) ----------------------------------------------
+        page.addView(new Space(context), new LinearLayout.LayoutParams(1, 0, 1f));
+        help = HomeParts.text(context, theme, l, 14, 400, theme.muted, false);
+        help.setMaxLines(3);
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        hlp.topMargin = Ui.dp(context, d.compact ? 14 : 22);
+        hlp.topMargin = px(context, l, 20);
+        hlp.bottomMargin = px(context, l, 70);
         page.addView(help, hlp);
 
+        // ---- hints: A Ouvrir · Y Options · B Retour (gamepad / keyboard) ------------------------------
+        hints = new HintsBar(context, theme, l.tablet() ? l.k : Math.max(0.85f, l.k));
+        root.addView(hints, hints.layoutParams());
+
         bind(Collections.<HostCards.Card>emptyList());
+    }
+
+    private float pillRadius(int size) {
+        return Math.min(size / 2f, pxf(ctx, l, th.pill));
     }
 
     public View getView() {
@@ -139,8 +150,8 @@ public final class HostsScreen {
 
     /** Columns for this width and this many cards (the add card included) */
     int columnsFor(int count) {
-        float available = d.widthDp - 2 * d.side;
-        return HostCards.columns(count + 1, available, gapDp, d.compact);
+        float available = l.widthDp - 2 * l.b(48);
+        return HostCards.columns(count + 1, available, l.b(16), l.phone());
     }
 
     public void bind(List<HostCards.Card> list) {
@@ -189,12 +200,13 @@ public final class HostsScreen {
         }
         List<View> cells = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            HostCard c = new HostCard(ctx, theme, d.compact, actions);
+            HostCard c = new HostCard(ctx);
             cards.add(c);
             cells.add(c);
         }
         cells.add(addCard);
-        int gap = Ui.dp(ctx, gapDp);
+        int gap = px(ctx, l, 16);
+        int cardH = px(ctx, l, 400);
         LinearLayout row = null;
         for (int i = 0; i < cells.size(); i++) {
             if (i % cols == 0) {
@@ -212,7 +224,7 @@ public final class HostsScreen {
             if (i % cols != 0) {
                 clp.setMarginStart(gap);
             }
-            cells.get(i).setMinimumHeight(Ui.dp(ctx, cardHeightDp));
+            cells.get(i).setMinimumHeight(cardH);
             row.addView(cells.get(i), clp);
         }
         // The last row keeps the column width
@@ -223,31 +235,46 @@ public final class HostsScreen {
                 // and a fixed height would make the row ignore its match_parent cards (LinearLayout)
                 LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
                 slp.setMarginStart(gap);
-                row.addView(new android.widget.Space(ctx), slp);
+                row.addView(new Space(ctx), slp);
             }
         }
     }
 
-    /** The input changed: « … » on touch only, the help line follows */
+    /** The input changed: the help line and the hints follow (prototype hostsHelp) */
     public void refreshInput() {
         V2Input.Kind k = V2Input.get(ctx);
-        for (HostCard c : cards) {
-            c.refreshInput();
+        help.setText(helpText(k));
+        hints.clear();
+        if (k == V2Input.Kind.TOUCH) {
+            hints.setVisibility(View.GONE);
+        } else {
+            boolean pad = k == V2Input.Kind.PAD;
+            hints.setVisibility(View.VISIBLE);
+            hints.add(pad ? "A" : ctx.getString(R.string.v2_key_enter), ctx.getString(R.string.v2_hint_open), () -> {
+                View f = root.findFocus();
+                if (f == addCard) {
+                    actions.add();
+                } else if (uuidFor(f) != null) {
+                    actions.activate(uuidFor(f));
+                }
+            });
+            hints.add(pad ? "Y" : ctx.getString(R.string.v2_key_menu), ctx.getString(R.string.v2_hint_options), () -> {
+                String uuid = uuidFor(root.findFocus());
+                if (uuid != null) {
+                    actions.options(uuid);
+                }
+            });
+            hints.add(pad ? "B" : ctx.getString(R.string.v2_key_escape), ctx.getString(R.string.v2_hint_back), actions::back);
         }
-        help.setText(k == V2Input.Kind.PAD ? R.string.v2_hosts_help_pad
-                : (k == V2Input.Kind.KEYS ? R.string.v2_hosts_help_keys : R.string.v2_hosts_help_touch));
+        for (HostCard c : cards) {
+            c.invalidate();
+        }
         root.invalidate();
-        invalidateAll(root);
     }
 
-    private static void invalidateAll(View v) {
-        v.invalidate();
-        if (v instanceof ViewGroup) {
-            ViewGroup g = (ViewGroup) v;
-            for (int i = 0; i < g.getChildCount(); i++) {
-                invalidateAll(g.getChildAt(i));
-            }
-        }
+    static int helpText(V2Input.Kind k) {
+        return k == V2Input.Kind.PAD ? R.string.v2_hosts_help_pad
+                : (k == V2Input.Kind.KEYS ? R.string.v2_hosts_help_keys : R.string.v2_hosts_help_touch);
     }
 
     /** Gamepad / keyboard: the first card, else « Ajouter un PC » */
@@ -256,6 +283,25 @@ public final class HostsScreen {
             return true;
         }
         return addCard.requestFocus();
+    }
+
+    /** Prototype grid: one row of cards then « Ajouter un PC » (h0..hn, hadd), as laid out */
+    public List<List<View>> focusRows() {
+        List<List<View>> out = new ArrayList<>();
+        for (int r = 0; r < grid.getChildCount(); r++) {
+            ViewGroup row = (ViewGroup) grid.getChildAt(r);
+            List<View> items = new ArrayList<>();
+            for (int i = 0; i < row.getChildCount(); i++) {
+                View v = row.getChildAt(i);
+                if (v instanceof HostCard || v == addCard) {
+                    items.add(v);
+                }
+            }
+            if (!items.isEmpty()) {
+                out.add(items);
+            }
+        }
+        return out;
     }
 
     /** The PC a focused view stands for (Y / Menu), null for anything else */
@@ -287,83 +333,98 @@ public final class HostsScreen {
 
     // ---- views -------------------------------------------------------------------------------
 
-    /** One PC: icon tile, name, status, detail, « En cours : … », main action, « … » */
-    private static final class HostCard extends V2Frame {
-        String uuid = "";
-        private final TextView name, status, detail, running, action;
-        private final IconButton more;
-        private final GradientDrawable actionBg;
+    private static int iconOf(HostCards.FormFactor f) {
+        switch (f) {
+            case MINI:
+                return R.drawable.v2_ic_p_pc_mini;
+            case LAPTOP:
+                return R.drawable.v2_ic_p_pc_laptop;
+            default:
+                return R.drawable.v2_ic_p_pc_tower;
+        }
+    }
 
-        HostCard(Context context, V2Theme theme, boolean compact, Actions actions) {
-            super(context, theme);
+    /** One PC (prototype card h400, pad 26 24, gap 8): icon tile, name, state, detail, meta, « En cours », action, ⋯ */
+    private final class HostCard extends V2Frame {
+        String uuid = "";
+        private final TextView name, status, detail, meta, running, action;
+        private final android.widget.ImageView icon, netIcon;
+        private final LinearLayout metaRow;
+
+        HostCard(Context context) {
+            super(context, th);
             setScaleOnFocus(true);
             setFocusable(true);
             setClickable(true);
             setLongClickable(true);
-            setBackground(Ui.roundRect(theme.surface, Ui.dpf(context, theme.r), Ui.dp(context, theme.border), theme.borderColor));
-            setRing(theme.r, 6, theme.accent);
+            Ui.noClip(this);
+            float r = pxf(context, l, th.r);
+            setBackground(rect(th.surface, r, th.border > 0 ? Math.max(1, px(context, l, th.border)) : 0, th.borderColor));
+            setRing(l.b(th.r), 0, 0);
+            // Affiche: the yellow fill keeps the 3 px ink frame of the card (prototype V8-37)
+            setFocusFillStroke(th.border > 0 ? Math.max(1, px(context, l, th.border)) : 0, th.borderColor);
 
-            int pad = Ui.dp(context, compact ? 16 : 20);
             LinearLayout col = new LinearLayout(context);
             col.setOrientation(LinearLayout.VERTICAL);
-            col.setPadding(pad, pad, pad, pad);
+            col.setPadding(px(context, l, 24), px(context, l, 26), px(context, l, 24), px(context, l, 26));
             addView(col, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, Gravity.TOP));
 
             FrameLayout tile = new FrameLayout(context);
-            tile.setBackground(Ui.roundRect(theme.surface2, Ui.dpf(context, theme.rs), 0, 0));
-            ImageView icon = new ImageView(context);
-            icon.setImageDrawable(Ui.icon(context, R.drawable.v2_ic_monitor, theme.fg));
-            int is = Ui.dp(context, compact ? 22 : 26);
+            tile.setBackground(rect(th.surface2, pxf(context, l, th.rs), 0, 0));
+            icon = HomeParts.icon(context, R.drawable.v2_ic_p_pc_tower, th.fg);
+            int is = px(context, l, 30);
             tile.addView(icon, new FrameLayout.LayoutParams(is, is, Gravity.CENTER));
-            int ts = Ui.dp(context, compact ? 44 : 52);
+            int ts = px(context, l, 64);
             col.addView(tile, new LinearLayout.LayoutParams(ts, ts));
 
-            name = Ui.display(context, theme, compact ? 20 : 24, theme.fg);
-            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            nlp.topMargin = Ui.dp(context, compact ? 12 : 16);
-            col.addView(name, nlp);
+            name = HomeParts.text(context, th, l, 26, th.displayWeight, th.fg, true);
+            name.setLetterSpacing(th.tracking);
+            col.addView(name, top(18));
 
-            status = Ui.text(context, theme, compact ? 14 : 15, 600, theme.fg);
-            status.setCompoundDrawablePadding(Ui.dp(context, 8));
-            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            slp.topMargin = Ui.dp(context, compact ? 6 : 8);
-            col.addView(status, slp);
+            status = HomeParts.text(context, th, l, 15, 600, th.fg, false);
+            status.setCompoundDrawablePadding(px(context, l, 8));
+            col.addView(status, top(8));
 
-            detail = Ui.text(context, theme, compact ? 13 : 14, 400, theme.muted);
+            detail = HomeParts.text(context, th, l, 14, 400, th.muted, false);
             detail.setMaxLines(3);
-            detail.setLineSpacing(0, 1.15f);
-            LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            dlp.topMargin = Ui.dp(context, compact ? 6 : 8);
-            col.addView(detail, dlp);
+            HomeParts.lineHeight(detail, context, l, 14, 1.45f);
+            col.addView(detail, top(8));
 
-            running = Ui.text(context, theme, compact ? 12 : 13, 700, theme.onAccent);
-            running.setGravity(Gravity.CENTER_VERTICAL);
-            int rh = Ui.dp(context, compact ? 26 : 28);
-            running.setMinHeight(rh);
-            running.setPadding(Ui.dp(context, 12), 0, Ui.dp(context, 12), 0);
-            running.setBackground(Ui.roundRect(theme.accent, Ui.dpf(context, Math.min(theme.pill, (compact ? 26 : 28) / 2f)), 0, 0));
-            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            rlp.topMargin = Ui.dp(context, compact ? 8 : 10);
-            col.addView(running, rlp);
+            metaRow = new LinearLayout(context);
+            metaRow.setOrientation(LinearLayout.HORIZONTAL);
+            metaRow.setGravity(Gravity.CENTER_VERTICAL);
+            netIcon = HomeParts.icon(context, R.drawable.v2_ic_p_net_wired, th.muted);
+            int ns = px(context, l, 14);
+            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ns, ns);
+            nlp.setMarginEnd(px(context, l, 6));
+            metaRow.addView(netIcon, nlp);
+            meta = HomeParts.text(context, th, l, 13, 400, th.muted, false);
+            metaRow.addView(meta);
+            col.addView(metaRow, top(8));
 
-            // Main action: a label of the card (the whole card is the button), at the bottom
-            action = Ui.text(context, theme, compact ? 14 : 15, 700, theme.bg);
+            running = HomeParts.text(context, th, l, 13, 700, th.onAccent, false);
+            running.setMaxLines(3);
+            running.setPadding(px(context, l, 12), px(context, l, 6), px(context, l, 12), px(context, l, 6));
+            running.setBackground(rect(th.accent, pxf(context, l, th.pill), 0, 0));
+            col.addView(running, top(12));
+            // The pill and the button keep their colours on Affiche's yellow fill
+            keepColors(running);
+
+            col.addView(new Space(context), new LinearLayout.LayoutParams(1, px(context, l, 12), 1f));
+            action = HomeParts.text(context, th, l, 15, 700, th.bg, false);
             action.setGravity(Gravity.CENTER);
-            int ah = Ui.dp(context, compact ? 38 : 42);
-            action.setMinHeight(ah);
-            action.setPadding(Ui.dp(context, 18), 0, Ui.dp(context, 18), 0);
-            actionBg = Ui.roundRect(theme.fg, Ui.dpf(context, Math.min(theme.pill, (compact ? 38 : 42) / 2f)), 0, 0);
-            action.setBackground(actionBg);
-            // Pushed to the bottom by a spacer, never over the texts
-            View spacer = new View(context);
-            col.addView(spacer, new LinearLayout.LayoutParams(1, Ui.dp(context, 12), 1f));
-            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ah);
-            col.addView(action, alp);
+            int ah = Math.max(px(context, l, 42), Ui.dp(context, 36));
+            action.setPadding(px(context, l, 18), 0, px(context, l, 18), 0);
+            action.setBackground(rect(th.fg, Math.min(ah / 2f, pxf(context, l, th.pill)), 0, 0));
+            col.addView(action, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ah));
+            keepColors(action);
 
-            more = new IconButton(context, theme, R.drawable.v2_ic_dots, 48, 36, 18, theme.surface2, false);
-            more.setFocusable(false);
-            LayoutParams mlp = new LayoutParams(Ui.dp(context, 48), Ui.dp(context, 48), Gravity.TOP | Gravity.END);
-            int mm = Ui.dp(context, compact ? 8 : 10);
+            // ⋯ (36, radius rs, surface2, top / right 16): always there, as the prototype
+            View more = HomeParts.more(context, th, l, 36, 18, th.surface2, th.fg, false, false);
+            more.setBackground(rect(th.surface2, pxf(context, l, th.rs), 0, 0));
+            int ms = Math.max(px(context, l, 36), Ui.dp(context, 32));
+            LayoutParams mlp = new LayoutParams(ms, ms, Gravity.TOP | Gravity.END);
+            int mm = px(context, l, 16);
             mlp.setMargins(0, mm, mm, 0);
             addView(more, mlp);
 
@@ -373,30 +434,37 @@ public final class HostsScreen {
                 return true;
             });
             more.setOnClickListener(v -> actions.options(uuid));
-            refreshInput();
+        }
+
+        private LinearLayout.LayoutParams top(float protoPx) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = px(getContext(), l, protoPx);
+            return lp;
         }
 
         void bind(HostCards.Card c) {
             uuid = c.uuid;
-            name.setText(theme.displayText(c.name));
+            name.setText(th.displayText(c.name));
             setContentDescription(c.name);
-            more.setContentDescription(getContext().getString(R.string.v2_host_options, c.name));
+            icon.setImageDrawable(Ui.icon(getContext(), iconOf(c.formFactor), th.fg));
             status.setText(c.statusText);
-            status.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                    new DotDrawable(c.online ? ONLINE_DOT : OFFLINE_DOT, Ui.dp(getContext(), 9)), null, null, null);
+            int ds = Math.max(Ui.dp(getContext(), 6), px(getContext(), l, 9));
+            status.setCompoundDrawablesRelativeWithIntrinsicBounds(new DotDrawable(c.online ? ONLINE_DOT : OFFLINE_DOT, ds), null, null, null);
             detail.setText(c.detail);
             Ui.setVisible(detail, c.detail != null && !c.detail.isEmpty());
+            meta.setText(c.meta);
+            Ui.setVisible(metaRow, c.meta != null && !c.meta.isEmpty());
+            Ui.setVisible(netIcon, c.link != HostCards.Link.UNKNOWN);
+            if (c.link != HostCards.Link.UNKNOWN) {
+                netIcon.setImageDrawable(Ui.icon(getContext(),
+                        c.link == HostCards.Link.WIRED ? R.drawable.v2_ic_p_net_wired : R.drawable.v2_ic_p_net_wifi, th.muted));
+            }
             Ui.setVisible(running, c.running != null);
             if (c.running != null) {
                 running.setText(c.running);
             }
             action.setText(c.action);
             Ui.setVisible(action, c.action != null && !c.action.isEmpty());
-        }
-
-        void refreshInput() {
-            Ui.setVisible(more, V2Input.get(getContext()) == V2Input.Kind.TOUCH);
-            invalidate();
         }
 
         @Override
@@ -408,49 +476,47 @@ public final class HostsScreen {
         }
     }
 
-    /** « Ajouter un PC »: dashed frame, plus, title, « Trouvé sur le réseau, ou par son adresse » */
-    private static final class AddCard extends V2Frame {
-        AddCard(Context context, V2Theme theme, boolean compact) {
-            super(context, theme);
+    /** « Ajouter un PC » (h400, 2 px dashes muted, plus 40, title 22, « Trouvé sur le réseau, ou par son adresse ») */
+    private final class AddCard extends V2Frame {
+        AddCard(Context context) {
+            super(context, th);
             setScaleOnFocus(true);
             setFocusable(true);
             setClickable(true);
+            Ui.noClip(this);
             GradientDrawable dashed = new GradientDrawable();
             dashed.setShape(GradientDrawable.RECTANGLE);
             dashed.setColor(0);
-            dashed.setCornerRadius(Ui.dpf(context, theme.r));
-            dashed.setStroke(Ui.dp(context, 2), theme.muted, Ui.dpf(context, 7), Ui.dpf(context, 5));
+            dashed.setCornerRadius(pxf(context, l, th.r));
+            dashed.setStroke(Math.max(1, px(context, l, 2)), th.muted, pxf(context, l, 6), pxf(context, l, 4));
             setBackground(dashed);
-            setRing(theme.r, 6, theme.accent);
+            setRing(l.b(th.r), 0, 0);
             setContentDescription(context.getString(R.string.v2_add_pc));
 
             LinearLayout col = new LinearLayout(context);
             col.setOrientation(LinearLayout.VERTICAL);
             col.setGravity(Gravity.CENTER_HORIZONTAL);
-            int pad = Ui.dp(context, 14);
+            int pad = px(context, l, 14);
             col.setPadding(pad, 0, pad, 0);
             addView(col, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER));
 
-            ImageView plus = new ImageView(context);
-            plus.setImageDrawable(Ui.icon(context, R.drawable.v2_ic_plus, theme.fg));
-            int ps = Ui.dp(context, compact ? 34 : 40);
-            col.addView(plus, new LinearLayout.LayoutParams(ps, ps));
+            int ps = px(context, l, 40);
+            col.addView(HomeParts.icon(context, R.drawable.v2_ic_p_plus, th.fg), new LinearLayout.LayoutParams(ps, ps));
 
-            TextView title = Ui.display(context, theme, compact ? 19 : 22, theme.fg);
+            TextView title = HomeParts.text(context, th, l, 22, th.displayWeight, th.fg, true);
             title.setGravity(Gravity.CENTER);
             title.setMaxLines(2);
-            title.setText(theme.displayText(context.getString(R.string.v2_add_pc)));
-            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            tlp.topMargin = Ui.dp(context, 12);
+            title.setText(context.getString(R.string.v2_add_pc));
+            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            tlp.topMargin = px(context, l, 12);
             col.addView(title, tlp);
 
-            TextView sub = Ui.text(context, theme, compact ? 13 : 14, 400, theme.muted);
+            TextView sub = HomeParts.text(context, th, l, 14, 400, th.muted, false);
             sub.setGravity(Gravity.CENTER);
             sub.setMaxLines(3);
-            sub.setLineSpacing(0, 1.15f);
             sub.setText(R.string.v2_add_pc_subtitle);
-            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            slp.topMargin = Ui.dp(context, 8);
+            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(Math.max(px(context, l, 200), Ui.dp(context, 120)), ViewGroup.LayoutParams.WRAP_CONTENT);
+            slp.topMargin = px(context, l, 12);
             col.addView(sub, slp);
         }
 

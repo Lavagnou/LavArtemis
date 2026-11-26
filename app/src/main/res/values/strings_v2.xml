@@ -90,9 +90,9 @@
     <string name="v2_host_forget">Oublier ce PC</string>
     <string name="v2_host_options">Options de %1$s</string>
     <string name="v2_add_pc_subtitle">Trouvé sur le réseau, ou par son adresse</string>
-    <string name="v2_hosts_help_touch">Touche pour ouvrir le PC. Appui long ou bouton « … » : réveiller, benchmark, renommer, oublier.</string>
+    <string name="v2_hosts_help_touch">Touche pour ouvrir le PC. Appui long ou ⋯ : réveiller, benchmark, renommer, oublier.</string>
     <string name="v2_hosts_help_pad">A : ouvrir le PC. Y ou A maintenu : réveiller, benchmark, renommer, oublier.</string>
-    <string name="v2_hosts_help_keys">Entrée : ouvrir le PC. Touche Menu : réveiller, benchmark, renommer, oublier.</string>
+    <string name="v2_hosts_help_keys">Entrée : ouvrir le PC. Touche Menu ou Entrée maintenue : réveiller, benchmark, renommer, oublier.</string>
     <string name="v2_found_on_network">Trouvés sur le réseau</string>
     <string name="v2_none_on_network">Aucun PC trouvé sur le réseau</string>
     <string name="v2_enter_address">Saisir une adresse…</string>
@@ -720,4 +720,22 @@
     <string name="v2_more_full_keyboard">Basculer le clavier virtuel complet</string>
     <string name="v2_more_sensitivity">Changer la sensibilité tactile</string>
     <string name="v2_more_quit_session">Quitter la session</string>
+    <!-- Mes PC (prototype V8-36 à 42, 65) -->
+    <string name="v2_host_running_inside">%1$s dans Playnite</string>
+    <string name="v2_host_type_tower">Tour</string>
+    <string name="v2_host_type_mini">Mini-PC</string>
+    <string name="v2_host_type_laptop">Portable</string>
+    <string name="v2_host_net_wired">réseau filaire</string>
+    <string name="v2_host_net_wifi">Wi-Fi</string>
+    <string name="v2_host_ms">%1$d ms</string>
+    <string name="v2_host_kind">PC</string>
+    <string name="v2_add_where">réseau local</string>
+    <string name="v2_add_found_note">PC trouvés sur ton réseau local (Apollo ou Sunshine) :</string>
+    <string name="v2_add_none_note">Aucun PC trouvé sur ton réseau local pour l’instant.</string>
+    <string name="v2_addr_title">Saisir une adresse</string>
+    <string name="v2_addr_label">Adresse</string>
+    <string name="v2_rename_pc">Renommer %1$s</string>
+    <string name="v2_rename_label">Nom</string>
+    <string name="v2_pair_code_desc">Code d’appairage %1$s</string>
+    <string name="v2_hint_open">Ouvrir</string>
 </resources>

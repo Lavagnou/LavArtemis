@@ -29,10 +29,34 @@ public final class HostCards {
     /** The options menu, in this order; the first entry is the main one */
     public enum Option { OPEN, BENCHMARK, PAIR, WAKE, RENAME, FORGET }
 
+    /** The icon of a PC (prototype HOSTS[].icon, LavApollo HostFormFactor); unknown = tower */
+    public enum FormFactor { TOWER, MINI, LAPTOP }
+
+    /** The link of a PC (LavApollo HostLink), for the small icon before « Tour · réseau filaire » */
+    public enum Link { WIRED, WIFI, UNKNOWN }
+
+    public static FormFactor formFactor(ComputerDetails d) {
+        if ("mini".equals(d.hostFormFactor)) {
+            return FormFactor.MINI;
+        }
+        if ("laptop".equals(d.hostFormFactor)) {
+            return FormFactor.LAPTOP;
+        }
+        return FormFactor.TOWER;
+    }
+
+    public static Link link(ComputerDetails d) {
+        if ("wired".equals(d.hostLink)) {
+            return Link.WIRED;
+        }
+        return "wifi".equals(d.hostLink) ? Link.WIFI : Link.UNKNOWN;
+    }
+
     /** The texts of a card, French (strings_v2.xml) */
     public static final class Labels {
         public String online, session, offline, searching, wakeable, unreachable, apollo,
-                running, runningApp, open, wake, desktop, playnite;
+                running, runningApp, runningInside, open, wake, desktop, playnite,
+                tower, mini, laptop, wired, wifi, ms;
 
         public static Labels from(Context c) {
             Labels l = new Labels();
@@ -45,6 +69,13 @@ public final class HostCards {
             l.apollo = c.getString(R.string.v2_host_apollo);
             l.running = c.getString(R.string.v2_host_running);
             l.runningApp = c.getString(R.string.v2_host_running_app);
+            l.runningInside = c.getString(R.string.v2_host_running_inside);
+            l.tower = c.getString(R.string.v2_host_type_tower);
+            l.mini = c.getString(R.string.v2_host_type_mini);
+            l.laptop = c.getString(R.string.v2_host_type_laptop);
+            l.wired = c.getString(R.string.v2_host_net_wired);
+            l.wifi = c.getString(R.string.v2_host_net_wifi);
+            l.ms = c.getString(R.string.v2_host_ms);
             l.open = c.getString(R.string.v2_host_open);
             l.wake = c.getString(R.string.v2_wake);
             l.desktop = c.getString(R.string.v2_desktop);
@@ -62,10 +93,70 @@ public final class HostCards {
         public String detail;
         /** « En cours : … » when a session runs, else null */
         public String running;
-        /** Ouvrir / Réveiller, empty while searching */
+        /** Ouvrir / Réveiller, empty while searching or for a PC that cannot be woken */
         public String action;
         public boolean online;
         public Tap tap;
+        /** « Tour · réseau filaire · 4 ms » (prototype meta): type, link, latency online; parts unknown left out */
+        public String meta;
+        public FormFactor formFactor;
+        public Link link;
+    }
+
+    /** « Tour · réseau filaire · 4 ms »: what LavApollo says of the PC, the latency measured here when online */
+    public static String meta(ComputerDetails d, boolean online, Labels l) {
+        List<String> parts = new ArrayList<>();
+        if (d.hostFormFactor != null && !d.hostFormFactor.isEmpty()) {
+            switch (formFactor(d)) {
+                case MINI:
+                    parts.add(l.mini);
+                    break;
+                case LAPTOP:
+                    parts.add(l.laptop);
+                    break;
+                default:
+                    if ("tower".equals(d.hostFormFactor)) {
+                        parts.add(l.tower);
+                    }
+                    break;
+            }
+        }
+        switch (link(d)) {
+            case WIRED:
+                parts.add(l.wired);
+                break;
+            case WIFI:
+                parts.add(l.wifi);
+                break;
+            default:
+                break;
+        }
+        if (online && d.latencyMs > 0) {
+            parts.add(String.format(Locale.ROOT, l.ms, d.latencyMs));
+        }
+        StringBuilder b = new StringBuilder();
+        for (String p : parts) {
+            if (b.length() > 0) {
+                b.append(" · ");
+            }
+            b.append(p);
+        }
+        return b.toString();
+    }
+
+    /** The note of a PC's options (prototype ctx for « host »): state, then type and link */
+    public static String optionsNote(ComputerDetails d, Labels l, String onlineWord) {
+        Status s = status(d);
+        boolean online = s == Status.ONLINE || s == Status.SESSION;
+        String state;
+        if (online) {
+            state = onlineWord + (d.apolloVersion != null && !d.apolloVersion.trim().isEmpty()
+                    ? " · LavApollo " + d.apolloVersion.trim() : "");
+        } else {
+            state = d.macAddress != null ? l.wakeable : l.unreachable;
+        }
+        String m = meta(d, false, l);
+        return m.isEmpty() ? state : state + " · " + m;
     }
 
     public static Status status(ComputerDetails d) {
@@ -92,7 +183,7 @@ public final class HostCards {
             list.add(Option.BENCHMARK);
         } else if (online) {
             list.add(Option.PAIR);
-        } else {
+        } else if (d.macAddress != null) {
             list.add(Option.WAKE);
         }
         list.add(Option.RENAME);
@@ -135,7 +226,11 @@ public final class HostCards {
             String app = runningName(d, apps, l);
             c.running = app.isEmpty() ? l.running : String.format(Locale.ROOT, l.runningApp, app);
         }
-        c.action = c.online ? l.open : (c.status == Status.OFFLINE ? l.wake : "");
+        // Prototype: Ouvrir online, Réveiller offline only when it can be woken (hasAction)
+        c.action = c.online ? l.open : (c.status == Status.OFFLINE && d.macAddress != null ? l.wake : "");
+        c.meta = meta(d, c.online, l);
+        c.formFactor = formFactor(d);
+        c.link = link(d);
         return c;
     }
 
@@ -148,7 +243,7 @@ public final class HostCards {
             return "";
         }
         if (d.playniteGameName != null && !d.playniteGameName.isEmpty()) {
-            return d.playniteGameName;
+            return d.playniteHostRunning ? String.format(Locale.ROOT, l.runningInside, d.playniteGameName) : d.playniteGameName;
         }
         if (apps != null) {
             for (NvApp a : apps) {
@@ -220,12 +315,13 @@ public final class HostCards {
     public static final float MIN_CARD_DP = 160;
 
     /**
-     * Columns of the grid: one per card (the « Ajouter un PC » card included), at least 2, at most
-     * 3 on a phone and 5 on a bigger screen, and never narrower than {@link #MIN_CARD_DP}.
+     * Columns of the grid (prototype hostCols = min(5, max(3, PCs + 1))): one per card, the « Ajouter
+     * un PC » card included, at least 3, at most 5 (3 on a phone), and never narrower than
+     * {@link #MIN_CARD_DP}.
      */
     public static int columns(int cardsWithAdd, float availableDp, float gapDp, boolean compact) {
         int byWidth = Math.max(1, (int) ((availableDp + gapDp) / (MIN_CARD_DP + gapDp)));
-        int want = Math.max(2, Math.min(compact ? 3 : 5, cardsWithAdd));
+        int want = Math.min(compact ? 3 : 5, Math.max(3, cardsWithAdd));
         return Math.max(1, Math.min(want, byWidth));
     }
 

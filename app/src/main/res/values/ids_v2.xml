@@ -3,4 +3,6 @@
     <item name="v2_cover_loaded" type="id" />
     <item name="v2_tag_app" type="id" />
     <item name="v2_menu_tile" type="id" />
+    <!-- A view inside a V2Frame that keeps its colours when Affiche fills the frame yellow -->
+    <item name="v2_keep_colors" type="id" />
 </resources>

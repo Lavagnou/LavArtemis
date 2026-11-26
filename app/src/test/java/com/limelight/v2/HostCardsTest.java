@@ -95,6 +95,10 @@ public class HostCardsTest {
         d.runningGameId = 2;
         d.playniteGameName = "Hades II";
         assertEquals("En cours : Hades II", HostCards.of(d, apps(), labels).running);
+        // Inside Playnite Fullscreen (prototype « En cours : Red Dead Redemption 2 dans Playnite »)
+        d.playniteHostRunning = true;
+        assertEquals("En cours : Hades II dans Playnite", HostCards.of(d, apps(), labels).running);
+        d.playniteHostRunning = false;
 
         // Unknown app: no name
         d.playniteGameName = null;
@@ -139,10 +143,67 @@ public class HostCardsTest {
                 HostCards.options(pc("A", ComputerDetails.State.ONLINE, true)));
         assertEquals(Arrays.asList(HostCards.Option.PAIR, HostCards.Option.RENAME, HostCards.Option.FORGET),
                 HostCards.options(pc("B", ComputerDetails.State.ONLINE, false)));
+        ComputerDetails c = pc("C", ComputerDetails.State.OFFLINE, true);
+        c.macAddress = "00:11:22:33:44:55";
         assertEquals(Arrays.asList(HostCards.Option.WAKE, HostCards.Option.RENAME, HostCards.Option.FORGET),
-                HostCards.options(pc("C", ComputerDetails.State.OFFLINE, true)));
-        assertEquals(Arrays.asList(HostCards.Option.WAKE, HostCards.Option.RENAME, HostCards.Option.FORGET),
-                HostCards.options(pc("D", ComputerDetails.State.UNKNOWN, true)));
+                HostCards.options(c));
+        // Prototype: no Réveiller for a PC that never gave its MAC address (nor « Réveiller » on its card)
+        assertEquals(Arrays.asList(HostCards.Option.RENAME, HostCards.Option.FORGET),
+                HostCards.options(pc("D", ComputerDetails.State.OFFLINE, true)));
+        assertEquals("", HostCards.of(pc("D", ComputerDetails.State.OFFLINE, true), null, labels).action);
+    }
+
+    @Test
+    public void metaSaysTypeLinkAndLatency() {
+        // Prototype HOSTS: « Tour · réseau filaire · 4 ms », « Mini-PC · Wi-Fi · 6 ms », « Portable · Wi-Fi »
+        ComputerDetails atlas = pc("ATLAS-PC", ComputerDetails.State.ONLINE, true);
+        atlas.hostFormFactor = "tower";
+        atlas.hostLink = "wired";
+        atlas.latencyMs = 4;
+        HostCards.Card c = HostCards.of(atlas, null, labels);
+        assertEquals("Tour · réseau filaire · 4 ms", c.meta);
+        assertEquals(HostCards.FormFactor.TOWER, c.formFactor);
+        assertEquals(HostCards.Link.WIRED, c.link);
+
+        ComputerDetails salon = pc("SALON-HTPC", ComputerDetails.State.ONLINE, true);
+        salon.hostFormFactor = "mini";
+        salon.hostLink = "wifi";
+        salon.latencyMs = 6;
+        assertEquals("Mini-PC · Wi-Fi · 6 ms", HostCards.of(salon, null, labels).meta);
+        assertEquals(HostCards.FormFactor.MINI, HostCards.formFactor(salon));
+
+        // Offline: no latency
+        ComputerDetails portable = pc("PORTABLE", ComputerDetails.State.OFFLINE, true);
+        portable.hostFormFactor = "laptop";
+        portable.hostLink = "wifi";
+        portable.latencyMs = 12;
+        assertEquals("Portable · Wi-Fi", HostCards.of(portable, null, labels).meta);
+        assertEquals(HostCards.FormFactor.LAPTOP, HostCards.formFactor(portable));
+
+        // A host that says nothing (older LavApollo, Sunshine): no line, the tower icon
+        ComputerDetails other = pc("OTHER", ComputerDetails.State.ONLINE, true);
+        HostCards.Card o = HostCards.of(other, null, labels);
+        assertEquals("", o.meta);
+        assertEquals(HostCards.FormFactor.TOWER, o.formFactor);
+        assertEquals(HostCards.Link.UNKNOWN, o.link);
+        other.latencyMs = 3;
+        assertEquals("3 ms", HostCards.of(other, null, labels).meta);
+    }
+
+    @Test
+    public void optionsNoteSaysStateTypeAndLink() {
+        ComputerDetails atlas = pc("ATLAS-PC", ComputerDetails.State.ONLINE, true);
+        atlas.apolloVersion = "1.2.0";
+        atlas.hostFormFactor = "tower";
+        atlas.hostLink = "wired";
+        atlas.latencyMs = 4;
+        assertEquals("En ligne · LavApollo 1.2.0 · Tour · réseau filaire", HostCards.optionsNote(atlas, labels, "En ligne"));
+        ComputerDetails portable = pc("PORTABLE", ComputerDetails.State.OFFLINE, true);
+        portable.macAddress = "00:11:22:33:44:55";
+        portable.hostFormFactor = "laptop";
+        portable.hostLink = "wifi";
+        assertEquals("Éteint ou en veille : il peut être réveillé d'ici. · Portable · Wi-Fi",
+                HostCards.optionsNote(portable, labels, "En ligne"));
     }
 
     @Test
@@ -162,8 +223,8 @@ public class HostCardsTest {
         // Phone in landscape (915 dp - 2 x 20): 2 PCs + add = 3 columns, never more than 3
         assertEquals(3, HostCards.columns(3, 875, 14, true));
         assertEquals(3, HostCards.columns(8, 875, 14, true));
-        // Always 2 at least: a lone « Ajouter un PC » takes half the width
-        assertEquals(2, HostCards.columns(1, 875, 14, true));
+        // Prototype hostCols: 3 at least, a lone « Ajouter un PC » takes a third of the width
+        assertEquals(3, HostCards.columns(1, 875, 14, true));
         // Console (960 dp - 2 x 24): up to 5
         assertEquals(5, HostCards.columns(6, 912, 16, false));
         assertEquals(4, HostCards.columns(4, 912, 16, false));

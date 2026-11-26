@@ -99,7 +99,8 @@ public class HostsActivity extends V2HostActivity {
         if (container == null) {
             return;
         }
-        screen = new HostsScreen(this, theme, Density.of(getResources().getConfiguration()), new HostsScreen.Actions() {
+        android.content.res.Configuration cfg = getResources().getConfiguration();
+        screen = new HostsScreen(this, theme, HomeLayout.forSize(cfg.screenWidthDp, cfg.screenHeightDp), new HostsScreen.Actions() {
             @Override
             public void back() {
                 finish();
@@ -198,6 +199,12 @@ public class HostsActivity extends V2HostActivity {
         return screen != null && screen.requestInitialFocus();
     }
 
+    /** Prototype grid: the cards then « Ajouter un PC », row by row */
+    @Override
+    protected List<List<View>> focusRows() {
+        return screen == null ? null : screen.focusRows();
+    }
+
     @Override
     protected void onComputerSeen(ComputerDetails details) {
         // A pairing link waits for the PC answering at its address
@@ -292,20 +299,32 @@ public class HostsActivity extends V2HostActivity {
 
     // ---- options -----------------------------------------------------------------------------
 
+    /** The header of the dialogs about a PC (prototype ctx: kind « PC », where = its address) */
+    private V2Sheet.Spec pcSpec(ComputerDetails d, String title) {
+        V2Sheet.Spec spec = new V2Sheet.Spec();
+        spec.kind = getString(R.string.v2_host_kind);
+        spec.where = HostCards.address(d);
+        spec.title = title;
+        return spec;
+    }
+
+    /** The options of a PC (prototype ctxOpts « host »): Ouvrir + Benchmark, or Appairer / Réveiller, then Renommer, Oublier ce PC, Annuler */
     void showHostOptions(String uuid) {
         final ComputerDetails d = find(uuid);
         if (d == null) {
             return;
         }
-        List<V2Dialogs.Entry> entries = new ArrayList<>();
+        V2Sheet.Spec spec = pcSpec(d, d.name);
+        spec.info = true;
+        spec.note = HostCards.optionsNote(d, labels, getString(R.string.v2_host_online));
         boolean first = true;
         for (HostCards.Option o : HostCards.options(d)) {
             switch (o) {
                 case OPEN:
-                    entries.add(new V2Dialogs.Entry(getString(R.string.v2_host_open), R.drawable.v2_ic_play, first, () -> openHost(d)));
+                    spec.option(getString(R.string.v2_host_open), first, false, () -> openHost(d));
                     break;
                 case BENCHMARK:
-                    entries.add(new V2Dialogs.Entry(getString(R.string.v2_host_benchmark), R.drawable.v2_ic_gauge, first, () -> {
+                    spec.option(getString(R.string.v2_host_benchmark), first, false, () -> {
                         if (!checkSupported(d)) {
                             return;
                         }
@@ -313,47 +332,62 @@ public class HostsActivity extends V2HostActivity {
                         i.putExtra(BenchmarkActivity.EXTRA_PC_UUID, d.uuid);
                         i.putExtra(BenchmarkActivity.EXTRA_PC_NAME, d.name);
                         startActivity(i);
-                    }));
+                    });
                     break;
                 case PAIR:
-                    entries.add(new V2Dialogs.Entry(getString(R.string.v2_host_pair), R.drawable.v2_ic_lock, first, () -> pair(d, null, null)));
+                    spec.option(getString(R.string.v2_host_pair), first, false, () -> pair(d, null, null));
                     break;
                 case WAKE:
-                    entries.add(new V2Dialogs.Entry(getString(R.string.v2_wake), R.drawable.v2_ic_power, first, () -> wakeHost(d)));
+                    spec.option(getString(R.string.v2_wake), first, false, () -> wakeHost(d));
                     break;
                 case RENAME:
-                    entries.add(new V2Dialogs.Entry(getString(R.string.v2_host_rename), R.drawable.v2_ic_pencil, first, () -> rename(d)));
+                    spec.option(getString(R.string.v2_host_rename), first, false, () -> rename(d));
                     break;
                 case FORGET:
-                    entries.add(new V2Dialogs.Entry(getString(R.string.v2_host_forget), R.drawable.v2_ic_trash, first, () -> confirmForget(d)));
+                    spec.option(getString(R.string.v2_host_forget), first, false, () -> confirmForget(d));
                     break;
                 default:
                     break;
             }
             first = false;
         }
-        V2Dialogs.showMenu(this, theme, d.name, null, entries);
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        V2Sheet.show(this, theme, spec);
     }
 
-    private void rename(final ComputerDetails d) {
-        V2Dialogs.prompt(this, theme, getString(R.string.v2_rename_title), getString(R.string.v2_rename_text), d.name, null,
-                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS, 64,
-                getString(R.string.v2_host_rename), getString(R.string.v2_cancel), name -> {
-                    final ComputerManagerService.ComputerManagerBinder binder = managerBinder;
-                    if (binder == null) {
-                        return;
-                    }
-                    // The service waits for a running poll of that PC: off the main thread
-                    new Thread(() -> {
-                        binder.renameComputer(d.uuid, name);
-                        runOnUiThread(this::refresh);
-                    }).start();
-                });
+    /** « Renommer X » (prototype rename): the field « Nom », Renommer / Annuler */
+    Dialog rename(final ComputerDetails d) {
+        final V2Sheet.Spec spec = pcSpec(d, getString(R.string.v2_rename_pc, d.name));
+        spec.info = true;
+        spec.note = getString(R.string.v2_rename_text);
+        spec.inputLabel = getString(R.string.v2_rename_label);
+        spec.inputValue = d.name;
+        spec.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS;
+        spec.inputMax = 64;
+        spec.option(getString(R.string.v2_host_rename), true, false, () -> {
+            String name = spec.text();
+            final ComputerManagerService.ComputerManagerBinder binder = managerBinder;
+            if (binder == null || name.isEmpty()) {
+                return;
+            }
+            // The service waits for a running poll of that PC: off the main thread
+            new Thread(() -> {
+                binder.renameComputer(d.uuid, name);
+                runOnUiThread(this::refresh);
+            }).start();
+        });
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        return V2Sheet.show(this, theme, spec);
     }
 
-    private void confirmForget(final ComputerDetails d) {
-        V2Dialogs.confirm(this, theme, getString(R.string.v2_forget_title, d.name), getString(R.string.v2_forget_text),
-                getString(R.string.v2_forget), getString(R.string.v2_cancel), () -> forget(d), null);
+    /** « Oublier X ? » (prototype forget): warning, Oublier / Annuler */
+    Dialog confirmForget(final ComputerDetails d) {
+        V2Sheet.Spec spec = pcSpec(d, getString(R.string.v2_forget_title, d.name));
+        spec.warn = true;
+        spec.note = getString(R.string.v2_forget_text);
+        spec.option(getString(R.string.v2_forget), true, false, () -> forget(d));
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        return V2Sheet.show(this, theme, spec);
     }
 
     /** PcView.removeComputer(), step for step */
@@ -374,22 +408,44 @@ public class HostsActivity extends V2HostActivity {
 
     // ---- Ajouter un PC -------------------------------------------------------------------------
 
+    /** « Ajouter un PC » (prototype add): the PCs found on the network, « Saisir une adresse… », Annuler */
     void showAddMenu() {
-        List<V2Dialogs.Entry> entries = new ArrayList<>();
-        for (final ComputerDetails d : HostCards.unpairedOnline(computers.values())) {
+        V2Sheet.Spec spec = new V2Sheet.Spec();
+        spec.kind = getString(R.string.v2_host_kind);
+        spec.where = getString(R.string.v2_add_where);
+        spec.title = getString(R.string.v2_add_pc);
+        spec.info = true;
+        List<ComputerDetails> found = HostCards.unpairedOnline(computers.values());
+        spec.note = getString(found.isEmpty() ? R.string.v2_add_none_note : R.string.v2_add_found_note);
+        for (final ComputerDetails d : found) {
             String address = HostCards.address(d);
-            entries.add(new V2Dialogs.Entry(d.name + (address.isEmpty() ? "" : " · " + address), R.drawable.v2_ic_monitor,
-                    entries.isEmpty(), () -> pair(d, null, null)));
+            // Prototype isMain: no main row in this list
+            spec.option(d.name + (address.isEmpty() ? "" : " · " + address), false, false, () -> pair(d, null, null));
         }
-        boolean found = !entries.isEmpty();
-        entries.add(new V2Dialogs.Entry(getString(R.string.v2_enter_address), R.drawable.v2_ic_search, !found, this::promptAddress));
-        V2Dialogs.showMenu(this, theme, getString(found ? R.string.v2_found_on_network : R.string.v2_none_on_network), null, entries);
+        spec.option(getString(R.string.v2_enter_address), false, false, this::promptAddress);
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        V2Sheet.show(this, theme, spec);
     }
 
-    private void promptAddress() {
-        V2Dialogs.prompt(this, theme, getString(R.string.v2_add_pc), getString(R.string.v2_add_pc_text), null, "192.168.1.24",
-                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI, 0,
-                getString(R.string.v2_add), getString(R.string.v2_cancel), this::addByAddress);
+    /** « Saisir une adresse » (prototype addr): the field « Adresse », Ajouter / Annuler */
+    Dialog promptAddress() {
+        final V2Sheet.Spec spec = new V2Sheet.Spec();
+        spec.kind = getString(R.string.v2_host_kind);
+        spec.where = getString(R.string.v2_add_where);
+        spec.title = getString(R.string.v2_addr_title);
+        spec.info = true;
+        spec.note = getString(R.string.v2_add_pc_text);
+        spec.inputLabel = getString(R.string.v2_addr_label);
+        spec.inputHint = "192.168.1.24";
+        spec.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI;
+        spec.option(getString(R.string.v2_add), true, false, () -> {
+            String address = spec.text();
+            if (!address.isEmpty()) {
+                addByAddress(address);
+            }
+        });
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        return V2Sheet.show(this, theme, spec);
     }
 
     /** AddComputerManually.doAddPc(), with the v2 messages; a new unpaired PC is paired at once */
@@ -542,11 +598,23 @@ public class HostsActivity extends V2HostActivity {
         }).start();
     }
 
-    /** « Appairer X »: the PIN to type on the PC, or (pairing link) a wait; one button that only closes */
+    /**
+     * « Appairer X » (prototype pair): the text, the PIN in big letters (none for a pairing link, which
+     * brings its own code) and « Annuler », which only closes the window: the PC answers or refuses,
+     * and the window closes by itself then.
+     */
     Dialog showPairDialog(String name, String pin, boolean fromLink) {
-        String text = fromLink ? getString(R.string.v2_pair_link_text, name)
-                : getString(R.string.v2_pair_text, name, HostCards.spacedPin(pin));
-        return V2Dialogs.message(this, theme, getString(R.string.v2_pair_title, name), text, getString(R.string.v2_pair_done));
+        V2Sheet.Spec spec = new V2Sheet.Spec();
+        spec.kind = getString(R.string.v2_host_kind);
+        spec.where = name;
+        spec.title = getString(R.string.v2_pair_title, name);
+        spec.info = true;
+        spec.note = fromLink ? getString(R.string.v2_pair_link_text, name) : getString(R.string.v2_pair_text, name, pin);
+        if (!fromLink) {
+            spec.pin = HostCards.spacedPin(pin);
+        }
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        return V2Sheet.show(this, theme, spec);
     }
 
     private void pairFinished(ComputerDetails computer, boolean success, String message) {

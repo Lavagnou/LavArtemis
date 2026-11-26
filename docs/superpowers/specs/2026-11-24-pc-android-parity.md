@@ -38,6 +38,12 @@ s'ajoute ici comme écart.
   déjà appairé, « %1 est ajouté » autrement), appairage par code
   PIN (dialogue, messages d'échec, désormais avec les mêmes phrases), renommage (avec « Le nom de ce PC
   dans LavArtemis. Le PC lui-même garde le sien. »), oubli, réveil.
+  Portage V8 (2026-11-26) : mêmes lignes d'aide par entrée (« Touche pour ouvrir le PC. Appui long ou ⋯ : … »,
+  « Entrée : ouvrir le PC. Touche Menu ou Entrée maintenue : … »), même ligne « Tour · réseau filaire · 4 ms », mêmes
+  dialogues « Ajouter un PC » (« PC trouvés sur ton réseau local (Apollo ou Sunshine) : » / « Aucun PC trouvé sur ton
+  réseau local pour l’instant. »), « Saisir une adresse » (champ « Adresse »), « Renommer {PC} » (champ « Nom »), même
+  note des options d'un PC. **Écart ouvert** : Android écrit « En cours : {jeu} dans Playnite » quand le jeu tourne
+  dans Playnite Fullscreen (prototype), le desktop « En cours : {jeu} ».
 - **Réglages** : mêmes pages (Profil, Affichage, Vidéo, Audio, Entrées, Manettes, Apparence, PC, Avancé),
   même bascule « Mode expert », même tri Normal / Expert / Supprimé. Lignes communes avec le même libellé,
   la même description et les mêmes options : Profil actif, Gérer les profils, Résolution (+
