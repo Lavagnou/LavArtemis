@@ -1,7 +1,8 @@
 """pytest fixtures of the desktop scenarios (tools/testbench/scenarios).
 
 A scenario gets `bench`: a sandbox workdir, the fake PCs it asks for (hosts.up), the test client started from a
-wiped "LavArtemis Test" organisation, a captures folder in the run's report, and a foreground watch.  Whatever
+wiped "LavArtemis Test" organisation, a captures folder in the run's report, a foreground watch and a
+visibility watch (no window of the client may ever be seen by the person using the PC).  Whatever
 happens, the client and every test host are stopped at the end (leftovers are swept and reported), and the hosts'
 logs and every client launch's log are copied into the report.  Reports: testbench-reports/<date>_<time>/
 (report.py), outside git.  LAV_TESTBENCH_ATTEMPT=2 (set by `testbench run --rerun-failed-once`) marks a rerun: its
@@ -215,6 +216,157 @@ class ForegroundWatch:
         return out
 
 
+# ---------------------------------------------------------------- visibility watch
+
+EVENT_OBJECT_SHOW = 0x8002
+EVENT_OBJECT_REORDER = 0x8004
+EVENT_OBJECT_LOCATIONCHANGE = 0x800B
+OBJID_WINDOW = 0
+GA_ROOT = 2
+GWL_EXSTYLE = -20
+WS_EX_TOPMOST = 0x8
+MONITOR_DEFAULTTONULL = 0
+DWMWA_CLOAKED = 14
+_dwmapi = ctypes.windll.dwmapi
+_dwmapi.DwmGetWindowAttribute.argtypes = [wt.HWND, wt.DWORD, ctypes.c_void_p, wt.DWORD]
+WNDENUMPROC = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
+_user32.GetAncestor.argtypes = [wt.HWND, wt.UINT]
+_user32.GetAncestor.restype = wt.HWND
+_user32.IsWindowVisible.argtypes = [wt.HWND]
+_user32.GetWindowRect.argtypes = [wt.HWND, ctypes.POINTER(wt.RECT)]
+_user32.GetWindowLongW.argtypes = [wt.HWND, ctypes.c_int]
+_user32.MonitorFromRect.argtypes = [ctypes.POINTER(wt.RECT), wt.DWORD]
+_user32.MonitorFromRect.restype = wt.HMONITOR
+_user32.EnumWindows.argtypes = [WNDENUMPROC, wt.LPARAM]
+
+
+def windows_visible():
+    """LAV_TEST_VISIBLE=1: the test client shows its windows (debugging by eye, LavArtemis-Qt's
+    testctl/hiddenwindows.h); the visibility watch then checks nothing."""
+    return os.environ.get("LAV_TEST_VISIBLE") == "1"
+
+
+def window_visibility(hwnd):
+    """(rect, seen, topmost) of a shown top-level window, None for a hidden one.  Seen: on a monitor and not cloaked
+    (DWMWA_CLOAKED: DWM draws nothing of a cloaked window and the mouse goes through it)."""
+    if not _user32.IsWindowVisible(hwnd):
+        return None
+    r = wt.RECT()
+    if not _user32.GetWindowRect(hwnd, ctypes.byref(r)):
+        return None
+    cloaked = wt.DWORD(0)
+    if _dwmapi.DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, ctypes.byref(cloaked), ctypes.sizeof(cloaked)) != 0:
+        cloaked.value = 0  # unreadable: counted as not cloaked
+    on_monitor = bool(_user32.MonitorFromRect(ctypes.byref(r), MONITOR_DEFAULTTONULL))
+    topmost = bool(_user32.GetWindowLongW(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST)
+    return (r.left, r.top, r.right, r.bottom), on_monitor and not cloaked.value, topmost
+
+
+def client_windows_seen():
+    """Every shown top-level window of a test client (any launch, identified by the exe path) that the person using
+    the PC could see (on a monitor and not cloaked) or that is topmost: [(hwnd, pid, title, rect, seen, topmost)].
+    Empty is the rule."""
+    found, ours = [], {}
+
+    def each(hwnd, _l):
+        pid = window_pid(hwnd)
+        if pid not in ours:
+            exe = hosts._image_path(pid)
+            ours[pid] = bool(exe) and hosts._same_exe(exe, clientmod.exe_path())
+        if ours[pid]:
+            v = window_visibility(hwnd)
+            if v and (v[1] or v[2]):
+                found.append((hwnd, pid, window_title(hwnd)) + v)
+        return True
+
+    _user32.EnumWindows(WNDENUMPROC(each), 0)
+    return found
+
+
+class VisibilityWatch:
+    """Every top-level window of the test client, checked each time it shows, moves or changes place in the Z order
+    (WinEvent hook, out of context, on a thread of its own with a message loop), and once more before the client
+    stops: one the person using the PC could see (on a monitor and not cloaked) or topmost fails the scenario.
+    Not installed with LAV_TEST_VISIBLE=1."""
+
+    def __init__(self):
+        self.seen = {}  # hwnd -> (title, last rect)
+        self.violations = []  # (time, hwnd, pid, title, rect, seen, topmost)
+        self._ours = {}
+        self.hooked = False
+        self.thread_id = None
+        if windows_visible():
+            return
+        self._ready = threading.Event()
+        self._t = threading.Thread(target=self._loop, daemon=True)
+        self._t.start()
+        self._ready.wait(5)
+
+    def _is_ours(self, pid):
+        if pid not in self._ours:
+            exe = hosts._image_path(pid)
+            self._ours[pid] = bool(exe) and hosts._same_exe(exe, clientmod.exe_path())
+        return self._ours[pid]
+
+    def check(self, hwnd):
+        pid = window_pid(hwnd)
+        if not pid or not self._is_ours(pid):
+            return
+        v = window_visibility(hwnd)
+        if v is None:
+            return
+        title = window_title(hwnd)
+        self.seen[hwnd] = (title, v[0])
+        if v[1] or v[2]:
+            self.violations.append((time.strftime("%H:%M:%S"), hwnd, pid, title) + v)
+
+    def _on_event(self, _hook, event, hwnd, obj, child, _thread, _ms):
+        if obj != OBJID_WINDOW or child != 0 or not hwnd:
+            return
+        if event not in (EVENT_OBJECT_SHOW, EVENT_OBJECT_REORDER, EVENT_OBJECT_LOCATIONCHANGE):
+            return
+        if _user32.GetAncestor(hwnd, GA_ROOT) != hwnd:
+            return
+        self.check(hwnd)
+
+    def _loop(self):
+        self.thread_id = _kernel32.GetCurrentThreadId()
+        self._proc = WINEVENTPROC(self._on_event)  # kept alive as long as the hook
+        hook = _user32.SetWinEventHook(EVENT_OBJECT_SHOW, EVENT_OBJECT_LOCATIONCHANGE, None, self._proc, 0, 0,
+                                       WINEVENT_OUTOFCONTEXT)
+        self.hooked = bool(hook)
+        self._ready.set()
+        if not hook:
+            return
+        msg = wt.MSG()
+        while _user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
+            _user32.TranslateMessage(ctypes.byref(msg))
+            _user32.DispatchMessageW(ctypes.byref(msg))
+        _user32.UnhookWinEvent(hook)
+
+    def sweep(self):
+        """A last look at every window of the client, still running (the hook only sees changes)."""
+        if windows_visible():
+            return
+        for v in client_windows_seen():
+            self.violations.append((time.strftime("%H:%M:%S"),) + v)
+
+    def finish(self):
+        if self.thread_id:
+            _user32.PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0)
+            self._t.join(5)
+
+    def lines(self):
+        if windows_visible():
+            return ["LAV_TEST_VISIBLE=1: the windows were shown, not checked"]
+        out = [f"{len(self.seen)} window(s) of the test client shown, none seen by the user nor topmost"
+               if not self.violations else f"{len(self.violations)} VIOLATION(S)"]
+        out += [f"shown {h}: « {t} » last at {r}" for h, (t, r) in self.seen.items()]
+        out += [f"VIOLATION {t}: {h} pid {pid} « {title} » rect {r} seen {s} topmost {top}"
+                for t, h, pid, title, r, s, top in self.violations]
+        return out
+
+
 # ---------------------------------------------------------------- the bench
 
 def _bench_name(test_name):
@@ -231,6 +383,7 @@ class Bench:
         self.hosts = {}
         self.client = None
         self.watch = ForegroundWatch()
+        self.visibility = VisibilityWatch()
         self.notes = []
         self.flags = []
 
@@ -297,6 +450,10 @@ class Bench:
     # -- teardown
     def close(self):
         errors = []
+        try:
+            self.visibility.sweep()  # while the client still runs
+        except Exception as e:  # noqa: BLE001 -- the teardown must go on
+            errors.append(f"visibility sweep: {e}")
         if self.client is not None and self.client.proc is not None and self.client.proc.poll() is not None:
             errors.append(f"the test client died during the scenario (exit code {self.client.proc.returncode}); "
                           "see its log")
@@ -366,6 +523,7 @@ def bench(request):
     b = Bench(name, run, workdir)
     b.flags += setup_notes
     assert b.watch.hooked, "the foreground hook (SetWinEventHook) could not be installed"
+    assert b.visibility.hooked or windows_visible(), "the visibility hook (SetWinEventHook) could not be installed"
     try:
         yield b
     finally:
@@ -377,7 +535,11 @@ def bench(request):
         logs = run.root / "logs" / name
         logs.mkdir(parents=True, exist_ok=True)
         (logs / "foreground.txt").write_text(chr(10).join(fg), encoding="utf-8")
+        b.visibility.finish()
+        (logs / "visibility.txt").write_text(chr(10).join(b.visibility.lines()), encoding="utf-8")
         end_flags = [] if after else ["FOREGROUND end of scenario: no window (hwnd 0)"]
         run.flags[request.node.nodeid] = b.flags + b.watch.flags() + end_flags
     assert not b.watch.ours(), f"a test window took the foreground: {b.watch.ours()[:3]}"
+    assert not b.visibility.violations, \
+        f"a test window could be seen by the user, or was topmost: {b.visibility.lines()[-3:]}"
     assert not errors, "; ".join(errors)

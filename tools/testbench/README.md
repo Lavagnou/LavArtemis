@@ -50,7 +50,8 @@ machine) : `report.md` / `report.json` (résultat de chaque scénario, durée, r
 LavArtemis, LavApollo et LavArtemis-Qt utilisés, modifications non commitées signalées), `captures/<scénario>/`
 (PNG des fenêtres, celles du stream par PrintWindow), `logs/<scénario>/` (`sunshine.log` et `testhost/*.jsonl`
 de chaque hôte, le journal de **chaque** lancement du client — `client-1-reset.log` pour celui qui efface
-l'organisation, `client-N-args.log` pour un lancement avec un lien —, notes et chronologie du premier plan).
+l'organisation, `client-N-args.log` pour un lancement avec un lien —, notes, chronologie du premier plan et
+`visibility.txt`, les fenêtres du client vues par le contrôle de visibilité).
 `--report-dir` choisit un autre dossier.
 
 La colonne *Note* de `report.md` signale toute **reprise** (`RETRY` : une lecture d'image refaite, un clic qui attendait
@@ -93,7 +94,18 @@ Lancer la suite écran allumé ; une capture (`screenshot`) force un rendu, ce q
   pointeur ou le vrai clavier (seules les entrées injectées par le canal atteignent l'hôte), le son, le vrai micro.
 - **Processus** : seuls ceux que le banc a lancés sont arrêtés (chemin de l'exe vérifié), à la fin de chaque
   scénario, échec compris ; un run interrompu est nettoyé au suivant (fichiers de PID).
-- **Premier plan** : les fenêtres sont visibles mais ne prennent jamais le focus. Un crochet
+- **Fenêtres jamais vues** : la personne qui se sert du PC ne voit jamais une fenêtre du client de test et n'en est
+  jamais gênée. Le client voile chacune de ses fenêtres (`DWMWA_CLOAK`) dès sa création, avant tout affichage :
+  DWM n'en dessine rien et la souris passe au travers ; elles restent au bas de l'ordre Z, jamais topmost, jamais
+  activées (LavArtemis-Qt, `testctl/hiddenwindows.h`, « Mode discret » de son CLAUDE.md). Pour Qt et SDL elles
+  restent affichées à leur place : mise en page, animations, rendu du stream et captures (`grabWindow`,
+  `PrintWindow`) marchent comme avant. Un second crochet `SetWinEventHook` (`VisibilityWatch` de `conftest.py`)
+  regarde chaque fenêtre du client quand elle s'affiche, bouge ou change de place dans l'ordre Z, puis toutes une
+  dernière fois avant l'arrêt du client : une fenêtre sur un écran et non voilée, ou topmost, fait échouer le
+  scénario (`logs/<scénario>/visibility.txt`). **`LAV_TEST_VISIBLE=1`** dans l'environnement du banc (le client
+  en hérite) remet les fenêtres à l'écran pour regarder un scénario à l'œil (toujours sans focus) ; ce contrôle ne
+  vérifie alors rien. À ne pas laisser posé pendant que quelqu'un travaille sur le PC.
+- **Premier plan** : les fenêtres ne prennent jamais le focus. Un crochet
   `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` (hors contexte, sur un thread avec sa boucle de messages) reçoit les
   changements de premier plan que Windows annonce (un passage à « aucune fenêtre » n'en produit pas toujours un : le
   premier plan est donc aussi relu à la fin du scénario) : un scénario échoue si l'un d'eux va à une fenêtre du client
