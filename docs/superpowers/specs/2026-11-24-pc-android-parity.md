@@ -390,6 +390,35 @@ Les deux clients copient le prototype (textes de `textes-choisis.md`) ; détails
   transformée du prototype), détails dans `CLAUDE.md` (« Un anneau de focus n'est jamais coupé »). **PC** : à
   vérifier de son côté (banc de test).
 
+## 3 decies. Manette et clavier (2026-11-27, audit `verif-2026-11-25/audit-manette.md`)
+
+Règles communes, arbitrées dans `decisions-design.md` (« Manette ») ; mêmes réponses pour le prototype, le PC et
+Android. **Android fait** (`GamepadNavigationTest`, `FocusGridTest`, `DirRepeatTest`) ; le PC est fait en parallèle
+par son propre passage (banc de test).
+
+- **Une direction ne va que vers ce qui est dans cette direction, rien ne saute en bout de liste.** En changeant de
+  rangée, l'élément dont le **centre horizontal est le plus proche** (A2 : Bas depuis Playnite tombe sous Playnite,
+  plus sur la 2ᵉ jaquette) ; une seule rangée → Haut / Bas ne font rien (Mes PC, dock Ludique sur une rangée, M3 / G1) ;
+  une liste d'un élément par rangée → Gauche / Droite ne font rien (bibliothèque Affiche, détails, « Lancer »,
+  L1 / D1), sauf une ligne qui a une valeur ; Bas vers une rangée plus courte → son dernier élément (M4).
+- **Réglages par colonne** (R1 à R3) : Haut / Bas restent dans la colonne (liste des pages ou réglages) et
+  s'arrêtent au bout, jamais vers l'autre colonne ni l'en-tête ; Droite depuis la liste → les réglages, Gauche depuis
+  un réglage → la liste ; sur un choix ou un curseur Gauche / Droite changent la valeur (liste déroulante comprise),
+  Gauche en bout de course revient à la liste. **Cartes du thème** : Gauche / Droite passent d'une carte à l'autre,
+  A applique (R10). Barre : « A Ouvrir » sur la liste, « A Changer » sur les réglages et Mode expert (R11).
+  Mise en page étroite (Android) : barre d'indications et LB / RB = page voisine, ses réglages affichés (R8).
+- **B revient d'un niveau** : réglages → liste des pages → accueil ; **B / Start sur l'accueil : « Tu veux vraiment
+  quitter ? »** (Quitter / Annuler) au lieu de fermer l'appli (A1 ; texte du `quitConfirmationDialog` du PC). Le
+  geste Retour du système ferme toujours l'appli Android.
+- **Focus** : LB / RB sur l'accueil → Reprendre, sinon Playnite, sinon « Réveiller » (A3) ; revenir des Réglages
+  (nouveau thème, rotation) garde le focus sur « Réglages » (A6) ; une rangée reconstruite (récent masqué, poll) garde
+  la place du focus (V2) ; Mes PC s'ouvre sur la carte du PC affiché à l'accueil (M5).
+- **Dialogues** : Y / Menu ferme (O4, comme avant) ; Start = Retour ; même répétition 380 / 110 ms que les écrans (O3).
+- **Répétition** : 380 ms puis 110 ms, la répétition du système ignorée ; diagonale = **vertical d'abord** (E3) ;
+  relâcher une direction rend la répétition à celle encore tenue (E5, Android). Android : `DirRepeat` + `ui/DirKeys`
+  (écrans et dialogues) ; le stick passe par la conversion du système en touches de croix (V7, vérifié).
+- **Les pastilles de la barre d'indications ne prennent jamais le focus** (un toucher les lance toujours).
+
 ## 4. Ce qui reste
 
 ### À coder (taille raisonnable, pas fait dans ce passage)

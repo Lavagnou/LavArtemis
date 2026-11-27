@@ -274,6 +274,31 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 > - **Entrée** (`V2Activity`) : A maintenu **500 ms** sur un élément à appui long (`isHoldable`), A **à l'appui**
 >   ailleurs, Start = retour, D-pad sur la **grille du prototype** (`FocusGrid`, `focusRows()`). Toasts : `V2Toast`
 >   (`V2Activity.toast()`), plus de `Toast` système dans les activités v2. Barre d'aide : `ui/HintsBar`.
+> - **Navigation manette / clavier (règles du 2026-11-27, `verif-2026-11-25/audit-manette.md` + arbitrages de
+>   `decisions-design.md`, « Manette » ; mêmes règles côté PC, parité § 3 decies)** : une direction ne va que vers ce
+>   qui est dans cette direction, rien ne saute en bout de liste. `FocusGrid` : changer de rangée = l'élément au
+>   **centre horizontal le plus proche** (mesuré à l'écran, `V2Activity.screenCenterX` ; sans mesure, la colonne
+>   bornée) ; une seule rangée → Haut / Bas ne font rien ; un élément par rangée → Gauche / Droite ne font rien (sauf
+>   `onV2Horizontal`, une ligne à valeur). **Réglages : navigation par colonne** (`SettingsActivity.onV2Move` →
+>   `SettingsScreen.move`, le seul écran sans grille) : Haut / Bas restent dans la liste des pages ou dans les réglages
+>   et s'arrêtent au bout ; Droite = réglages, Gauche = pages ; un choix ou un curseur prend Gauche / Droite
+>   (`SettingRowView.stepValue`), Gauche en bout de course → pages ; une ligne de boutons ou les **cartes du thème**
+>   (`focusStops()` / `entryStop()`, la carte choisie en entrant ; A applique, le focus reste sur la carte après la
+>   reconstruction) se parcourent de gauche à droite. ⚠️ Avant, Haut / Bas partaient dans la recherche de focus du
+>   système, **sur toute la fenêtre** : Haut sur le premier réglage tombait sur « Mode expert », Bas en bas d'une page
+>   courte sur une autre page. Un nouvel élément focalisable des Réglages doit entrer dans `focusStops()` ; un contrôle
+>   cliquable à l'intérieur d'une ligne (segment, liste) est `setFocusable(false)`. Barre : « A Ouvrir » sur les pages,
+>   « A Changer » sur les réglages ; étroit : barre aussi (la page lui garde sa hauteur) et LB / RB = page voisine.
+>   **B / Start sur l'accueil : « Tu veux vraiment quitter ? »** (`HomeActivity.onV2BackKey`, `V2Activity.onV2BackKey`
+>   = touches seulement ; le geste Retour du système passe par `onV2Back` et ferme l'appli). Accueil : LB / RB
+>   replacent le focus (Reprendre / Playnite / Réveiller), une reconstruction (thème, rotation, rangée refaite) garde la
+>   place du focus ; Mes PC s'ouvre sur la carte du PC de l'accueil. **Pastilles de `HintsBar` jamais focalisables**
+>   (un clic les lance). **Répétition** : `DirRepeat` (vertical d'abord sur une diagonale, la répétition revient à une
+>   direction encore tenue) dans `ui/DirKeys`, partagé par les écrans (`V2Activity`) **et les dialogues**
+>   (`DialogKeys`, où Start = B) ; les touches de croix que le système tire du stick (`FLAG_FALLBACK`, l'horizontale
+>   d'abord) attendent la fin du lot d'entrées, une verticale du même lot l'emporte. Dock Ludique : `V2GameMenu.Dock.
+>   focusSearch` (rangée par rangée, rien sur une seule). ⚠️ Robolectric : `Activity.getCurrentFocus()` y est nul,
+>   `V2Activity.focusedView()` lit le focus dans la fenêtre. Tests : `GamepadNavigationTest`, `FocusGridTest`, `DirRepeatTest`.
 > - **Accueil** : `HomeScreen` = une mise en page **par thème** (pièces dans `HomeParts`), tailles par
 >   `HomeLayout` (tablette = scène du prototype ×k ; console / téléphone = planches de densité ; le texte rétrécit
 >   moins que les blocs). Héros Braise = fond du jeu (`CoverSource.loadBackground`, LavApollo) sinon jaquette floutée
@@ -468,7 +493,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
     `preferences/SettingsFileActions`, partagé avec `StreamSettings`.
   - Clavier / manette : la ligne a le focus ; A / Entrée bascule ou ouvre la liste, Gauche / Droite font
     défiler un choix ou un curseur, Gauche en bout de course revient à la liste des pages ; B : lignes → pages →
-    accueil. Le curseur du débit est **courbé** (`curve(3)` : 20 Mbit/s vers 29 % de la course, 800 au bout ; avec le codec
+    accueil ; Haut / Bas ne quittent jamais la colonne (voir « Navigation manette / clavier »). Le curseur du débit est **courbé** (`curve(3)` : 20 Mbit/s vers 29 % de la course, 800 au bout ; avec le codec
     PyroWave il va à 3 Gbit/s — `SettingDef.maxFrom()` / `maxFor()`, `SettingsCatalog.BITRATE_MAX_KBPS` /
     `BITRATE_MAX_PYROWAVE_KBPS`, mêmes valeurs que `bitrateMax` du desktop) et ses
     pas grandissent avec la valeur. Toute écriture est immédiate, pas de bouton « Enregistrer ».
