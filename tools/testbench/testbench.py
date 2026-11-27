@@ -73,12 +73,26 @@ def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
     args = [str(here / ("selftest" if selftest else "scenarios")), "--report-dir", str(report_dir)] + (["-k", keyword] if keyword else [])
     code = _pytest(args + list(extra), 1)
     results, _started = report.load(report_dir)
+
+    def display_went_off():
+        marker = report_dir / "display-off"
+        if not marker.exists():
+            return False
+        print(f"testbench: l'écran s'est éteint pendant le banc (après {marker.read_text(encoding='utf-8')}) : "
+              f"arrêt, rien n'est jugé. Garder l'écran allumé et relancer. Rapport partiel : {report_dir}",
+              file=sys.stderr, flush=True)
+        return True
+
+    if display_went_off():
+        return EXIT_DISPLAY_OFF
     if code != 0 and rerun_failed_once:
         failed = report.failed_ids(results)
         if failed:
             print(f"testbench: rerunning {len(failed)} failed scenario(s) once: {failed}", flush=True)
             code = _pytest(failed + ["--report-dir", str(report_dir)] + list(extra), 2)
             results, _started = report.load(report_dir)
+            if display_went_off():
+                return EXIT_DISPLAY_OFF
     exit_code, lines = verdict(results, code)
     name = {EXIT_OK: "PASSED", EXIT_FAILED: "FAILED", EXIT_FLAKY: "FLAKY"}[exit_code]
     print("", "=== testbench summary ===", *lines, f"RESULT: {name} (exit {exit_code}), report {report_dir}",

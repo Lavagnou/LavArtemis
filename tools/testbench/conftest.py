@@ -101,7 +101,17 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     if _is_scenario(item):
         doc = (item.function.__doc__ or "").strip() if hasattr(item, "function") else ""
-        record(_run(item.config), item.nodeid, item.name, doc, outcome.get_result())
+        rep = outcome.get_result()
+        record(_run(item.config), item.nodeid, item.name, doc, rep)
+        # The display can go to sleep in the middle of a run: from then on Qt stops laying windows out and every
+        # scenario fails for nothing.  Stop the session instead (the runner turns the marker into exit code 4).
+        if rep.when == "teardown" and not os.environ.get("LAV_TESTBENCH_SELFTEST"):
+            import display
+            if display.display_state() == display.OFF:
+                root = pathlib.Path(_run(item.config).root)
+                root.mkdir(parents=True, exist_ok=True)
+                (root / "display-off").write_text(item.nodeid, encoding="utf-8")
+                pytest.exit("display turned off during the run", returncode=4)
 
 
 def pytest_sessionfinish(session, exitstatus):

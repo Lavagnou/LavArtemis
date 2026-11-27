@@ -31,6 +31,9 @@ d'alimentation `GUID_CONSOLE_DISPLAY_STATE` n'est pas interrogeable, il est livr
 fenêtre inscrite par `RegisterPowerSettingNotification`, et Windows envoie la valeur courante dès l'inscription ;
 une fenêtre invisible, 1,5 s d'attente). Éteint : message « écran éteint : le banc de test a besoin de l'écran allumé »
 et sortie 4 ; allumé, tamisé ou état inconnu (pas de réponse) : on lance. Le banc ne rallume jamais l'écran.
+**L'écran peut aussi s'éteindre en cours de route** (veille après inactivité) : après chaque scénario, `conftest.py`
+relit l'état ; éteint, il écrit `display-off` dans le rapport et arrête la session, et `run` sort en **4** sans rejouer
+ni juger (sinon tous les scénarios suivants échouaient pour rien, 52 échecs le 2026-11-27).
 
 **Vérifier la porte sans GUI** : `LAV_TESTBENCH_SELFTEST=pass|fail|flaky`, honoré par `run` seulement : il remplace
 les scénarios par un scénario interne (`selftest/test_gate.py`, hors `scenarios/`), sans hôte ni client ni contrôle de
