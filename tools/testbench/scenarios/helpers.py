@@ -550,18 +550,27 @@ def popup_texts(c):
 def tile_by_name(c, name):
     """The cover tile of a game, found by opening each tile's menu (its title is the game's name) and closing it:
     works whatever the covers look like (dimmed while a session runs).  The V8 options open with their kind line
-    (« Jeu Playnite · … »), then the title: both are read before deciding."""
-    for t in sorted(tiles(c), key=reading_order):
-        click_item(c, t, "right")
-        deadline = time.time() + 5
-        shown = []
-        while len(shown) < 2 and time.time() < deadline:
-            time.sleep(0.2)
-            shown = popup_texts(c)
-        c.call("key", key="Escape", target="qt")
-        deadline = time.time() + 5
-        while popup_texts(c) and time.time() < deadline:
-            time.sleep(0.2)
-        if name in shown[:2]:
-            return t
-    raise AssertionError(f"no cover tile for {name!r}")
+    (« Jeu Playnite · … »), then the title: both are read before deciding.  A second pass reads the tiles again: the
+    recents can be reordered under the first one (the library is fetched again, a game's last activity changes), and
+    the game was then missed (scenario 6, now and then since 2026-11-25)."""
+    seen = []
+    for attempt in (1, 2):
+        if attempt == 2:
+            TRACE.append(f"{time.strftime('%H:%M:%S')} RETRY no cover tile for {name!r} (menus read: {seen}): "
+                         f"the tiles read again")
+            time.sleep(1.0)
+        for t in sorted(tiles(c), key=reading_order):
+            click_item(c, t, "right")
+            deadline = time.time() + 5
+            shown = []
+            while len(shown) < 2 and time.time() < deadline:
+                time.sleep(0.2)
+                shown = popup_texts(c)
+            c.call("key", key="Escape", target="qt")
+            deadline = time.time() + 5
+            while popup_texts(c) and time.time() < deadline:
+                time.sleep(0.2)
+            if name in shown[:2]:
+                return t
+            seen.append(shown[:2])
+    raise AssertionError(f"no cover tile for {name!r}; menus read: {seen}")
