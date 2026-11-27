@@ -600,6 +600,10 @@ def test_quit_dialog(bench):
     entry = next(i for i in c.tree(textOnly=True) if i.get("text") == "Quitter LavArtemis")
     ring = _ring(c)
     assert entry["y"] - 10 <= ring[1] <= entry["y"] + entry["h"] + 10, f"focus not on « Quitter LavArtemis »: {ring} {entry}"
+    # the hints bar under it: the dialogs' « A Valider · B Annuler », not the home's
+    shown = helpers.texts(c)
+    assert "Valider" in shown and "Annuler" in shown, f"hints under the quit dialog: {shown[-10:]}"
+    assert "Changer de PC" not in shown and not any(t.startswith("Options (ou maintenir") for t in shown),         f"the home's hints under the quit dialog: {shown[-10:]}"
     bench.shot("01-quit-dialog")
     # B closes it, the app stays
     _pad(c, "b")
