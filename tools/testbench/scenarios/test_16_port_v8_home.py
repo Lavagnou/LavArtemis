@@ -5,7 +5,9 @@ S1 focus grid at the keyboard: rows [Mes PC, Réglages] / [Bureau, Playnite] / [
 S2 hints bar at the keyboard (« Entrée Lancer · Menu Options (ou maintenir Entrée) · Q E Changer de PC »), none at
    the mouse.
 S3 Menu key = options of the focused game (centred dialog: « Jouer », « Afficher les détails »…); Échap closes.
-S4 Entrée held 500 ms = the same options, and the release does not launch.
+S4 Entrée held 500 ms = the same options, and the release does not launch; pressed at once after the Échap that
+   closes the options, it is the page's (not lost while the dialog's exit animation runs).
+S4b in the options, Bas then Entrée = « Afficher les détails » (the dialog's keys work).
 S5 Q / E = previous / next PC (two fake PCs), the focus goes back to Playnite Fullscreen.
 S6 toasts: the Multi-écran pill without the virtual display says why (« Le multi-écran a besoin de l’écran virtuel… »).
 S7 Bureau left running by « Déconnecter »: its card says « Reprendre » and a click resumes the stream (the bug of
@@ -60,14 +62,26 @@ def test_focus_grid_hints_options_hold(bench):
     _key(c, "Escape")
     helpers.wait_text(c, "Afficher les détails", gone=True)
 
-    # S4: Entrée held 600 ms = options; the release does not launch
-    c.call("key", key="Enter", state="down", target="qt")
+    # S4: Entrée held 700 ms = options; the release does not launch. Pressed at once after the Échap that closes
+    # the options: the keys are the page's as soon as the dialog starts closing. Qt takes them from the popup at
+    # the start of its 220 ms exit animation, and the page only got them back at its end (onClosed): a key pressed
+    # in between went nowhere (the FLAKE of 2026-11-27, whenever the Entrée came less than 70 ms after the text
+    # vanished)
+    _key(c, "Menu")
+    helpers.wait_text(c, "Afficher les détails")
+    c.call("key", key="Escape", target="qt")
+    down = c.call("key", key="Enter", state="down", target="qt")
+    assert down["focus"] == "HomeView#LavArtemis", f"the Entrée pressed while the options close went to {down['focus']}"
     time.sleep(0.7)
     c.call("key", key="Enter", state="up", target="qt")
     helpers.wait_text(c, "Afficher les détails")
     time.sleep(1.0)
     assert not c.state()["session"]["active"], "the release of a held Entrée launched the game"
-    _key(c, "Escape")
+
+    # S4b: the keys work inside the options (their handler was attached to the Popup, not an Item: Qt dropped it
+    # with « Could not attach Keys property »): Bas then Entrée = « Afficher les détails »
+    _key(c, "Down", "Enter")
+    helpers.wait_page(c, "DetailsView")
 
 
 def test_shoulder_and_toast(bench):
