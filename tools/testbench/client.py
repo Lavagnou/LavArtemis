@@ -438,8 +438,8 @@ class Client:
         return self.wait_for(lambda s: (s.get("page") or not page_required) and not s.get("pageBusy"), timeout)
 
     def gamepad_attach(self, timeout=5.0):
-        """Attach the virtual pad (stream only) and wait until the client has opened it: a button pressed
-        earlier would be lost."""
+        """Attach the virtual pad and wait until the client has opened it: a button pressed earlier would be lost.
+        During a stream it lives for that stream; outside one it drives the UI (scenario 20)."""
         self.call("gamepad", attach=True)
         self.wait_for(lambda s: s.get("pad"), timeout)
         time.sleep(0.5)

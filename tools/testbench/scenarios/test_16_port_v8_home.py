@@ -45,8 +45,9 @@ def test_focus_grid_hints_options_hold(bench):
         assert t in _texts(c), f"hint {t!r} missing: {_texts(c)}"
     bench.shot("01-hints")
 
-    # S1: Up x3 = header row, Down x2 = first recent: its caption
-    _key(c, "Up", "Up", "Up", "Down", "Down")
+    # S1: Up x3 = header row, Down x2 = the recents row (the item under the cards' closest centre, scenario 20), Left
+    # x6 = the first recent: its caption
+    _key(c, "Up", "Up", "Up", "Down", "Down", *(["Left"] * 6))
     caption = helpers.wait_text(c, " jouées", contains=True)[0]["text"]  # « N h » or « N min jouées »
     assert "·" in caption
     first = caption

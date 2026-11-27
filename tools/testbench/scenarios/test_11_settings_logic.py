@@ -289,7 +289,11 @@ def test_s2_bitrate(bench):
     slide_to(c, "bitrateKbps", 0.5)
     mine = wait_value(c, "bitrateKbps", lambda v: v != start, "the slider did not move the bitrate")
     assert get(c, "autoAdjustBitrate") is False
-    assert raw(c, "autoadjustbitrate")["global"] in (False, "false"), raw(c, "autoadjustbitrate")
+    # written by the page's save, 400 ms after the last change (SettingsView2.persist()): wait for it
+    deadline = time.time() + 5
+    while raw(c, "autoadjustbitrate")["global"] not in (False, "false"):
+        assert time.time() < deadline, raw(c, "autoadjustbitrate")
+        time.sleep(0.2)
     bench.shot("s2-moved")
     helpers.open_settings_page(c, "Affichage")
     choose_segment(c, "fps", "30")
