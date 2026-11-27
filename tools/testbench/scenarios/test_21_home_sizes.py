@@ -14,6 +14,8 @@ the fake PC).  For each layout:
 - no text and no focusable item is cut (`clipped`: by the window or a clipping ancestor; `truncated`: elided), the
   card titles excepted (a long app name may end in « … » in a narrow card, as in the prototype);
 - no focus ring is cut (`focusrings`), every item of the focus grid in turn (`pagefocus`).
+The test client's windows are cloaked, and Qt may then put off a layout to the next frame: a capture forces the
+frame before each measure, and a finding counts only if another frame shows it again.
 A capture of each layout that fails, and of the user's sizes, goes into the report."""
 import time
 
@@ -79,19 +81,30 @@ def check_layout(c):
     return bad
 
 
-def check_rings(c, grid):
+def check_rings(c):
     bad = []
-    for row in grid:
-        for fid in row:
-            c.call("pagefocus", fid=fid)
-            time.sleep(0.2)  # the focused item grows to 1.04 in 150 ms
-            for r in c.call("focusrings", window=0)["rings"]:
-                if r.get("cutBy"):
-                    cut = r["cutBy"]
-                    where = "window" if not isinstance(cut, dict) else \
-                        f"{cut.get('type')} {cut.get('x')},{cut.get('y')} {cut.get('w')}x{cut.get('h')}"
-                    bad.append(f"ring of {fid} ({r['x']},{r['y']} {r['w']}x{r['h']}) cut by {where}")
+    for r in c.call("focusrings", window=0)["rings"]:
+        if r.get("cutBy"):
+            cut = r["cutBy"]
+            where = "window" if not isinstance(cut, dict) else                 f"{cut.get('type')} {cut.get('x')},{cut.get('y')} {cut.get('w')}x{cut.get('h')}"
+            bad.append(f"ring ({r['x']},{r['y']} {r['w']}x{r['h']}) cut by {where}")
     return bad
+
+
+def check_focus(c, bench, fid, layout):
+    """The focus on `fid` (the page's grid), what is wrong there: its ring, and the whole layout if asked.  A cloaked
+    window may put off its layout to its next frame (a Row then shows both cards at x = 0): a capture forces the
+    frame before measuring, and a finding counts only if it is still there after another one."""
+    c.call("pagefocus", fid=fid)
+    found = None
+    for attempt in range(2):
+        c.screenshot(bench.workdir / "render.png")
+        time.sleep(0.25)  # the focused item grows to 1.04 in 150 ms
+        bad = [f"[focus {fid}] {b}" for b in check_rings(c) + (check_layout(c) if layout else [])]
+        if not bad:
+            return []
+        found = bad
+    return found
 
 
 def sweep(c, bench, state):
@@ -108,11 +121,11 @@ def sweep(c, bench, state):
             time.sleep(0.3)
             grid = c.state()["pageState"]["grid"]
             bad = []
+            # every item of the grid for its ring; the whole layout with the focus on the first item of each row
+            # (a cover shows Braise's hero title)
             for row in grid:
-                c.call("pagefocus", fid=row[0])
-                time.sleep(0.25)
-                bad += [f"[focus {row[0]}] {b}" for b in check_layout(c)]
-            bad += check_rings(c, grid)
+                for n, fid in enumerate(row):
+                    bad += check_focus(c, bench, fid, layout=n == 0)
             bad = list(dict.fromkeys(bad))
             if bad or (w, h) in USER_SIZES:
                 c.call("pagefocus", fid=grid[1][0])
