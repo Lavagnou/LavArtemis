@@ -124,7 +124,10 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
         }
         boolean hadFocus = screen != null && !container.isInTouchMode() && container.findFocus() != null;
         View focused = container.findFocus();
-        String focusKey = focused instanceof SettingRowView ? ((SettingRowView) focused).def.key : null;
+        // The row, and the button or theme card of it, that had the focus (a theme picked with A)
+        SettingRowView focusRow = SettingsScreen.rowOf(focused);
+        String focusKey = focusRow == null ? null : focusRow.def.key;
+        int focusStop = focusRow == null ? -1 : focusRow.focusStops().indexOf(focused);
         if (screen != null) {
             page = screen.currentPage();
             showingRows = screen.narrow && screen.isShowingRows();
@@ -132,8 +135,8 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
         screen = new SettingsScreen(this, theme, Density.of(getResources().getConfiguration()), env, store, this, page, showingRows);
         container.removeAllViews();
         container.addView(screen.getView(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        if (focusKey != null && screen.rowFor(focusKey) != null) {
-            screen.rowFor(focusKey).requestFocus();
+        if (focusKey != null && screen.focusRowStop(focusKey, focusStop)) {
+            return;
         } else if (hadFocus) {
             screen.requestInitialFocus();
         }
@@ -204,9 +207,18 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
         toast(on ? R.string.v2_set_expert_on : R.string.v2_set_expert_off);
     }
 
+    /**
+     * Réglages move by column (decision of 2026-11-27): up / down stay in the column they are in
+     * and stop at its end, left / right change column, a choice or a slider takes left / right first
+     */
+    @Override
+    protected boolean onV2Move(View focused, int dx, int dy) {
+        return screen != null && screen.move(focused, dx, dy);
+    }
+
     @Override
     protected boolean shoulderKeysEnabled() {
-        return screen != null && !screen.narrow;
+        return screen != null;
     }
 
     @Override

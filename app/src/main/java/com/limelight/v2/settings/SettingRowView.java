@@ -108,7 +108,9 @@ public final class SettingRowView extends V2Frame {
         this.listener = listener;
         radius = Ui.dpf(context, theme.rs);
         boolean multiButtons = def.type == SettingDef.Type.BUTTONS;
-        setFocusable(!multiButtons);
+        // The theme row: its cards take the focus, left / right go from one to the next (R10)
+        boolean themes = V2Theme.PREF_THEME.equals(def.key);
+        setFocusable(!multiButtons && !themes);
         setClickable(!multiButtons && def.type != SettingDef.Type.SLIDER);
         setRing(theme.rs, 5, theme.fg);
         paintBackground();
@@ -310,12 +312,20 @@ public final class SettingRowView extends V2Frame {
         if (rebuild) {
             themeCards = new LinearLayout(c);
             themeCards.setOrientation(LinearLayout.HORIZONTAL);
+            Ui.noClip(themeCards);
             for (int i = 0; i < opts.size(); i++) {
                 final Option o = opts.get(i);
                 V2Theme t = V2Theme.of(o.value, V2Theme.BRAISE.equals(o.value));
                 LinearLayout card = new LinearLayout(c);
                 card.setOrientation(LinearLayout.VERTICAL);
                 card.setPadding(px(10), px(9), px(10), px(9));
+                // The card the gamepad lands on: its ring, never the Affiche yellow fill (it shows a theme)
+                V2Frame frame = new V2Frame(c, theme);
+                frame.setFocusable(true);
+                frame.setClickable(true);
+                frame.setRing(theme.rs, 0, 0);
+                frame.setFocusFill(false);
+                frame.addView(card, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
                 LinearLayout dots = new LinearLayout(c);
                 dots.setOrientation(LinearLayout.HORIZONTAL);
                 int accent = t.accent == t.fg ? 0xFFFFD60A : t.accent;
@@ -334,10 +344,13 @@ public final class SettingRowView extends V2Frame {
                 name.setTypeface(t.displayFont(c, 800));
                 name.setText(o.label);
                 card.addView(name);
-                card.setTag(o);
-                card.setOnClickListener(v -> {
+                frame.setTag(o);
+                frame.setContentDescription(o.label);
+                frame.setOnClickListener(v -> {
                     if (rowEnabled) {
-                        requestFocusIfKeys();
+                        if (V2Input.showFocus(getContext())) {
+                            v.requestFocus();
+                        }
                         listener.onChoose(def, o);
                     }
                 });
@@ -345,12 +358,12 @@ public final class SettingRowView extends V2Frame {
                 if (i > 0) {
                     lp.setMarginStart(px(10));
                 }
-                themeCards.addView(card, lp);
+                themeCards.addView(frame, lp);
             }
             body.setControl(themeCards, false);
         }
         for (int i = 0; i < themeCards.getChildCount(); i++) {
-            View card = themeCards.getChildAt(i);
+            V2Frame card = (V2Frame) themeCards.getChildAt(i);
             Option o = (Option) card.getTag();
             V2Theme t = V2Theme.of(o.value, V2Theme.BRAISE.equals(o.value));
             boolean on = o.value.equals(current);
@@ -394,6 +407,8 @@ public final class SettingRowView extends V2Frame {
                     listener.onChoose(def, o);
                 }
             });
+            // A tap picks it; the gamepad stays on the row (a clickable view is focusable on Android 8+)
+            s.setFocusable(false);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(34), 1f);
             if (i > 0) {
                 lp.setMarginStart(px(3));
@@ -430,6 +445,7 @@ public final class SettingRowView extends V2Frame {
                 listener.onOpenList(def);
             }
         });
+        dropdown.setFocusable(false);
         return dropdown;
     }
 
@@ -530,9 +546,53 @@ public final class SettingRowView extends V2Frame {
         }
     }
 
+    /**
+     * Where the gamepad stops in this row, left to right: the row itself, else its enabled buttons,
+     * else its theme cards (Réglages moves through them, SettingsScreen.move)
+     */
+    public List<View> focusStops() {
+        List<View> out = new ArrayList<>();
+        if (isFocusable()) {
+            out.add(this);
+            return out;
+        }
+        for (View b : buttons) {
+            if (b.isFocusable() && b.isEnabled() && b.getVisibility() == VISIBLE) {
+                out.add(b);
+            }
+        }
+        if (themeCards != null) {
+            for (int i = 0; i < themeCards.getChildCount(); i++) {
+                out.add(themeCards.getChildAt(i));
+            }
+        }
+        return out;
+    }
+
+    /** The stop the focus lands on when it comes to this row: the chosen theme card, else the first stop */
+    public View entryStop() {
+        List<View> stops = focusStops();
+        if (stops.isEmpty()) {
+            return null;
+        }
+        if (themeCards != null) {
+            for (View card : stops) {
+                if (card.getTag() instanceof Option && ((Option) card.getTag()).value.equals(value)) {
+                    return card;
+                }
+            }
+        }
+        return stops.get(0);
+    }
+
+    /** Left / Right on a choice or a slider (the gamepad); false when nothing changed (end of the range) */
+    public boolean stepValue(int delta) {
+        return step(delta);
+    }
+
     /** Left / Right on a choice or a slider; false when nothing changed (end of the range) */
     boolean step(int delta) {
-        if (!rowEnabled) {
+        if (!rowEnabled || themeCards != null) {
             return false;
         }
         if (def.type == SettingDef.Type.CHOICE && !options.isEmpty()) {

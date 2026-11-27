@@ -50,6 +50,7 @@ public final class SettingsScreen {
     public final boolean narrow;
 
     private final FrameLayout root;
+    private final LinearLayout pageLayout;
     private final TextView title;
     private final ScrollView navScroll;
     private final ScrollView rowsScroll;
@@ -84,9 +85,16 @@ public final class SettingsScreen {
         this.k = Math.max(0.75f, Math.min(1.111f, narrow ? 1f : fit));
         this.kt = Math.max(0.9f, k);
 
-        root = new FrameLayout(context);
+        root = new FrameLayout(context) {
+            @Override
+            public void requestChildFocus(View child, View focused) {
+                super.requestChildFocus(child, focused);
+                // « A Ouvrir » on the page list, « A Changer » on the rows (R11)
+                updateHintsIfColumnChanged();
+            }
+        };
         root.setBackgroundColor(theme.bg);
-        LinearLayout pageLayout = new LinearLayout(context);
+        pageLayout = new LinearLayout(context);
         pageLayout.setOrientation(LinearLayout.VERTICAL);
         int side = narrow ? Ui.dp(context, d.side) : px(40);
         // Narrow: the back button sits near the top edge, its focus ring must fit above it (Ludique: 9 dp)
@@ -165,7 +173,7 @@ public final class SettingsScreen {
             navScroll.setLayoutParams(nl);
         }
 
-        hints = new HintsBar(context, theme, Math.max(0.85f, k));
+        hints = new HintsBar(context, theme, hintsScale());
         root.addView(hints, hints.layoutParams());
 
         page = initialPage;
@@ -260,9 +268,23 @@ public final class SettingsScreen {
         return pages.isEmpty() ? SettingsCatalog.PROFIL : pages.get(0).id;
     }
 
-    /** LB / RB: the previous / next page, wrapping, focus on it (prototype shoulder) */
+    /**
+     * LB / RB: the previous / next page, wrapping, focus on it (prototype shoulder). Narrow: the
+     * rows of that page are shown (from the list or from another page), focus on the first row (R8).
+     */
     public void stepPage(int delta) {
         String next = SettingsCatalog.stepPage(visiblePages(), page, delta);
+        if (narrow) {
+            showPage(next, false);
+            showingRows = true;
+            refreshNav();
+            rowsScroll.scrollTo(0, 0);
+            if (V2Input.showFocus(ctx)) {
+                focusRows();
+            }
+            updateHints();
+            return;
+        }
         showPage(next, false);
         if (!narrow && V2Input.showFocus(ctx)) {
             NavItem item = navItem(next);
@@ -293,6 +315,7 @@ public final class SettingsScreen {
     public void showList() {
         showingRows = false;
         refreshNav();
+        updateHints();
         NavItem item = navItem(page);
         if (item != null && V2Input.showFocus(ctx)) {
             item.requestFocus();
@@ -305,30 +328,39 @@ public final class SettingsScreen {
      */
     public void rebuildRows() {
         View focused = root.findFocus();
-        String focusKey = focused instanceof SettingRowView ? ((SettingRowView) focused).def.key : null;
-        int buttonIndex = -1;
-        if (focused != null && !(focused instanceof SettingRowView)) {
-            for (SettingRowView r : rows) {
-                int i = r.getButtons().indexOf(focused);
-                if (i >= 0) {
-                    focusKey = r.def.key;
-                    buttonIndex = i;
-                }
-            }
-        }
+        SettingRowView at = rowOf(focused);
+        String focusKey = at == null ? null : at.def.key;
+        int stopIndex = at == null ? -1 : at.focusStops().indexOf(focused);
         int scrollY = rowsScroll.getScrollY();
         buildRows(null);
         rowsScroll.scrollTo(0, scrollY);
         if (focusKey != null) {
-            SettingRowView r = rowFor(focusKey);
-            if (r != null) {
-                if (buttonIndex >= 0 && buttonIndex < r.getButtons().size()) {
-                    r.getButtons().get(buttonIndex).requestFocus();
-                } else {
-                    r.requestFocus();
-                }
+            focusRowStop(focusKey, stopIndex);
+        }
+    }
+
+    /** The row that holds a view (the row itself, one of its buttons or theme cards), or null */
+    public static SettingRowView rowOf(View v) {
+        for (; v != null; v = v.getParent() instanceof View ? (View) v.getParent() : null) {
+            if (v instanceof SettingRowView) {
+                return (SettingRowView) v;
             }
         }
+        return null;
+    }
+
+    /** Focus a row again after a rebuild: the same button or theme card when it had one */
+    public boolean focusRowStop(String key, int stopIndex) {
+        SettingRowView r = rowFor(key);
+        if (r == null) {
+            return false;
+        }
+        List<View> stops = r.focusStops();
+        if (stopIndex >= 0 && stopIndex < stops.size()) {
+            return stops.get(stopIndex).requestFocus();
+        }
+        View entry = r.entryStop();
+        return entry != null && entry.requestFocus();
     }
 
     private void buildRows(String unused) {
@@ -478,11 +510,9 @@ public final class SettingsScreen {
 
     public boolean focusRows() {
         for (SettingRowView r : rows) {
-            if (r.isFocusable()) {
-                return r.requestFocus();
-            }
-            if (!r.getButtons().isEmpty()) {
-                return r.getButtons().get(0).requestFocus();
+            View entry = r.entryStop();
+            if (entry != null) {
+                return entry.requestFocus();
             }
         }
         return moreButton != null && moreButton.requestFocus();
@@ -503,6 +533,140 @@ public final class SettingsScreen {
             v = v.getParent() instanceof View ? (View) v.getParent() : null;
         }
         return false;
+    }
+
+    private boolean inNav(View v) {
+        while (v != null) {
+            if (v == navScroll) {
+                return true;
+            }
+            v = v.getParent() instanceof View ? (View) v.getParent() : null;
+        }
+        return false;
+    }
+
+    /** The page list as the gamepad goes through it: Mode expert, then the visible pages */
+    private List<View> navStops() {
+        List<View> out = new ArrayList<>();
+        out.add(expertCard);
+        for (NavItem n : navItems) {
+            if (n.getVisibility() == View.VISIBLE) {
+                out.add(n);
+            }
+        }
+        return out;
+    }
+
+    /** The rows as the gamepad goes through them: a group per row (the row, its buttons, the theme cards), then « N masqués » */
+    private List<List<View>> rowStops() {
+        List<List<View>> out = new ArrayList<>();
+        for (SettingRowView r : rows) {
+            List<View> g = r.focusStops();
+            if (!g.isEmpty()) {
+                out.add(g);
+            }
+        }
+        if (moreButton != null) {
+            List<View> g = new ArrayList<>();
+            g.add(moreButton);
+            out.add(g);
+        }
+        return out;
+    }
+
+    /**
+     * A D-pad move (decision of 2026-11-27): up / down stay in the column the focus is in (the
+     * page list or the rows) and stop at its end, never jumping to the other column or the header;
+     * right from the page list goes to the rows, left from a row to the page list. On a choice or a
+     * slider left / right change the value first, and left at the end of its range goes to the
+     * page list. In a row of buttons or theme cards left / right move between them. Always handled.
+     */
+    public boolean move(View focused, int dx, int dy) {
+        boolean rowsShown = rowsScroll.getVisibility() == View.VISIBLE;
+        boolean navShown = navScroll.getVisibility() == View.VISIBLE;
+        if (focused != null && rowsShown && inRows(focused)) {
+            moveInRows(focused, dx, dy);
+        } else if (focused != null && navShown && inNav(focused)) {
+            moveInNav(focused, dx, dy);
+        } else {
+            // The header's back button after a tap, or nothing: the screen's starting point
+            requestInitialFocus();
+        }
+        return true;
+    }
+
+    private void moveInNav(View focused, int dx, int dy) {
+        List<View> stops = navStops();
+        int i = -1;
+        for (View v = focused; v != null && i < 0; v = v.getParent() instanceof View ? (View) v.getParent() : null) {
+            i = stops.indexOf(v);
+        }
+        if (i < 0) {
+            focusNav();
+            return;
+        }
+        if (dy != 0) {
+            int j = Math.max(0, Math.min(stops.size() - 1, i + dy));
+            if (j != i) {
+                stops.get(j).requestFocus();
+            }
+            return;
+        }
+        if (dx > 0 && !narrow) {
+            View item = stops.get(i);
+            if (item instanceof NavItem && !((NavItem) item).page.id.equals(page)) {
+                showPage(((NavItem) item).page.id, false);
+            }
+            focusRows();
+        }
+    }
+
+    private void moveInRows(View focused, int dx, int dy) {
+        List<List<View>> groups = rowStops();
+        int gi = -1, si = -1;
+        for (View v = focused; v != null && gi < 0; v = v.getParent() instanceof View ? (View) v.getParent() : null) {
+            for (int g = 0; g < groups.size(); g++) {
+                int at = groups.get(g).indexOf(v);
+                if (at >= 0) {
+                    gi = g;
+                    si = at;
+                    break;
+                }
+            }
+        }
+        if (gi < 0) {
+            focusRows();
+            return;
+        }
+        List<View> group = groups.get(gi);
+        View stop = group.get(si);
+        if (dy != 0) {
+            int gj = gi + dy;
+            if (gj >= 0 && gj < groups.size()) {
+                View target = groups.get(gj).get(0);
+                SettingRowView r = rowOf(target);
+                View entry = r == null ? null : r.entryStop();
+                (entry != null ? entry : target).requestFocus();
+            }
+            return;
+        }
+        if (dx == 0) {
+            return;
+        }
+        if (stop instanceof SettingRowView) {
+            if (((SettingRowView) stop).stepValue(dx)) {
+                return;
+            }
+        } else if (group.size() > 1) {
+            int sj = si + dx;
+            if (sj >= 0 && sj < group.size()) {
+                group.get(sj).requestFocus();
+                return;
+            }
+        }
+        if (dx < 0) {
+            leaveRows();
+        }
     }
 
     /** B / Back / Échap: rows -> page list -> leave (false) */
@@ -533,22 +697,56 @@ public final class SettingsScreen {
         updateHints();
     }
 
-    /** Prototype hints of the settings: A Changer · LB RB Page · B Retour (not at touch) */
+    /** The column the hints were made for: the page list (true) or the rows, null when hidden */
+    private Boolean hintsOnNav;
+
+    private boolean focusOnNav() {
+        if (narrow) {
+            return !showingRows;
+        }
+        View f = root.findFocus();
+        return f != null && inNav(f) && f != expertCard;
+    }
+
+    private void updateHintsIfColumnChanged() {
+        if (hintsOnNav != null && hintsOnNav != focusOnNav()) {
+            updateHints();
+        }
+    }
+
+    /**
+     * Prototype hints of the settings: A Ouvrir on the page list, A Changer on the rows (and Mode
+     * expert) · LB RB Page · B Retour; not at touch. Narrow too (R8), the page keeping clear of it.
+     */
     public void updateHints() {
         if (hints == null) {
             return;
         }
         hints.clear();
         V2Input.Kind kind = V2Input.get(ctx);
-        if (kind == V2Input.Kind.TOUCH || narrow) {
+        boolean show = kind != V2Input.Kind.TOUCH;
+        if (narrow) {
+            int bottom = show ? HintsBar.reservedHeight(ctx, theme, hintsScale()) : 0;
+            if (pageLayout.getPaddingBottom() != bottom) {
+                pageLayout.setPadding(pageLayout.getPaddingLeft(), pageLayout.getPaddingTop(), pageLayout.getPaddingRight(), bottom);
+            }
+        }
+        if (!show) {
             hints.setVisibility(View.GONE);
+            hintsOnNav = null;
             return;
         }
         hints.setVisibility(View.VISIBLE);
+        hintsOnNav = focusOnNav();
         boolean pad = kind == V2Input.Kind.PAD;
-        hints.add(pad ? "A" : ctx.getString(R.string.v2_key_enter), ctx.getString(R.string.v2_details_change), null);
+        hints.add(pad ? "A" : ctx.getString(R.string.v2_key_enter),
+                ctx.getString(hintsOnNav ? R.string.v2_hint_open : R.string.v2_details_change), null);
         hints.add(pad ? "LB RB" : "Q E", ctx.getString(R.string.v2_hint_page), () -> stepPage(1));
         hints.add(pad ? "B" : ctx.getString(R.string.v2_key_escape), ctx.getString(R.string.v2_hint_back), actions::back);
+    }
+
+    private float hintsScale() {
+        return Math.max(0.85f, k);
     }
 
     // ---- views --------------------------------------------------------------------------------------

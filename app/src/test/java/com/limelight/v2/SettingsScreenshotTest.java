@@ -180,7 +180,8 @@ public class SettingsScreenshotTest {
         if (focusKey != null) {
             SettingRowView r = s.rowFor(focusKey);
             assertNotNull(focusKey, r);
-            focus(r);
+            // Where the gamepad lands: the row, or the chosen theme card of the theme row
+            focus(r.entryStop() != null ? r.entryStop() : r);
         }
         Bitmap bmp = draw(root, wDp * DENSITY, hDp * DENSITY);
         checkFrench(root);
@@ -263,6 +264,10 @@ public class SettingsScreenshotTest {
                 SettingsCatalog.KEY_BITRATE);
         expert(false);
         shot("settings-portrait-braise-dark-list", "braise", true, 412, 915, V2Input.Kind.TOUCH, SettingsCatalog.PROFIL, false, null);
+        // Narrow at the gamepad: the hints bar (A Ouvrir / A Changer · LB RB Page · B Retour), the page clear of it
+        shot("settings-portrait-braise-dark-list-manette", "braise", true, 412, 915, V2Input.Kind.PAD, SettingsCatalog.PROFIL, false, null);
+        shot("settings-portrait-braise-dark-affichage-manette", "braise", true, 412, 915, V2Input.Kind.PAD, SettingsCatalog.AFFICHAGE, true,
+                "list_resolution");
     }
 
     @Test
