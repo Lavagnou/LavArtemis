@@ -4,6 +4,7 @@ again, never « Hors ligne » forever), forgotten (the home moves to another PC,
 pairing errors in French naming the PC, one pairing at a time, the address forms of « Ajouter un PC »."""
 import time
 
+import client
 import helpers
 import hosts
 
@@ -255,6 +256,19 @@ def _wait_stored(c, uuid, present, timeout=15.0):
         time.sleep(0.3)
 
 
+def _keep_stored(c, uuid, timeout=10.0):
+    """`hoststore keep`, retried: the client's save runs on its own thread and rewrites the list on disk, and a read
+    in the middle of that rewrite sees part of the list (a PC just listed "missing"; 2026-11-27 release gate)."""
+    deadline = time.time() + timeout
+    while True:
+        try:
+            return c.call("hoststore", action="keep", uuid=uuid)
+        except client.ClientError:
+            if time.time() >= deadline:
+                raise
+            time.sleep(0.3)
+
+
 def test_forgotten_pc_stored_again_by_another_process(bench):
     """A PC forgotten here, then paired again by another LavArtemis process (an art:// link: there is no single
     instance), which stores it: this process takes it in at its next save instead of dropping it (review of waves
@@ -267,7 +281,7 @@ def test_forgotten_pc_stored_again_by_another_process(bench):
     helpers.add_and_pair(c, cyn)
     uuid = helpers.wait_computer(c, atlas.name, lambda x: x["paired"])["uuid"]
     _wait_stored(c, uuid, True)
-    c.call("hoststore", action="keep", uuid=uuid)
+    _keep_stored(c, uuid)
 
     # Forgotten here: out of the stored list
     helpers.host_card_menu(c, atlas.name)
