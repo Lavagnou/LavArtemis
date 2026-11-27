@@ -9,6 +9,8 @@
     <string name="v2_join">Rejoindre</string>
     <string name="v2_resume">Reprendre</string>
     <string name="v2_quit">Quitter</string>
+    <!-- B / Start on the home (desktop quitConfirmationDialog) -->
+    <string name="v2_quit_app_confirm">Tu veux vraiment quitter ?</string>
     <string name="v2_relaunch">Relancer la session</string>
     <string name="v2_hide">Masquer</string>
     <string name="v2_unhide">Ne plus masquer</string>

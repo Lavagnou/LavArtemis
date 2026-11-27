@@ -298,6 +298,15 @@ public final class HostsScreen {
 
     /** Gamepad / keyboard: the first card, else « Ajouter un PC » */
     public boolean requestInitialFocus() {
+        return requestInitialFocus(null);
+    }
+
+    /** Gamepad / keyboard: the card of the PC the home shows (prototype hostPos), else the first one */
+    public boolean requestInitialFocus(String uuid) {
+        View shown = uuid == null ? null : cardFor(uuid);
+        if (shown != null && shown.requestFocus()) {
+            return true;
+        }
         if (!cards.isEmpty() && cards.get(0).requestFocus()) {
             return true;
         }
@@ -343,7 +352,7 @@ public final class HostsScreen {
     /** For the screenshot test: the card of this PC */
     View cardFor(String uuid) {
         for (HostCard c : cards) {
-            if (c.uuid.equals(uuid)) {
+            if (c.uuid.equalsIgnoreCase(uuid)) {
                 return c;
             }
         }

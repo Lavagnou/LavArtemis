@@ -141,7 +141,8 @@ public class HostsActivity extends V2HostActivity {
         }
         screen.bind(list);
         if (!initialFocusDone && !container.isInTouchMode()) {
-            initialFocusDone = screen.requestInitialFocus();
+            // On the PC the home shows; placed again until the cards are there
+            initialFocusDone = screen.requestInitialFocus(shownHost()) && !list.isEmpty();
         }
     }
 
@@ -195,7 +196,12 @@ public class HostsActivity extends V2HostActivity {
 
     @Override
     protected boolean onV2InitialFocus() {
-        return screen != null && screen.requestInitialFocus();
+        return screen != null && screen.requestInitialFocus(shownHost());
+    }
+
+    /** The PC the home shows (M5: Mes PC opens on its card) */
+    private String shownHost() {
+        return PreferenceManager.getDefaultSharedPreferences(this).getString(PREF_LAST_HOST, null);
     }
 
     /** Prototype grid: the cards then « Ajouter un PC », row by row */

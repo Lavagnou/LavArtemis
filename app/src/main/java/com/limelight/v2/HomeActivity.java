@@ -17,6 +17,7 @@ import com.limelight.utils.UiHelper;
 import com.limelight.utils.UpdateChecker;
 import com.limelight.utils.UpdateDialogHelper;
 import com.limelight.utils.UpdateDownloader;
+import com.limelight.v2.ui.V2Dialogs;
 
 import java.util.List;
 
@@ -75,6 +76,8 @@ public class HomeActivity extends V2HostActivity {
         if (container == null) {
             return;
         }
+        // Back from Réglages with another theme, or a rotation: the focus stays where it was (Réglages)
+        int[] keep = focusPlace();
         screen = new HomeScreen(this, theme, Density.of(getResources().getConfiguration()), new HomeScreen.Actions() {
             @Override
             public void switchHost(int delta) {
@@ -161,6 +164,31 @@ public class HomeActivity extends V2HostActivity {
         container.addView(screen.getView(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         initialFocusDone = false;
         refresh();
+        if (keep != null && restoreFocusPlace(keep)) {
+            initialFocusDone = true;
+        }
+    }
+
+    /** Row and column of the focused grid item (gamepad or keyboard only), or null */
+    private int[] focusPlace() {
+        if (screen == null || container.isInTouchMode()) {
+            return null;
+        }
+        View f = container.findFocus();
+        List<List<View>> rows = screen.focusRows();
+        View item = f == null ? null : focusedItem(rows, f);
+        return item == null ? null : FocusGrid.find(rows, item);
+    }
+
+    /** Focus the item at a row and column, clamped to the grid as it is now */
+    private boolean restoreFocusPlace(int[] at) {
+        List<List<View>> rows = screen.focusRows();
+        if (rows.isEmpty()) {
+            return false;
+        }
+        int r = Math.min(at[0], rows.size() - 1);
+        List<View> row = rows.get(r);
+        return !row.isEmpty() && row.get(Math.min(at[1], row.size() - 1)).requestFocus();
     }
 
     @Override
@@ -190,7 +218,14 @@ public class HomeActivity extends V2HostActivity {
             s.sessionMinutes = SessionClock.minutes(since, System.currentTimeMillis());
             s.otherDevice = otherDeviceConnected(c);
         }
+        // A row rebuilt by the new state (a recent hidden, the poll changed their number) takes the
+        // focused view with it: the focus then goes to the same place, not to the top of the page
+        int[] keep = focusPlace();
+        View before = keep == null ? null : container.findFocus();
         screen.bind(s);
+        if (before != null && container.findFocus() != before && !restoreFocusPlace(keep)) {
+            screen.requestInitialFocus();
+        }
         if (!initialFocusDone && s.model != null && c != null && HostList.isOnline(c)
                 && !container.isInTouchMode()) {
             initialFocusDone = screen.requestInitialFocus();
@@ -260,7 +295,20 @@ public class HomeActivity extends V2HostActivity {
 
     @Override
     protected boolean onV2Shoulder(int delta) {
+        // The focus goes to the new PC's starting point (Reprendre, Playnite or Réveiller), and again
+        // once its apps arrive (prototype shoulder)
+        String before = currentUuid;
+        boolean placed = initialFocusDone;
+        initialFocusDone = false;
         switchHost(delta);
+        if (before != null && before.equalsIgnoreCase(currentUuid)) {
+            // A single PC: nothing changed, the focus stays where it is
+            initialFocusDone = placed;
+            return true;
+        }
+        if (!initialFocusDone && screen != null && V2Input.showFocus(this)) {
+            screen.requestInitialFocus();
+        }
         return true;
     }
 
@@ -271,8 +319,19 @@ public class HomeActivity extends V2HostActivity {
 
     @Override
     protected void onV2Back() {
-        // The home is the root of the app: leave it as the launcher's back would
+        // The system's back gesture: the home is the root of the app, leave it as the launcher's would
         finish();
+    }
+
+    /**
+     * B / Start / Échap on the home: there is no level left to go back to, so ask first (as the
+     * desktop's quitConfirmationDialog, « Tu veux vraiment quitter ? ») instead of closing the app
+     * on one press too many
+     */
+    @Override
+    protected void onV2BackKey() {
+        V2Dialogs.confirm(this, theme, getString(R.string.v2_quit_app_confirm), null,
+                getString(R.string.v2_quit), getString(R.string.v2_cancel), this::finish, null);
     }
 
     /**
