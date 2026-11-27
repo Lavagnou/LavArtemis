@@ -48,17 +48,26 @@ def tile_titles(c, names):
     game's name. Waits for the title itself: the menu's rows can be laid out before it."""
     out = []
     for t in sorted(helpers.tiles(c), key=helpers.reading_order):
-        helpers.click_item(c, t, "right")
-        deadline = time.time() + 5
-        shown = []
-        while not any(n in shown for n in names) and time.time() < deadline:
-            time.sleep(0.2)
-            shown = helpers.popup_texts(c)
-        c.call("key", key="Escape", target="qt")
-        deadline = time.time() + 5
-        while helpers.popup_texts(c) and time.time() < deadline:
-            time.sleep(0.2)
-        out.append(next((n for n in shown if n in names), None))
+        title = None
+        # A right click that lands while the previous menu is still closing opens nothing: try again (twice). Échap
+        # only closes an open menu: on the home alone it asks « Quitter LavArtemis ? »
+        for _ in range(3):
+            helpers.click_item(c, t, "right")
+            deadline = time.time() + 5
+            shown = []
+            while not any(n in shown for n in names) and time.time() < deadline:
+                time.sleep(0.2)
+                shown = helpers.popup_texts(c)
+            if helpers.popup_texts(c):
+                c.call("key", key="Escape", target="qt")
+            deadline = time.time() + 5
+            while helpers.popup_texts(c) and time.time() < deadline:
+                time.sleep(0.2)
+            time.sleep(0.3)  # the closing animation
+            title = next((n for n in shown if n in names), None)
+            if title is not None:
+                break
+        out.append(title)
     return out
 
 
