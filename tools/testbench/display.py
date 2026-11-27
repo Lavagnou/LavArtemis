@@ -5,7 +5,8 @@ GUID_CONSOLE_DISPLAY_STATE cannot be polled: it is delivered as a WM_POWERBROADC
 message to a window registered with RegisterPowerSettingNotification, and Windows sends the *current* value
 right after the registration.  So: a message-only window, register, pump messages for a moment, read the value
 (0 off, 1 on, 2 dimmed).  No answer in time = unknown = treated as on (never refuse on a guess).
-This only reads the state; it never changes it (no SetThreadExecutionState, no wake-up)."""
+This only reads the state; it never wakes the display.  kept_awake() (below) only delays the idle sleep while the bench
+runs, with the user's consent (2026-11-27)."""
 import ctypes
 import sys
 import time
@@ -94,6 +95,27 @@ def display_state(timeout=1.5):
 
 def display_is_off():
     return display_state() == OFF
+
+
+class kept_awake:
+    """While the bench runs, ask Windows not to put the display to sleep (SetThreadExecutionState with
+    ES_CONTINUOUS | ES_DISPLAY_REQUIRED), and give it back on exit, whatever happens.  Authorised by the user on
+    2026-11-27 for the bench only.  It never wakes a display that is already off: run_suite checks that first."""
+    ES_CONTINUOUS, ES_DISPLAY_REQUIRED = 0x80000000, 0x00000002
+
+    def __enter__(self):
+        self.on = False
+        if sys.platform == "win32":
+            k32 = ctypes.windll.kernel32
+            k32.SetThreadExecutionState.restype = ctypes.c_uint
+            k32.SetThreadExecutionState.argtypes = [ctypes.c_uint]
+            self.on = bool(k32.SetThreadExecutionState(self.ES_CONTINUOUS | self.ES_DISPLAY_REQUIRED))
+        return self
+
+    def __exit__(self, *exc):
+        if self.on:
+            ctypes.windll.kernel32.SetThreadExecutionState(self.ES_CONTINUOUS)
+        return False
 
 
 if __name__ == "__main__":

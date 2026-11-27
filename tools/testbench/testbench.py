@@ -68,6 +68,17 @@ def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
                   "(Qt ne met plus les fenêtres en page écran éteint). Rallumer l'écran et relancer.",
                   file=sys.stderr, flush=True)
             return EXIT_DISPLAY_OFF
+        # Authorised by the user (2026-11-27), for the bench only: keep Windows from putting the display to sleep
+        # while scenarios run (never turns on a display that is already off: checked just above), given back at the end.
+        with display.kept_awake():
+            return _run_body(keyword, report_dir, rerun_failed_once, extra, selftest)
+    return _run_body(keyword, report_dir, rerun_failed_once, extra, selftest)
+
+
+def _run_body(keyword, report_dir, rerun_failed_once, extra, selftest):
+    import datetime
+    import report
+    here = pathlib.Path(__file__).resolve().parent
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     report_dir = pathlib.Path(report_dir) if report_dir else here / "testbench-reports" / stamp
     args = [str(here / ("selftest" if selftest else "scenarios")), "--report-dir", str(report_dir)] + (["-k", keyword] if keyword else [])

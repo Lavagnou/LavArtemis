@@ -34,6 +34,10 @@ et sortie 4 ; allumé, tamisé ou état inconnu (pas de réponse) : on lance. Le
 **L'écran peut aussi s'éteindre en cours de route** (veille après inactivité) : après chaque scénario, `conftest.py`
 relit l'état ; éteint, il écrit `display-off` dans le rapport et arrête la session, et `run` sort en **4** sans rejouer
 ni juger (sinon tous les scénarios suivants échouaient pour rien, 52 échecs le 2026-11-27).
+**Pendant `run`, l'affichage ne se met pas en veille** (autorisé par l'utilisateur le 2026-11-27, pour le banc seulement) :
+`display.kept_awake()` appelle `SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED)` après le contrôle de départ
+(un affichage déjà éteint n'est jamais rallumé) et le rend à la fin, quoi qu'il arrive. C'est l'état d'alimentation de
+l'affichage de Windows qui compte, pas un écran physique : il s'éteint aussi avec un dongle HDMI.
 
 **Vérifier la porte sans GUI** : `LAV_TESTBENCH_SELFTEST=pass|fail|flaky`, honoré par `run` seulement : il remplace
 les scénarios par un scénario interne (`selftest/test_gate.py`, hors `scenarios/`), sans hôte ni client ni contrôle de
