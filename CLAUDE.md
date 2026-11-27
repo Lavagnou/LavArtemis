@@ -680,6 +680,8 @@ d'atelier » `#1D4E89` quadrillé, dessin blanc, pastille verte `DEV`.
   `drawable-xhdpi/atv_banner.png`, logo de chaîne TV `drawable/ic_channel.xml` (les deux calques).
   **La Dev remplace `ic_launcher_bg`/`ic_launcher_fg`, les PNG legacy et la bannière dans `app/src/dev/res/`**,
   ajouté aux source sets des flavors seulement pour une version `-dev.` (voir « Stable / Dev »).
+  ⚠️ **La Dev a aussi son `ic_launcher_mono`** (contour de la pastille DEV et ses lettres) : les icônes à thème
+  d'Android 13+ ne dessinent que cette couche, et sans elle la Dev y montrait le logo de la stable.
 - ⚠️ `ic_launcher_bg.xml` a un dégradé (`aapt:attr`, API 24+) : ne le référencer que depuis l'icône adaptative
   (`mipmap-anydpi-v26`) ou du code API 26+ (`TvChannelHelper`), jamais depuis un écran affiché sous Android 7.
 - ⚠️ **On modifie le générateur, jamais un rendu** : les vecteurs Android, les PNG, les `.ico` et les SVG

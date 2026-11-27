@@ -38,7 +38,7 @@ Shapes and colours live in `generate-icons.mjs` (and their VectorDrawable copy i
 | Output | Destination |
 |---|---|
 | `out/android/main/drawable/*.xml` | `app/src/main/res/drawable/` (`ic_launcher_bg/fg/mono`, `app_icon`) |
-| `out/android/dev/drawable/*.xml` | `app/src/dev/res/drawable/` |
+| `out/android/dev/drawable/*.xml` | `app/src/dev/res/drawable/` (`ic_launcher_bg/fg/mono` : la Dev a sa couche monochrome, celle des icônes à thème) |
 | `out/lavartemis-{48,72,96,144,192}.png` | `app/src/main/res/mipmap-{m,h,xh,xxh,xxxh}dpi/ic_launcher.png` (legacy icon, API < 26); the `-dev-` ones to `app/src/dev/res/` |
 | `out/atv_banner.png`, `out/atv_banner_dev.png` | `drawable-xhdpi/atv_banner.png` (main, dev) |
 | `lavartemis*.svg`, `lavartemis.ico`, `lavartemis-dev.ico`, `lavartemis.icns`, `lavartemis-64.png` / `-dev-64.png` (installer logo `artemis_wix*.png`), `lavartemis-128.png` (`artemis.png`) | LavArtemis-Qt `app/res/`, `app/` |

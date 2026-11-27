@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from LavArtemis/docs/branding (generate-android.mjs). Do not edit by hand. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <group android:scaleX="0.6032" android:scaleY="0.6032" android:translateX="19.84" android:translateY="20.22">
+        <path android:pathData="M24,22 H76 A8,8 0 0,1 84,30 V62 A8,8 0 0,1 76,70 H24 A8,8 0 0,1 16,62 V30 A8,8 0 0,1 24,22 Z" android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineJoin="round" />
+        <path android:pathData="M50,70 V81 M40,82 H51.5" android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineCap="round" />
+        <group android:scaleX="0.55" android:scaleY="0.55" android:translateX="22.5" android:translateY="18.5">
+            <path android:pathData="M49.62,18 A32,32 0 1,0 79.4,62.64 A27,27 0 1,1 49.62,18 Z" android:fillColor="#FFFFFF" />
+            <path android:pathData="M57,33 L57,51 L71,42 Z" android:fillColor="#FFFFFF" android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineJoin="round" />
+            <path android:pathData="M19.6,24 a2.4,2.4 0 1,0 4.8,0 a2.4,2.4 0 1,0 -4.8,0 Z M83,30 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z" android:fillColor="#FFFFFF" />
+        </group>
+        <path android:pathData="M62.5,74 H81.5 A8.5,8.5 0 0,1 81.5,91 H62.5 A8.5,8.5 0 0,1 62.5,74 Z" android:strokeColor="#FFFFFF" android:strokeWidth="2.2" />
+        <path android:pathData="M62.6,79 V86 H64.6 C66.8,86 67.6,84.5 67.6,82.5 C67.6,80.5 66.8,79 64.6,79 Z M74.4,79 H69.8 V86 H74.4 M69.8,82.5 H73.6 M76.2,79 L79,86 L81.8,79" android:strokeColor="#FFFFFF" android:strokeWidth="1.9" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+</vector>

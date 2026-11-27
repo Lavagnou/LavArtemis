@@ -14,6 +14,8 @@ const write = (rel, text) => {
 const circle = (cx, cy, r) => `M${cx - r},${cy} a${r},${r} 0 1,0 ${2 * r},0 a${r},${r} 0 1,0 ${-2 * r},0 Z`;
 const SCREEN = 'M24,22 H76 A8,8 0 0,1 84,30 V62 A8,8 0 0,1 76,70 H24 A8,8 0 0,1 16,62 V30 A8,8 0 0,1 24,22 Z';
 const STAND = 'M50,70 V81 M40,82 H60';
+// Monochrome Dev layer: the pill is only an outline there, so the foot stops where the coloured pill's border hides it.
+const STAND_MONO = 'M50,70 V81 M40,82 H51.5';
 const CRESCENT = 'M49.62,18 A32,32 0 1,0 79.4,62.64 A27,27 0 1,1 49.62,18 Z';
 const PLAY = 'M57,33 L57,51 L71,42 Z';
 const STARS = `${circle(22, 24, 2.4)} ${circle(85, 30, 2)}`;
@@ -38,12 +40,14 @@ ${body}
 
 const markBody = ({ s, p, badge }) => `    <group ${MARK_GROUP}>
         <path android:pathData="${SCREEN}" android:strokeColor="${s}" android:strokeWidth="5" android:strokeLineJoin="round" />
-        <path android:pathData="${STAND}" android:strokeColor="${s}" android:strokeWidth="5" android:strokeLineCap="round" />
+        <path android:pathData="${badge === 'mono' ? STAND_MONO : STAND}" android:strokeColor="${s}" android:strokeWidth="5" android:strokeLineCap="round" />
         <group android:scaleX="0.55" android:scaleY="0.55" android:translateX="22.5" android:translateY="18.5">
             <path android:pathData="${CRESCENT}" android:fillColor="${s}" />
             <path android:pathData="${PLAY}" android:fillColor="${p}" android:strokeColor="${p}" android:strokeWidth="3" android:strokeLineJoin="round" />
             <path android:pathData="${STARS}" android:fillColor="${s}" />
-        </group>${badge ? `
+        </group>${badge === 'mono' ? `
+        <path android:pathData="${PILL}" android:strokeColor="${s}" android:strokeWidth="2.2" />
+        <path android:pathData="${DEV_LETTERS}" android:strokeColor="${s}" android:strokeWidth="1.9" android:strokeLineCap="round" android:strokeLineJoin="round" />` : badge ? `
         <path android:pathData="${PILL}" android:fillColor="#4ADE80" android:strokeColor="${badge}" android:strokeWidth="3" />
         <path android:pathData="${DEV_LETTERS}" android:strokeColor="#0E1222" android:strokeWidth="1.9" android:strokeLineCap="round" android:strokeLineJoin="round" />` : ''}
     </group>`;
@@ -70,6 +74,9 @@ for (let t = -10; t <= 110; t += 10) {
   if (v > 0 && v < 100) gridPath += `M${v},0 V100 M0,${v} H100 `;
 }
 write('dev/drawable/ic_launcher_fg.xml', vector(markBody({ s: '#FFFFFF', p: '#9FD3FF', badge: '#1D4E89' })));
+// Themed icons (Android 13+) draw only the monochrome layer, tinted: without its own, the Dev showed the
+// stable mark there. Same mark + the DEV pill as an outline with its letters (a filled pill would hide them).
+write('dev/drawable/ic_launcher_mono.xml', vector(markBody({ s: '#FFFFFF', p: '#FFFFFF', badge: 'mono' })));
 write('dev/drawable/ic_launcher_bg.xml', vector(`    <path android:pathData="M0,0 H100 V100 H0 Z" android:fillColor="#1D4E89" />
     <path android:pathData="${gridPath.trim()}" android:strokeColor="#FFFFFF" android:strokeAlpha="0.18" android:strokeWidth="0.48" />`));
 
