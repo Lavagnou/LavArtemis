@@ -289,7 +289,7 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   courte sur une autre page. Un nouvel élément focalisable des Réglages doit entrer dans `focusStops()` ; un contrôle
 >   cliquable à l'intérieur d'une ligne (segment, liste) est `setFocusable(false)`. Barre : « A Ouvrir » sur les pages,
 >   « A Changer » sur les réglages ; étroit : barre aussi (la page lui garde sa hauteur) et LB / RB = page voisine.
->   **B / Start sur l'accueil : « Tu veux vraiment quitter ? »** (`HomeActivity.onV2BackKey`, `V2Activity.onV2BackKey`
+>   **B / Start sur l'accueil : « Quitter LavArtemis ? »** (prototype v113 `appQuit` : « Quitter LavArtemis » puis « Annuler ») (`HomeActivity.onV2BackKey`, `V2Activity.onV2BackKey`
 >   = touches seulement ; le geste Retour du système passe par `onV2Back` et ferme l'appli). Accueil : LB / RB
 >   replacent le focus (Reprendre / Playnite / Réveiller), une reconstruction (thème, rotation, rangée refaite) garde la
 >   place du focus ; Mes PC s'ouvre sur la carte du PC de l'accueil. **Pastilles de `HintsBar` jamais focalisables**

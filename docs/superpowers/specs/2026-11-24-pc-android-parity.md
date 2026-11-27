@@ -407,9 +407,10 @@ par son propre passage (banc de test).
   Gauche en bout de course revient à la liste. **Cartes du thème** : Gauche / Droite passent d'une carte à l'autre,
   A applique (R10). Barre : « A Ouvrir » sur la liste, « A Changer » sur les réglages et Mode expert (R11).
   Mise en page étroite (Android) : barre d'indications et LB / RB = page voisine, ses réglages affichés (R8).
-- **B revient d'un niveau** : réglages → liste des pages → accueil ; **B / Start sur l'accueil : « Tu veux vraiment
-  quitter ? »** (Quitter / Annuler) au lieu de fermer l'appli (A1 ; texte du `quitConfirmationDialog` du PC). Le
-  geste Retour du système ferme toujours l'appli Android.
+- **B revient d'un niveau** : réglages → liste des pages → accueil ; **B / Start sur l'accueil : dialogue « Quitter
+  LavArtemis ? »** (en-tête LavArtemis), entrées « Quitter LavArtemis » puis « Annuler », au lieu de fermer l'appli (A1 ;
+  textes du prototype v113, `appQuit` ; le PC passe aux mêmes textes, à la place de son « Tu veux vraiment quitter ? »).
+  Le geste Retour du système ferme toujours l'appli Android.
 - **Focus** : LB / RB sur l'accueil → Reprendre, sinon Playnite, sinon « Réveiller » (A3) ; revenir des Réglages
   (nouveau thème, rotation) garde le focus sur « Réglages » (A6) ; une rangée reconstruite (récent masqué, poll) garde
   la place du focus (V2) ; Mes PC s'ouvre sur la carte du PC affiché à l'accueil (M5).

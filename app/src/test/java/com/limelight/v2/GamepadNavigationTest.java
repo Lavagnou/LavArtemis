@@ -341,7 +341,7 @@ public class GamepadNavigationTest {
 
     @Test
     public void bOnTheHomeAsksBeforeLeaving() {
-        // A1: B / Start ask « Tu veux vraiment quitter ? »; the system back still leaves
+        // A1: B / Start ask « Quitter LavArtemis ? » (prototype v113 appQuit); the system back still leaves
         RuntimeEnvironment.setQualifiers(WIDE);
         HomeActivity a = Robolectric.buildActivity(HomeActivity.class).setup().get();
         ShadowLooper.idleMainLooper();
@@ -350,7 +350,12 @@ public class GamepadNavigationTest {
         Dialog d = ShadowDialog.getLatestDialog();
         assertNotNull(d);
         assertTrue(d.isShowing());
-        assertTrue(texts(d.findViewById(android.R.id.content)).contains(a.getString(R.string.v2_quit_app_confirm)));
+        List<String> shown = texts(d.findViewById(android.R.id.content));
+        assertTrue(shown.toString(), shown.contains("Quitter LavArtemis ?"));
+        assertTrue(shown.toString(), shown.contains("Quitter LavArtemis"));
+        assertTrue(shown.toString(), shown.contains(a.getString(R.string.v2_cancel)));
+        assertTrue("Quitter LavArtemis comes before Annuler",
+                shown.indexOf("Quitter LavArtemis") < shown.indexOf(a.getString(R.string.v2_cancel)));
         d.dismiss();
         press(a, KeyEvent.KEYCODE_BUTTON_START);
         assertFalse(a.isFinishing());

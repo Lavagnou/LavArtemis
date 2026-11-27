@@ -324,14 +324,18 @@ public class HomeActivity extends V2HostActivity {
     }
 
     /**
-     * B / Start / Échap on the home: there is no level left to go back to, so ask first (as the
-     * desktop's quitConfirmationDialog, « Tu veux vraiment quitter ? ») instead of closing the app
-     * on one press too many
+     * B / Start / Échap on the home: there is no level left to go back to, so ask first instead of
+     * closing the app on one press too many (prototype v113 appQuit: « Quitter LavArtemis ? »,
+     * kind LavArtemis, « Quitter LavArtemis » then « Annuler »; the desktop has the same texts)
      */
     @Override
     protected void onV2BackKey() {
-        V2Dialogs.confirm(this, theme, getString(R.string.v2_quit_app_confirm), null,
-                getString(R.string.v2_quit), getString(R.string.v2_cancel), this::finish, null);
+        V2Sheet.Spec spec = new V2Sheet.Spec();
+        spec.title = getString(R.string.v2_quit_app_title);
+        spec.kind = "LavArtemis";
+        spec.option(getString(R.string.v2_quit_app), true, false, this::finish);
+        spec.option(getString(R.string.v2_cancel), false, false, null);
+        V2Sheet.show(this, theme, spec);
     }
 
     /**
