@@ -675,6 +675,67 @@ public final class V2GameMenu {
             setMeasuredDimension(resolveSize(width, widthSpec), resolveSize(height, heightSpec));
         }
 
+        /**
+         * The gamepad in the dock: left / right within a row, never into the next one; up / down to
+         * the row above / below, on the tile whose centre is the closest; nothing past the first or
+         * last row (a single row: up / down do nothing)
+         */
+        @Override
+        public View focusSearch(View focused, int direction) {
+            int index = -1;
+            for (View v = focused; v != null; v = v.getParent() instanceof View ? (View) v.getParent() : null) {
+                if (v.getParent() == this) {
+                    index = indexOfChild(v);
+                    break;
+                }
+            }
+            if (index < 0 || (direction != FOCUS_UP && direction != FOCUS_DOWN && direction != FOCUS_LEFT && direction != FOCUS_RIGHT)) {
+                return super.focusSearch(focused, direction);
+            }
+            View target = getChildAt(Dock.target(rows, index, direction == FOCUS_LEFT ? -1 : direction == FOCUS_RIGHT ? 1 : 0,
+                    direction == FOCUS_UP ? -1 : direction == FOCUS_DOWN ? 1 : 0));
+            return target == null ? focused : target;
+        }
+
+        /**
+         * Index of the tile reached from tile {@code index} by (dx, dy) in rows of {@code rows} tiles,
+         * each row centred (the tiles are all as wide): itself at an edge
+         */
+        static int target(int[] rows, int index, int dx, int dy) {
+            int r = 0, start = 0;
+            while (r < rows.length && index >= start + rows[r]) {
+                start += rows[r];
+                r++;
+            }
+            if (r >= rows.length) {
+                return index;
+            }
+            int col = index - start;
+            if (dx != 0) {
+                return start + Math.max(0, Math.min(rows[r] - 1, col + dx));
+            }
+            int nr = r + dy;
+            if (dy == 0 || nr < 0 || nr >= rows.length) {
+                return index;
+            }
+            int nstart = 0;
+            for (int i = 0; i < nr; i++) {
+                nstart += rows[i];
+            }
+            // Centred rows of equal tiles: centre of a column = col - (count - 1) / 2 in tile widths
+            float x = col - (rows[r] - 1) / 2f;
+            int best = 0;
+            float bestD = Float.MAX_VALUE;
+            for (int c = 0; c < rows[nr]; c++) {
+                float d = Math.abs(c - (rows[nr] - 1) / 2f - x);
+                if (d < bestD) {
+                    bestD = d;
+                    best = c;
+                }
+            }
+            return nstart + best;
+        }
+
         @Override
         protected void onLayout(boolean changed, int l, int t, int r, int b) {
             int inner = getWidth() - getPaddingLeft() - getPaddingRight();

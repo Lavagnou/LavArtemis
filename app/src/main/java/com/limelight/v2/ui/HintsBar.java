@@ -23,6 +23,8 @@ public final class HintsBar extends LinearLayout {
         super(context);
         this.theme = theme;
         this.scale = scale;
+        setFocusable(false);
+        setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         if (theme.isLudique()) {
@@ -72,6 +74,9 @@ public final class HintsBar extends LinearLayout {
         if (action != null) {
             hint.setOnClickListener(v -> action.run());
         }
+        // A tap runs it, but the gamepad and the keys never land on a hint: a clickable view is
+        // focusable on Android 8+, and Down from the last item of a screen or a dialog went there
+        hint.setFocusable(false);
         LayoutParams lp;
         if (theme.isAffiche()) {
             hint.setBackgroundColor(theme.lit.band);

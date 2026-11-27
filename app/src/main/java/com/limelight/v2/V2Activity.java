@@ -30,46 +30,22 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
     protected final Handler handler = new Handler(Looper.getMainLooper());
     private boolean aPressed;
     private boolean aHeldFired;
-    /** Held direction: moves at once, again after 380 ms, then every 110 ms (prototype pollPads) */
-    private final DirRepeat dirRepeat = new DirRepeat();
-    private KeyEvent dirDown;
-    private boolean dirRepeating;
-    private final Runnable dirTick = new Runnable() {
+    /** Held directions: 380 / 110 ms repetition, vertical first on a diagonal (DirKeys) */
+    private final com.limelight.v2.ui.DirKeys dirKeys = new com.limelight.v2.ui.DirKeys(new com.limelight.v2.ui.DirKeys.Target() {
         @Override
-        public void run() {
-            long now = android.os.SystemClock.uptimeMillis();
-            if (dirDown == null || dirRepeat.held() != dirDown.getKeyCode()) {
-                return;
-            }
-            if (dirRepeat.due(now)) {
-                // The held key again, as a fresh press from the same device (the input kind stays)
-                dirRepeating = true;
-                boolean handled;
-                try {
-                    handled = dispatchKeyEvent(KeyEvent.changeTimeRepeat(dirDown, now, 0));
-                } finally {
-                    dirRepeating = false;
-                }
-                if (!handled) {
-                    // Android's own focus search runs after a real key only: do it for ours
-                    View f = getCurrentFocus();
-                    int dir = focusDirection(dirDown.getKeyCode());
-                    View next = f == null ? null : f.focusSearch(dir);
-                    if (next != null) {
-                        next.requestFocus(dir);
-                    }
-                }
-            }
-            long d = dirRepeat.delay(now);
-            if (d >= 0) {
-                handler.postDelayed(this, d);
-            }
+        public boolean dispatch(KeyEvent event) {
+            return dispatchKeyEvent(event);
         }
-    };
+
+        @Override
+        public View focused() {
+            return focusedView();
+        }
+    });
     private final Runnable aHeld = () -> {
         if (aPressed) {
             aHeldFired = true;
-            View f = getCurrentFocus();
+            View f = focusedView();
             if (f != null) {
                 onV2Options(f);
             }
@@ -143,23 +119,8 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
         }
     }
 
-    private static int focusDirection(int code) {
-        switch (code) {
-            case KeyEvent.KEYCODE_DPAD_UP:
-                return View.FOCUS_UP;
-            case KeyEvent.KEYCODE_DPAD_DOWN:
-                return View.FOCUS_DOWN;
-            case KeyEvent.KEYCODE_DPAD_LEFT:
-                return View.FOCUS_LEFT;
-            default:
-                return View.FOCUS_RIGHT;
-        }
-    }
-
     private void stopDirRepeat() {
-        dirRepeat.cancel();
-        dirDown = null;
-        handler.removeCallbacks(dirTick);
+        dirKeys.cancel();
     }
 
     @Override
@@ -183,6 +144,14 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
     /** Back, B, Escape */
     protected void onV2Back() {
         finish();
+    }
+
+    /**
+     * B, Start, Échap (the gamepad and keyboard back); the system's back gesture or button goes to
+     * {@link #onV2Back} directly. The home overrides it to ask before leaving the app.
+     */
+    protected void onV2BackKey() {
+        onV2Back();
     }
 
     /** Y / Menu on the focused view; return true when handled */
@@ -257,7 +226,7 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
         int code = event.getKeyCode();
         boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
         boolean up = event.getAction() == KeyEvent.ACTION_UP;
-        View focused = getCurrentFocus();
+        View focused = focusedView();
 
         // First directional or confirm key with nothing focused: put the focus somewhere sensible
         if (down && event.getRepeatCount() == 0 && (focused == null || isFocusParked(focused)) && isNavigationKey(code)) {
@@ -296,7 +265,7 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
             case KeyEvent.KEYCODE_BUTTON_START:
             case KeyEvent.KEYCODE_ESCAPE:
                 if (up) {
-                    onV2Back();
+                    onV2BackKey();
                 }
                 return true;
             case KeyEvent.KEYCODE_BUTTON_Y:
@@ -329,25 +298,8 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
             case KeyEvent.KEYCODE_DPAD_DOWN:
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT:
-                if (down && !dirRepeating) {
-                    // The system's repeat is ignored: the prototype's 380 / 110 ms one is ours
-                    if (event.getRepeatCount() > 0) {
-                        return true;
-                    }
-                    long now = android.os.SystemClock.uptimeMillis();
-                    if (!dirRepeat.press(code, now)) {
-                        return true;
-                    }
-                    dirDown = event;
-                    handler.removeCallbacks(dirTick);
-                    handler.postDelayed(dirTick, dirRepeat.delay(now));
-                }
-                if (up) {
-                    dirRepeat.release(code);
-                    if (dirRepeat.held() == 0) {
-                        dirDown = null;
-                        handler.removeCallbacks(dirTick);
-                    }
+                if (dirKeys.consume(event)) {
+                    return true;
                 }
                 if (down) {
                     int mx = code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : (code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0);
@@ -362,7 +314,7 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
                         if (dx != 0 && onV2Horizontal(focused, dx)) {
                             return true;
                         }
-                        View target = FocusGrid.move(rows, focusedItem(rows, focused), dx, dy);
+                        View target = FocusGrid.move(rows, focusedItem(rows, focused), dx, dy, V2Activity::screenCenterX);
                         if (target != null && target != focused) {
                             target.requestFocus();
                             onGridFocus(target);
@@ -377,6 +329,12 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
                 break;
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    /** The focused view of the window (as getCurrentFocus(), read from the window's own views) */
+    protected View focusedView() {
+        View decor = getWindow() == null ? null : getWindow().peekDecorView();
+        return decor == null ? null : decor.findFocus();
     }
 
     /** A themed toast at the top of the screen (prototype toast, 2.4 s) */
@@ -421,8 +379,18 @@ public abstract class V2Activity extends AppCompatActivity implements V2Input.Li
         return v.isLongClickable();
     }
 
+    /** Horizontal centre of a view on screen (FocusGrid: a row change goes to the closest), NaN before layout */
+    static float screenCenterX(View v) {
+        if (v == null || v.getWidth() == 0 || !v.isAttachedToWindow()) {
+            return Float.NaN;
+        }
+        int[] at = new int[2];
+        v.getLocationOnScreen(at);
+        return at[0] + v.getWidth() / 2f;
+    }
+
     /** The grid item that holds the focused view (the focus may sit on a child of an item) */
-    private static View focusedItem(List<List<View>> rows, View focused) {
+    static View focusedItem(List<List<View>> rows, View focused) {
         for (View v = focused; v != null; v = v.getParent() instanceof View ? (View) v.getParent() : null) {
             if (FocusGrid.find(rows, v) != null) {
                 return v;

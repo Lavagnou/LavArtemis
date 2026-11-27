@@ -703,7 +703,7 @@ public final class LibraryScreen {
 
     /**
      * A D-pad move (prototype grid: rows of {@code cols}, clamped, no wrap; Affiche: one column, left /
-     * right act as up / down). Returns false when the focus is not on a game.
+     * right do nothing; a single row: up / down do nothing). Returns false when the focus is not on a game.
      */
     public boolean move(View focused, int dx, int dy) {
         if (list.isEmpty()) {
