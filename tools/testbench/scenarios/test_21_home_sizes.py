@@ -114,8 +114,13 @@ def sweep(c, bench, state):
         time.sleep(0.6)
         for w, h in SIZES:
             size = c.call("resize", w=w, h=h)
+            if (size["w"], size["h"]) != (w, h):
+                # Windows caps a window at the screen's work area: 1280 x 960 is 1280 x 869 on a 1920 x 1080 screen at
+                # 125 % (2026-11-28 release gate).  The size it got is laid out and checked like the others.
+                assert size["w"] >= 1000 and size["h"] >= 600, f"{state}-{theme}-{w}x{h}: the window is {size}"
+                bench.note(f"{state}-{theme}: {w} x {h} asked, the screen allows {size['w']} x {size['h']}")
+                w, h = size["w"], size["h"]
             label = f"{state}-{theme}-{w}x{h}"
-            assert (size["w"], size["h"]) == (w, h), f"{label}: the window is {size['w']} x {size['h']}"
             time.sleep(0.5)
             c.call("key", key="Left", target="qt")  # keyboard input: the rings and the hints bar show
             time.sleep(0.3)
