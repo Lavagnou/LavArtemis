@@ -287,17 +287,6 @@
     <string name="v2_set_overlay_menu_d">Toucher les statistiques compactes ouvre le menu en jeu.</string>
     <string name="v2_set_overlay_bottom">Statistiques en bas de l\'écran</string>
     <string name="v2_set_overlay_bottom_d">Utile avec l\'image en haut de l\'écran et les statistiques compactes.</string>
-    <string name="v2_set_3d">Rendu 3D côte à côte</string>
-    <string name="v2_set_3d_d">Pour un casque ou des lunettes 3D : l\'image est doublée en largeur, sa profondeur est estimée par IA.</string>
-    <string name="v2_set_3d_off">2D</string>
-    <string name="v2_set_3d_sbs">3D côte à côte (IA)</string>
-    <string name="v2_set_3d_movie">3D côte à côte, film (synchronisé)</string>
-    <string name="v2_set_3d_depth">Intensité de l\'effet 3D</string>
-    <string name="v2_set_3d_depth_d">50 par défaut. Plus haut : plus de relief, mais plus fatigant pour les yeux.</string>
-    <string name="v2_set_3d_convergence">Convergence 3D</string>
-    <string name="v2_set_3d_convergence_d">0 : devant l\'écran · 50 : équilibré · 100 : derrière l\'écran.</string>
-    <string name="v2_set_3d_balance">Équilibre entre les yeux (3D)</string>
-    <string name="v2_set_3d_balance_d">50 : relief partagé entre les deux yeux ; 0 ou 100 : l\'image la plus nette.</string>
 
     <!-- Audio -->
     <string name="v2_set_audio">Canaux audio</string>

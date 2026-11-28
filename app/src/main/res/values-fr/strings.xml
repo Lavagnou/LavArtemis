@@ -795,15 +795,11 @@
     <string name="notification_channel_name">Contrôle de l\'écran externe</string>
     <string name="notification_text">Toucher pour ouvrir le pavé tactile</string>
     <string name="notification_title">Écran externe actif</string>
-    <string name="perf_overlay_ai_delegate">Délégué :</string>
-    <string name="perf_overlay_ai_fps">FPS 3D :</string>
-    <string name="perf_overlay_drawdelay"> Délai : %1$.2f ms</string>
     <string name="perf_overlay_pacing">Frame pacing : %1$.1f / %2$.1f / %3$.1f ms (p50/p95/p99)</string>
     <string name="permission_denied">Permission de notification refusée</string>
     <string name="thermal_throttling_warning">L\'appareil chauffe : les performances peuvent baisser. Pensez à réduire le débit ou la fréquence d\'images.</string>
     <string name="toast_no_email_clients">Aucune application de messagerie installée.</string>
     <string name="toast_no_logs">Aucune donnée de performances enregistrée pour l\'instant.</string>
-    <string name="toast_pyrowave_3d">PyroWave ne fonctionne pas avec les modes 3D. Un autre codec est utilisé.</string>
     <string name="toast_pyrowave_unsupported">PyroWave demande un appareil 64 bits avec un GPU Vulkan 1.3. Un autre codec est utilisé.</string>
     <string name="unexpected_error_during_file_export">Erreur inattendue pendant l\'export du fichier.</string>
     <!-- Notes des passages du benchmark, traduites à l'affichage (BenchmarkNotes) -->

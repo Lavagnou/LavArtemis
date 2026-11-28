@@ -112,7 +112,7 @@ On both clients unless noted:
 
 Custom virtual gamepads, custom resolutions and bitrates, portrait mode, external display support,
 settings profiles, `art://` shortcuts, keyboard macros, view pan/zoom, Apollo virtual display, server
-commands, clipboard sync, OTP pairing, and SBS 3D for external displays via MiDaS (Android only).
+commands, clipboard sync and OTP pairing.
 Profiles, keyboard macros and `art://` links use **identical file formats** on both clients.
 
 ## Building

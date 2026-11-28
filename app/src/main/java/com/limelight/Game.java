@@ -473,9 +473,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         boolean shouldInvertDecoderResolution = false;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                && onExternelDisplay
-                && prefConfig.renderMode == 0 // For 3D we want to maintain configured resolution
-        ) {
+                && onExternelDisplay) {
             Display.Mode currentMode = currentDisplay.getMode();
             displayWidth = currentMode.getPhysicalWidth();
             displayHeight = currentMode.getPhysicalHeight();
@@ -489,10 +487,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             currentOrientation = Configuration.ORIENTATION_LANDSCAPE;
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE);
         } else {
-            if (prefConfig.renderMode != 0) {
-                prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
-            }
-
             // The view turns with the phone, the host's screen does not
             followDeviceRotation = prefConfig.followDeviceRotation;
 
@@ -833,13 +827,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // PyroWave is only ever used on request: it needs a wired link with
         // hundreds of Mbps to spare. The host picks it over the other formats
-        // above, which stay as the fallback for hosts without it. The renderer
-        // draws to a plain Surface, so the GLES-based 3D modes cannot use it.
+        // above, which stay as the fallback for hosts without it.
         if (prefConfig.videoFormat == PreferenceConfiguration.FormatOption.FORCE_PYROWAVE) {
-            if (prefConfig.renderMode != 0) {
-                Toast.makeText(this, getString(R.string.toast_pyrowave_3d), Toast.LENGTH_LONG).show();
-            }
-            else if (!MoonBridge.pyroWaveIsSupported()) {
+            if (!MoonBridge.pyroWaveIsSupported()) {
                 Toast.makeText(this, getString(R.string.toast_pyrowave_unsupported), Toast.LENGTH_LONG).show();
             }
             else {
@@ -2050,7 +2040,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // Destroy the capture provider
         inputCaptureProvider.destroy();
-        streamContainer.onDestroy();
     }
 
     @Override

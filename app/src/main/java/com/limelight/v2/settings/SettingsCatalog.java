@@ -355,15 +355,6 @@ public final class SettingsCatalog {
                 .dependsOn(v -> v.getBool("checkbox_enable_perf_overlay") && v.getBool("checkbox_enable_perf_overlay_lite"));
         toggle(l, VIDEO, "checkbox_enable_perf_overlay_bottom", R.string.v2_set_overlay_bottom, false).desc(R.string.v2_set_overlay_bottom_d).expert()
                 .dependsOn("checkbox_enable_perf_overlay");
-        choice(l, VIDEO, "render_mode_list", R.string.v2_set_3d, "0").desc(R.string.v2_set_3d_d).expert()
-                .option("0", R.string.v2_set_3d_off).option("1", R.string.v2_set_3d_sbs).option("2", R.string.v2_set_3d_movie);
-        SettingDef.Dep threeD = v -> !"0".equals(v.getString("render_mode_list"));
-        slider(l, VIDEO, "parallax_depth", R.string.v2_set_3d_depth, 50).desc(R.string.v2_set_3d_depth_d).expert()
-                .range(1, 100, 1, 1).dependsOn(threeD);
-        slider(l, VIDEO, "convergence_ratio", R.string.v2_set_3d_convergence, 50).desc(R.string.v2_set_3d_convergence_d).expert()
-                .range(0, 100, 1, 1).dependsOn(threeD);
-        slider(l, VIDEO, "balance_shift", R.string.v2_set_3d_balance, 50).desc(R.string.v2_set_3d_balance_d).expert()
-                .range(0, 100, 1, 1).dependsOn(threeD);
 
         // ================================= Audio ================================
         choice(l, AUDIO, "list_audio_config", R.string.v2_set_audio, "2").desc(R.string.v2_set_audio_d)

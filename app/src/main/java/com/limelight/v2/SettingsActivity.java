@@ -304,7 +304,7 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
             V2Dialogs.message(this, theme, getString("list_resolution".equals(def.key) ? R.string.v2_set_native_res_title : R.string.v2_set_native_fps_title),
                     getString(R.string.v2_set_native_text), getString(R.string.v2_ok));
         }
-        if ("video_format".equals(def.key) || "render_mode_list".equals(def.key)) {
+        if ("video_format".equals(def.key)) {
             screen.rebuildRows();
         }
     }

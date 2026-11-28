@@ -409,10 +409,6 @@ public class SettingsCatalogTest {
         assertFalse(mode.enabled(store));
         store.putBool("checkbox_vrr_pacing", true);
         assertTrue(mode.enabled(store));
-        SettingDef depth = SettingsCatalog.find("parallax_depth");
-        assertFalse(depth.enabled(store));
-        store.putString("render_mode_list", "1");
-        assertTrue(depth.enabled(store));
     }
 
     // ---- sliders -----------------------------------------------------------------------------------

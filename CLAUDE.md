@@ -16,7 +16,9 @@ Git remotes :
 
 Le code original (Moonlight) est attribué à Cameron Gutman et al. (voir `README.md`). **Tout le travail LavArtemis-spécifique a été ajouté le 2026-06-12** (~7 commits, assistance Claude Code + Copilot), concentré dans le hot path du streaming vidéo.
 
-LavArtemis hérite des fonctionnalités Artemis : manettes virtuelles personnalisables, modes souris multiples, profils, raccourcis `art://`, mode portrait, support des écrans externes (Apollo Virtual Display), et **SBS 3D pour écrans externes via MiDaS** (TFLite + OpenCV).
+LavArtemis hérite des fonctionnalités Artemis : manettes virtuelles personnalisables, modes souris multiples, profils, raccourcis `art://`, mode portrait, support des écrans externes (Apollo Virtual Display). **Le SBS 3D d'Artemis (MiDaS, TFLite + OpenCV) est retiré** (2026-11-28, demande de
+l'utilisateur : inutile pour lui) : réglages, rendu GLES, modèle et dépendances ; une préférence `render_mode_list` restée
+sur un appareil n'est plus lue. Ne pas le réintroduire.
 
 ## 🧱 Stack technique
 
@@ -39,7 +41,7 @@ Package racine **`com.limelight`** (hérité Moonlight — inchangé). Sous-pack
 - `binding/` — `video/MediaCodecDecoderRenderer` (décodeur HW), `audio/AndroidAudioRenderer`, `crypto/AndroidCryptoProvider` (BouncyCastle), `input/` (manettes, capture, virtual_controller, drivers USB, evdev en root-only)
 - `computers/`, `discovery/` — gestion et découverte d'hôtes
 - `preferences/`, `profiles/` — réglages et profils (feature Artemis)
-- `grid/`, `ui/`, `utils/` — UI et helpers (dont `Stereo3DRenderer` pour le SBS 3D)
+- `grid/`, `ui/`, `utils/` — UI et helpers
 
 Entrées du manifest : `ArtemisApplication` (Application), `PcView` (launcher), `Game` (activité de stream), `GameMenu`, `ProfilesActivity`, `StreamSettings`, `ShortcutTrampoline` (deep links `art://`).
 
@@ -344,6 +346,9 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
 >   ⚠️ La pastille se cache à la manette : `Game` **observe** `dispatchKeyEvent` / `dispatchTouchEvent` /
 >   `dispatchGenericMotionEvent` pour `V2Input` (Dev, rien n'est consommé : tout part au stream comme avant), règle
 >   `StreamMenu.pillVisible` ; un nouveau chemin qui montre la pastille passe par `applyMenuPill()`.
+>   ⚠️ **La pastille suit « Bouton de menu flottant »** (`checkbox_enable_floating_button`, défaut off, Contrôles à
+>   l'écran, avec « Retour ouvre le menu ») comme le bouton de la stable : jusqu'au 2026-11-28 la Dev la montrait
+>   toujours et ignorait la case décochée. « Plus » › Afficher / Masquer la pastille ne vaut que pour la session.
 > - **Bibliothèque** : `LibraryScreen` = une mise en page par thème (Braise grille 6 + fiche, Affiche liste numérotée
 >   avec **fenêtre de 8 lignes** à la manette, Ludique grille 8 + barre), RecyclerView (jaquettes chargées à
 >   l'affichage), D-pad par `V2Activity.onV2Move` ; filtres et « joué hier » dans `LibraryModel` (= desktop), LB / RB
@@ -900,7 +905,7 @@ Deux effets de bord utiles du portage `art://` : le lancement CLI accepte désor
 
 **Export de fichiers `.art`** : `AppModel::exportArtFile()`, entrée « Créer un raccourci .art » du menu d'une appli (`gui/v2/AppMenu.qml`, dialogue dans `HomeView.qml`). Même format `[clé] valeur` que `ShortcutHelper.java:243` → un fichier écrit ici s'ouvre sur Android et inversement.
 
-Pas encore porté : **SBS 3D MiDaS** (hors périmètre v1).
+Le SBS 3D MiDaS n'est pas porté, et il est retiré de l'Android aussi.
 
 ### 🖥️ Multi-écran émulé (desktop uniquement, v20.7.0)
 
@@ -1065,8 +1070,7 @@ pas assez éprouvés (et Moonlight V+ parle un autre protocole) ; seul le parseu
   minSdk 21 conservé.
 - **Fragment path** de PyroWave (prévu pour les GPU mobiles) quand le device le préfère **ou** quand
   R8 n'accepte pas l'écriture compute.
-- **SDR seulement**, 4:2:0 ou 4:4:4 (`checkbox_pyrowave_444`). Incompatible avec les modes 3D
-  (`renderMode != 0`) : ils passent par un `SurfaceTexture` GLES.
+- **SDR seulement**, 4:2:0 ou 4:4:4 (`checkbox_pyrowave_444`).
 - L'option n'apparaît que si `MoonBridge.pyroWaveIsSupported()` (sonde : Vulkan 1.3 + création d'un
   décodeur PyroWave) — toujours `false` sur l'APK 32 bits, qui n'embarque pas le renderer.
 
@@ -1320,7 +1324,7 @@ Mode d'emploi complet, scénarios et codes de sortie : `tools/testbench/README.m
 ## 🛡️ ProGuard / R8 & lint
 
 - `minifyEnabled true` sur **debug ET release**, mais **`-dontobfuscate`** (`app/proguard-rules.pro`) : R8 shrink sans renommage → builds release lisibles.
-- Keep rules : `binding.input.evdev.*`, `KeyMapper`/`KeyConfigHelper` (Gson), TFLite GPU delegate + OpenCV (pour le SBS 3D), `ProfilesManager$ProfilesData`/`SettingsProfile`, `nvstream.jni.*`, BouncyCastle, MPAndroidChart.
+- Keep rules : `binding.input.evdev.*`, `KeyMapper`/`KeyConfigHelper` (Gson), `ProfilesManager$ProfilesData`/`SettingsProfile`, `nvstream.jni.*`, BouncyCastle, MPAndroidChart.
 - `app/lint.xml` minimal (`MissingThemeAttr` en error, ignore `bcpkix`). `MissingTranslation` **désactivé** (traductions partielles). Pas de baseline.
 - Historique : le commit `2d996e52` a retiré des strings orphelins `values-ru` (perf charts) qui faisaient échouer `lintVitalRelease` (`ExtraTranslation`).
 
