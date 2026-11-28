@@ -156,8 +156,10 @@ def test_settings_columns_and_repeat(bench):
     assert 4 <= moved <= 7, f"stick held {REPEAT_HOLD} s at 61 %: {moved} moves ({_focus_name(c)})"
     bench.note(f"stick held {REPEAT_HOLD} s: {moved} moves")
     before = order.index(_focus_name(c))
-    c.call("gamepad", axis="leftx", value=26000)
+    # The vertical first: the two axes are two commands, and a poll between them saw the horizontal alone (a real
+    # move right, not the diagonal): y first, every state the client can poll is Up, alone or with Right
     c.call("gamepad", axis="lefty", value=-26000)
+    c.call("gamepad", axis="leftx", value=26000)
     time.sleep(0.2)
     c.call("gamepad", axis="leftx", value=0)
     c.call("gamepad", axis="lefty", value=0)
