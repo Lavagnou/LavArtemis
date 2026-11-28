@@ -455,7 +455,7 @@
     <string name="v2_set_voice_ptt">Bouton vocal push-to-talk</string>
     <string name="v2_set_voice_ptt_d">Un bouton micro pendant le stream : le tenir enfonce la touche ² du PC, pour un outil de dictée.</string>
     <string name="v2_set_floating">Bouton de menu flottant</string>
-    <string name="v2_set_floating_d">Un bouton déplaçable qui ouvre le menu en jeu.</string>
+    <string name="v2_set_floating_d">La pastille « Menu » en haut du stream, qui ouvre le menu en jeu. Elle se cache quand tu joues à la manette (Start ouvre le menu).</string>
     <string name="v2_set_back_menu">Retour ouvre le menu en jeu</string>
     <string name="v2_set_back_menu_d">Le bouton Retour de l\'appareil ouvre le menu en jeu au lieu de quitter le stream.</string>
     <string name="v2_set_keys">Touches spéciales à l\'écran</string>

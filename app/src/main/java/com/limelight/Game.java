@@ -1011,7 +1011,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             floatingMenuButton = pill;
             menuPill = true;
             com.limelight.v2.V2Input.addListener(menuPillInputListener);
-            updateFloatingButtonVisibility(true);
+            // Réglages › Contrôles à l'écran › « Bouton de menu flottant », as for the stable's button
+            updateFloatingButtonVisibility(prefConfig.enableBackMenu && prefConfig.enableFloatingButton);
         } else {
             updateFloatingButtonVisibility(prefConfig.enableBackMenu && prefConfig.enableFloatingButton);
             initFloatingButton();
