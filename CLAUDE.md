@@ -1272,6 +1272,10 @@ Mode d'emploi complet, scénarios et codes de sortie : `tools/testbench/README.m
   dossier du rapport. `-SkipTests` la saute avec un avertissement visible. **Un FLAKE bloque aussi la release** : il se
   regarde, il ne se livre pas. Vérifier la porte sans GUI : `LAV_TESTBENCH_SELFTEST=pass|fail|flaky` (scénario interne,
   honoré par `run` seulement ; ne contrôle pas l'écran).
+- **Ne retester que les scénarios utiles, toujours** (règle de l'utilisateur, 2026-11-28) : pour vérifier un
+  changement, à la main comme à la release, seuls les scénarios qu'il concerne (`testbench.py select`, puis `-k` ou les
+  chemins des scénarios). **Tout le banc seulement pour une refonte ou une modification majeure de l'app**, ou à la
+  demande (`-FullTests`, `run` sans filtre).
 - **Règle** : toute nouvelle fonctionnalité desktop (ou tout bug corrigé) vient avec un **scénario** ; un bug produit
   connu non corrigé passe son scénario en `xfail` sur sa signature exacte, avec la cause, jamais en skip (un scénario
   ignoré fait échouer la porte).
