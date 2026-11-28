@@ -21,8 +21,26 @@ Un build tué faute de mémoire n'est pas relancé : libérer de la mémoire et 
 
 ## Porte de release
 
-`scripts\local-release.ps1` lance `python tools\testbench\testbench.py run --suite desktop --rerun-failed-once` après
-ses contrôles (commit épinglé, arbre propre) et **avant tout build** ; tout code non nul arrête la release (1 échec,
+`scripts\local-release.ps1` lance `python tools\testbench\testbench.py run --suite desktop --rerun-failed-once
+--changed-since last-release` après ses contrôles (commit épinglé, arbre propre) et **avant tout build** ;
+
+**Seulement ce qui a changé** (règle de l'utilisateur, 2026-11-28). `--changed-since <tag>|last-release` fait tourner
+les seuls scénarios que concernent les changements depuis ce tag (`last-release` : le dernier tag du canal de
+`lavVersionName`, `-dev.` ou stable, contenu dans HEAD) : fichiers de LavArtemis-Qt entre les commits que `desktop/`
+épingle au tag et à HEAD, fichiers de `tools/testbench/`. La table est `selection.py` :
+
+- un scénario modifié se rejoue ;
+- ce sur quoi tout repose (`conftest.py`, `client.py`, `hosts.py`, `helpers.py`, `fixtures/`, `app/testctl/`,
+  `main.cpp`, `app.pro`, les `.qrc`…) rejoue tout le banc, comme un fichier d'`app/` qu'aucune règle ne nomme (un trou
+  de la table, pas un fichier sans effet : y ajouter la règle) ;
+- le reste (Android, docs, installeur, le code du runner, couvert par `tests/`) ne lance rien ; aucun scénario
+  concerné = la porte passe sans rien lancer.
+
+`python tools\testbench\testbench.py select` affiche le choix, fichier par fichier, sans rien lancer.
+`local-release.ps1 -FullTests` lance tout le banc. `tests/test_selection.py` vérifie que chaque fichier d'`app/` du clone
+a une règle et que chaque règle nomme des scénarios qui existent.
+
+Ensuite tout code non nul arrête la release (1 échec,
 3 FLAKY, 4 écran éteint, autre = erreur du runner) et indique le dossier du rapport. `-SkipTests` la saute, avec un
 avertissement. Le client de test est reconstruit depuis le clone LavArtemis-Qt épinglé s'il est périmé.
 

@@ -44,7 +44,7 @@ def verdict(results, pytest_code):
     return EXIT_OK, lines
 
 
-def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
+def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=(), changed_since=None):
     """The desktop suite; with rerun_failed_once, the failed scenarios run once more into the same report (attempt
     2).  Exit code: see verdict() (0 all passed first time, 1 failure, 3 flaky), 4 = display off (nothing ran).  A summary block (FAIL / FLAKE
     lines) is printed at the end, besides report.md."""
@@ -55,6 +55,14 @@ def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
     if selftest and selftest not in SELFTEST_MODES:
         print(f"testbench: LAV_TESTBENCH_SELFTEST must be one of {SELFTEST_MODES}, not {selftest!r}", file=sys.stderr)
         return EXIT_FAILED
+    targets = None
+    if changed_since and not selftest:
+        targets = _changed_targets(changed_since)
+        if targets is None:
+            return EXIT_FAILED
+        if not targets:
+            print("testbench: no scenario concerns these changes: nothing to run (PASSED)", flush=True)
+            return EXIT_OK
     if selftest:
         print(f"testbench: SELFTEST {selftest} (built-in scenario, no host, no client, no display check)", flush=True)
     else:
@@ -71,17 +79,42 @@ def run_suite(keyword=None, report_dir=None, rerun_failed_once=False, extra=()):
         # Authorised by the user (2026-11-27), for the bench only: keep Windows from putting the display to sleep
         # while scenarios run (never turns on a display that is already off: checked just above), given back at the end.
         with display.kept_awake():
-            return _run_body(keyword, report_dir, rerun_failed_once, extra, selftest)
+            return _run_body(keyword, report_dir, rerun_failed_once, extra, selftest, targets)
     return _run_body(keyword, report_dir, rerun_failed_once, extra, selftest)
 
 
-def _run_body(keyword, report_dir, rerun_failed_once, extra, selftest):
+def _changed_targets(since, out=lambda m: print(m, flush=True)):
+    """The pytest paths of the scenarios that the changes since `since` concern (selection.py), [] for none, every
+    scenario for the whole suite; None (after a message) when the changes cannot be listed.  `since`: a git ref of
+    LavArtemis, or "last-release" (the last release tag of this channel)."""
+    import selection
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    qt_repo = repo.parent / "LavArtemis-Qt"
+    try:
+        tag = selection.last_release_tag(repo) if since == "last-release" else since
+        qt, bench = selection.changed_files(repo, qt_repo, tag)
+    except (subprocess.CalledProcessError, OSError, AttributeError) as e:
+        out(f"testbench: cannot list the changes since {since!r}: {getattr(e, 'stderr', '') or e}")
+        return None
+    picked, reasons = selection.select(qt, bench)
+    out(f"testbench: changes since {tag} ({len(qt)} file(s) in LavArtemis-Qt, {len(bench)} in the bench):")
+    for path, what in reasons:
+        out(f"  {path} -> {what}")
+    if picked == selection.ALL:
+        out("testbench: the whole suite")
+        return [str(selection.SCENARIOS)]
+    out(f"testbench: scenarios {', '.join(picked) or '(none)'}")
+    return selection.targets(picked)
+
+
+def _run_body(keyword, report_dir, rerun_failed_once, extra, selftest, targets=None):
     import datetime
     import report
     here = pathlib.Path(__file__).resolve().parent
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     report_dir = pathlib.Path(report_dir) if report_dir else here / "testbench-reports" / stamp
-    args = [str(here / ("selftest" if selftest else "scenarios")), "--report-dir", str(report_dir)] + (["-k", keyword] if keyword else [])
+    paths = [str(here / "selftest")] if selftest else (targets or [str(here / "scenarios")])
+    args = paths + ["--report-dir", str(report_dir)] + (["-k", keyword] if keyword else [])
     code = _pytest(args + list(extra), 1)
     results, _started = report.load(report_dir)
 
@@ -134,6 +167,9 @@ def main(argv=None):
     s.add_argument("--rerun-failed-once", action="store_true",
                    help="rerun each failed scenario once (the release gate uses it); both results stay in the "
                         "report, a pass on the rerun is shown as a FLAKE")
+    s.add_argument("--changed-since", default=None, metavar="REF",
+                   help="only the scenarios that the changes since REF concern (selection.py); REF = a tag of "
+                        "LavArtemis, or last-release (the last release tag of this channel)")
     s.add_argument("pytest_args", nargs="*", help="extra pytest arguments (after --)")
     s = sub.add_parser("shots", help="offscreen captures of the interface (no display needed), to compare with "
                                      "the prototype; never a release gate (see shots.py)")
@@ -146,11 +182,15 @@ def main(argv=None):
     s.add_argument("--covers", type=pathlib.Path, default=None,
                    help="folder of images + shots-data.json: the fake PCs take the prototype's data (kept out of "
                         "git, see shots.py)")
+    s = sub.add_parser("select", help="print the scenarios that the changes since a release concern, run nothing")
+    s.add_argument("since", nargs="?", default="last-release")
     sub.add_parser("mark-client-built", help="record the current sources as the ones the client exe was built "
                                              "from (after checking the newer mtimes are comment-only edits)")
     a = ap.parse_args(argv)
     if a.cmd == "run":
-        sys.exit(run_suite(a.keyword, a.report_dir, a.rerun_failed_once, a.pytest_args))
+        sys.exit(run_suite(a.keyword, a.report_dir, a.rerun_failed_once, a.pytest_args, a.changed_since))
+    if a.cmd == "select":
+        sys.exit(0 if _changed_targets(a.since) is not None else 1)
     if a.cmd == "shots":
         import shots
         sys.exit(shots.run(a.out, a.screens.split(",") if a.screens else None, a.themes.split(","),

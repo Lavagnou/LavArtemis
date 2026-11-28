@@ -1260,8 +1260,15 @@ Mode d'emploi complet, scénarios et codes de sortie : `tools/testbench/README.m
 - ⚠️ **Écran allumé obligatoire.** Écran éteint, Qt Quick ne met plus les fenêtres en page et la moitié des scénarios
   échouent sans que l'appli y soit pour rien. `run` le détecte (`display.py` : `GUID_CONSOLE_DISPLAY_STATE`, lu sans
   jamais allumer l'écran) et sort en **code 4** avant de lancer quoi que ce soit.
-- **Porte de release** : `scripts/local-release.ps1` lance `testbench.py run --suite desktop --rerun-failed-once` **avant
-  tout build** et s'arrête sur tout code non nul (1, 3 FLAKY, 4 écran éteint, autre = erreur du runner), en pointant le
+- **Porte de release** : `scripts/local-release.ps1` lance `testbench.py run --suite desktop --rerun-failed-once
+  --changed-since last-release` **avant tout build**. **Seuls les scénarios concernés par ce qui a changé depuis la
+  dernière release du canal tournent** (règle de l'utilisateur, 2026-11-28 : le banc complet, ~50 min, n'est plus
+  relancé par habitude) : `tools/testbench/selection.py` liste les fichiers changés du client (entre les commits que
+  `desktop/` épingle au tag et à HEAD) et du banc, et les associe aux scénarios par sa table ; un scénario modifié se
+  rejoue, ce sur quoi tout repose (client et faux PC du banc, `testctl/`, `main.cpp`, `app.pro`…) **et un fichier de
+  `app/` absent de la table** rejouent tout le banc. **Un nouveau fichier du client ou un nouveau scénario = une règle
+  dans la table** (`tests/test_selection.py` vérifie que chaque fichier d'`app/` en a une). `testbench.py select` montre
+  le choix sans rien lancer ; `-FullTests` lance tout. La porte s'arrête sur tout code non nul (1, 3 FLAKY, 4 écran éteint, autre = erreur du runner), en pointant le
   dossier du rapport. `-SkipTests` la saute avec un avertissement visible. **Un FLAKE bloque aussi la release** : il se
   regarde, il ne se livre pas. Vérifier la porte sans GUI : `LAV_TESTBENCH_SELFTEST=pass|fail|flaky` (scénario interne,
   honoré par `run` seulement ; ne contrôle pas l'écran).
@@ -1274,7 +1281,8 @@ Mode d'emploi complet, scénarios et codes de sortie : `tools/testbench/README.m
 - **Les releases se construisent sur le PC du mainteneur** (depuis le 2026-11-23, quota Actions trop juste) :
   `scripts/local-release.ps1 -NotesFile <notes.md>` (`-SkipAndroid` / `-SkipWindows` réutilisent un build,
   `-NoPublish` s'arrête avant le tag, `-SkipTests` saute le banc de test) lance d'abord **le banc de test desktop**
-  (étape « Tests », avant tout build : `testbench.py run --suite desktop --rerun-failed-once` ; tout code non nul
+  (étape « Tests », avant tout build : les scénarios concernés par les changements depuis la dernière release,
+  `-FullTests` pour tous ; tout code non nul
   arrête la release : 1 échec, 3 FLAKY, 4 écran éteint — voir « Banc de test »), puis construit les APK signés (`key/release.keystore`, mot de passe dans
   `key/keystore.properties`, hors git — ne jamais l'ouvrir ni l'afficher), le client Windows **x64
   seulement** (pas de kit Qt arm64 ici : `LAV_X64_ONLY=1` donne un installeur sans ARM64 ; `CI_VERSION` et un

@@ -23,9 +23,15 @@
 
 .PARAMETER SkipTests
     Skip the desktop testbench that normally runs before any build (a visible warning is printed). The
-    gate (python tools\testbench\testbench.py run --suite desktop --rerun-failed-once) stops the release on
+    gate (python tools\testbench\testbench.py run --suite desktop --rerun-failed-once --changed-since last-release)
+    runs only the scenarios that the changes since the last release of this channel concern: the client between
+    the commits desktop/ points to, and the bench itself (table: tools\testbench\selection.py; user's rule of
+    2026-11-28, never the whole bench by habit). It stops the release on
     exit 1 (a scenario fails), 3 (FLAKY: one passed only on its rerun), 4 (display off: it needs the display
     on, the script does not turn it on) or any other code (runner error). Report: tools\testbench\testbench-reports\.
+
+.PARAMETER FullTests
+    Run every scenario of the testbench, not only those the changes concern.
 
 .PARAMETER NoPublish
     Build and collect the files in dist\, but do not tag or publish.
@@ -35,6 +41,7 @@ param(
     [switch]$SkipAndroid,
     [switch]$SkipWindows,
     [switch]$SkipTests,
+    [switch]$FullTests,
     [switch]$NoPublish
 )
 $ErrorActionPreference = "Stop"
@@ -70,7 +77,9 @@ if ($env:LAV_TESTBENCH_SELFTEST) {
 if ($SkipTests) {
     Write-Host "WARNING: -SkipTests: the desktop testbench did NOT run for this release." -ForegroundColor Yellow
 } else {
-    Write-Host "Testbench: python tools\testbench\testbench.py run --suite desktop --rerun-failed-once" -ForegroundColor Cyan
+    $testArgs = @("run", "--suite", "desktop", "--rerun-failed-once")
+    if (-not $FullTests) { $testArgs += @("--changed-since", "last-release") }
+    Write-Host "Testbench: python tools\testbench\testbench.py $($testArgs -join ' ')" -ForegroundColor Cyan
     $reports = Join-Path $repo "tools\testbench\testbench-reports"
     $prevEncoding = $null
     try {
@@ -87,7 +96,7 @@ if ($SkipTests) {
         # The exit code alone decides; -1 stays if python never ran.
         $ErrorActionPreference = "Continue"
         $global:LASTEXITCODE = -1
-        python tools\testbench\testbench.py run --suite desktop --rerun-failed-once
+        python tools\testbench\testbench.py @testArgs
         $testCode = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $prevEap
@@ -105,7 +114,7 @@ if ($SkipTests) {
         $where = if ($newest) { $newest.FullName } else { $reports }
         throw "Testbench stopped the release (exit $testCode, $why). Report: $where. -SkipTests skips the gate."
     }
-    Write-Host "Testbench: all scenarios passed." -ForegroundColor Green
+    Write-Host "Testbench: every scenario it ran passed." -ForegroundColor Green
 }
 
 # --- Android ---------------------------------------------------------------------------------
