@@ -682,8 +682,13 @@ d'atelier » `#1D4E89` quadrillé, dessin blanc, pastille verte `DEV`.
   ajouté aux source sets des flavors seulement pour une version `-dev.` (voir « Stable / Dev »).
   ⚠️ **La Dev a aussi son `ic_launcher_mono`** (contour de la pastille DEV et ses lettres) : les icônes à thème
   d'Android 13+ ne dessinent que cette couche, et sans elle la Dev y montrait le logo de la stable.
-- ⚠️ `ic_launcher_bg.xml` a un dégradé (`aapt:attr`, API 24+) : ne le référencer que depuis l'icône adaptative
-  (`mipmap-anydpi-v26`) ou du code API 26+ (`TvChannelHelper`), jamais depuis un écran affiché sous Android 7.
+- ⚠️ **Le dégradé de la stable s'appelle `ic_launcher_bg_night`** ; `ic_launcher_bg` n'est qu'une `layer-list` qui
+  l'enveloppe, et c'est elle que la Dev remplace. Un vecteur à dégradé (`aapt:attr`) fait écrire au build des copies
+  générées (`drawable-anydpi-v24` + un PNG par densité, quel que soit son dossier) que le remplacement d'un source set
+  supérieur **n'efface pas** : de la dev.5 à la dev.10, ces copies de la stable passaient devant le fond de la Dev, et
+  l'icône de la Dev avait le fond nuit de la stable. Vérifier un APK : `aapt2 dump resources <apk>` doit montrer
+  `drawable/ic_launcher_bg` avec la seule qualification `()`. Une ressource que la Dev remplace ne porte jamais de
+  dégradé `aapt:attr`.
 - ⚠️ **On modifie le générateur, jamais un rendu** : les vecteurs Android, les PNG, les `.ico` et les SVG
   des trois dépôts sortent des mêmes formes ; une retouche à la main les ferait diverger.
 - « Lav » vient d'un nom de famille : **pas d'imagerie de lave**.

@@ -58,7 +58,18 @@ const bg = (t) => +(50 + (t - 50) * 0.7937).toFixed(2);
 // ---- stable (src/main/res)
 write('main/drawable/ic_launcher_fg.xml', vector(markBody({ s: '#DDE6F5', p: '#8FB4FF' })));
 write('main/drawable/ic_launcher_mono.xml', vector(markBody({ s: '#FFFFFF', p: '#FFFFFF' })));
-write('main/drawable/ic_launcher_bg.xml', vector(`    <path android:pathData="M0,0 H100 V100 H0 Z">
+// The gradient (aapt:attr, API 24) makes the build write generated copies of its drawable (drawable-anydpi-v24 +
+// one PNG per density, from any folder). Under the name ic_launcher_bg they outranked the Dev's plain override
+// on every device: the Dev icon showed the stable's night background (dev.5 to dev.10). The gradient has its own
+// name; ic_launcher_bg only wraps it, and that wrapper, with nothing generated, is what the Dev replaces.
+write('main/drawable/ic_launcher_bg.xml', `<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from LavArtemis/docs/branding (generate-android.mjs). Do not edit by hand.
+     A wrapper with no gradient, so that src/dev/res can replace it (see ic_launcher_bg_night). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ic_launcher_bg_night" />
+</layer-list>
+`);
+write('main/drawable/ic_launcher_bg_night.xml', vector(`    <path android:pathData="M0,0 H100 V100 H0 Z">
         <aapt:attr name="android:fillColor">
             <gradient android:type="linear" android:startX="${bg(0)}" android:startY="${bg(0)}" android:endX="${bg(30)}" android:endY="${bg(100)}">
                 <item android:offset="0" android:color="#FF25325A" />
@@ -77,8 +88,9 @@ write('dev/drawable/ic_launcher_fg.xml', vector(markBody({ s: '#FFFFFF', p: '#9F
 // Themed icons (Android 13+) draw only the monochrome layer, tinted: without its own, the Dev showed the
 // stable mark there. Same mark + the DEV pill as an outline with its letters (a filled pill would hide them).
 write('dev/drawable/ic_launcher_mono.xml', vector(markBody({ s: '#FFFFFF', p: '#FFFFFF', badge: 'mono' })));
-write('dev/drawable/ic_launcher_bg.xml', vector(`    <path android:pathData="M0,0 H100 V100 H0 Z" android:fillColor="#1D4E89" />
-    <path android:pathData="${gridPath.trim()}" android:strokeColor="#FFFFFF" android:strokeAlpha="0.18" android:strokeWidth="0.48" />`));
+const devBg = vector(`    <path android:pathData="M0,0 H100 V100 H0 Z" android:fillColor="#1D4E89" />
+    <path android:pathData="${gridPath.trim()}" android:strokeColor="#FFFFFF" android:strokeAlpha="0.18" android:strokeWidth="0.48" />`);
+write('dev/drawable/ic_launcher_bg.xml', devBg);
 
 // ---- notification small icon: white silhouette of the mark, 24 dp.
 write('main/drawable/app_icon.xml', `<?xml version="1.0" encoding="utf-8"?>
