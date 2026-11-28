@@ -46,6 +46,7 @@ public class HomeActivity extends V2HostActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        com.limelight.v2.settings.NativeDisplayDefaults.applyOnce(this);
         container = new FrameLayout(this);
         setContentView(container);
         rebuild();

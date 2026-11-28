@@ -12,6 +12,7 @@ import android.util.Range;
 import android.view.Display;
 import android.view.DisplayCutout;
 
+import com.limelight.BuildConfig;
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.audio.MicrophoneStreamer;
@@ -231,7 +232,8 @@ public final class SettingsEnv {
             addNativeResolutions(activity, Math.max(m.widthPixels, m.heightPixels), Math.min(m.widthPixels, m.heightPixels), false, false);
         }
 
-        boolean unlockFps = prefs.getBoolean("checkbox_unlock_fps", false);
+        // « Débloquer toutes les fréquences d'images » is removed in the Dev (SettingsCatalog.REMOVED)
+        boolean unlockFps = !BuildConfig.LAV_DEV && prefs.getBoolean("checkbox_unlock_fps", false);
         if (!unlockFps) {
             String fps = prefs.getString("list_fps", "60");
             if (maxFps < 118) {

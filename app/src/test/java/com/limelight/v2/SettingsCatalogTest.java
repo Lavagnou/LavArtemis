@@ -465,6 +465,34 @@ public class SettingsCatalogTest {
         assertEquals(SettingsCatalog.REMOVED.get("checkbox_enable_sops"), forced.enableSops);
     }
 
+    @Test
+    public void secondTriageIsForcedInDev() {
+        prefs().edit().putBoolean("checkbox_enable_view_top_center", true).putBoolean("checkbox_enforce_display_mode", true)
+                .putBoolean("checkbox_reduce_refresh_rate", true).putBoolean("checkbox_unlock_fps", true)
+                .putBoolean("checkbox_enable_perf_overlay_lite_dialog", true).putBoolean("checkbox_enable_perf_overlay_bottom", true)
+                .putInt("seekbar_bitrate_kbps", 40000).putInt("seekbar_metered_bitrate_kbps", 5000).commit();
+        PreferenceConfiguration c = PreferenceConfiguration.readPreferences(ctx);
+        if (!BuildConfig.LAV_DEV) {
+            return;
+        }
+        assertFalse(c.alignDisplayTopCenter);
+        assertFalse(c.enforceDisplayMode);
+        assertFalse(c.reduceRefreshRate);
+        assertFalse(c.unlockFps);
+        assertFalse(c.enablePerfOverlayLiteDialog);
+        assertFalse(c.enablePerfOverlayBottom);
+        // A metered network streams at the chosen bitrate
+        assertEquals(40000, c.meteredBitrate);
+        assertEquals(c.bitrate, c.meteredBitrate);
+        for (String key : new String[]{"checkbox_enable_view_top_center", "checkbox_enforce_display_mode",
+                "checkbox_reduce_refresh_rate", "checkbox_unlock_fps", "checkbox_enable_perf_overlay_lite_dialog",
+                "checkbox_enable_perf_overlay_bottom", "seekbar_metered_bitrate_kbps"}) {
+            assertTrue(key, SettingsCatalog.REMOVED.containsKey(key));
+            assertNull(key, SettingsCatalog.find(key));
+        }
+        assertNull(SettingsCatalog.find("edit_diy_bitrate"));
+    }
+
     // ---- touch modes (Dev: Multitouch / Trackpad only) -------------------------------------------
 
     @Test

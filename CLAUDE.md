@@ -467,9 +467,19 @@ Design : `docs/superpowers/specs/2026-11-23-android-ui-v2-design.md` (+ `…-cod
   - **Supprimés** (`SettingsCatalog.REMOVED`) : HDR, mise à l'échelle de la résolution, souris à la manette
     (Start maintenu). `PreferenceConfiguration.forceRemovedSettings()` les fige **en Dev seulement**
     (`BuildConfig.LAV_DEV`, comme `StreamingPreferences::reload` côté desktop). « Optimiser les réglages du jeu » (sops)
-    a disparu des Réglages et reste toujours actif, comme sur le desktop. `NOT_SHOWN` : options de
-    l'ancienne grille d'applis (petites icônes, reprise rapide), saisies passées par les listes, liens d'aide
-    (wiki Artemis) et lien Obtainium.
+    a disparu des Réglages et reste toujours actif, comme sur le desktop. **Second tri (2026-11-28)**, Android seul,
+    figés à off : image en haut de l'écran, forcer le mode d'affichage, fréquence d'écran plus basse, débloquer toutes
+    les fréquences d'images (`SettingsEnv` ne la lit plus en Dev), les statistiques compactes ouvrent le menu,
+    statistiques en bas ; « Débit sur un réseau limité » retiré : **un réseau limité streame au débit choisi**
+    (`meteredBitrate = bitrate` ; avant, le quart du débit, sans le dire). « Saisir un débit » retiré des deux clients.
+    `NOT_SHOWN` : options de l'ancienne grille d'applis (petites icônes, reprise rapide), saisies passées par les
+    listes, `edit_diy_bitrate` (plus rien ne le lit), liens d'aide (wiki Artemis) et lien Obtainium.
+  - **Premier lancement = l'écran natif** (règle de l'utilisateur, 2026-11-28, les deux clients) : tant que
+    `list_resolution` / `list_fps` n'ont jamais été écrits, `v2/settings/NativeDisplayDefaults.applyOnce()`
+    (`HomeActivity.onCreate`) y écrit la résolution physique de l'écran (côté long d'abord) et la plus haute fréquence
+    qu'il offre à cette taille, arrondie ; un choix fait depuis n'est jamais touché. Le débit recommandé suit. Desktop :
+    `nativeDisplayMode()` de `StreamingPreferences::reload` (écran principal SDL), faux écran `LAV_TEST_NATIVE_MODE` au
+    banc (scénario 22). `NativeDisplayDefaultsTest`.
   - **Corrigés au passage** : le correctif Joy-Con était écrit `checkbox_enable_joyconfix` par les écrans et
     lu `checkbox_joycon_fix` — il ne faisait rien ; `PreferenceConfiguration` lit maintenant la clé écrite
     (l'ancienne reste honorée) et la ligne est dans Manettes (expert). « Tight Vsync (Experimental) »

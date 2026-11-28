@@ -241,12 +241,6 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
         store.setToggle(def, shown);
         boolean stored = shown != def.inverted;
         switch (def.key) {
-            case "checkbox_unlock_fps":
-                // The frame rates the display offers change with it
-                readEnv();
-                screen.refresh();
-                screen.rebuildRows();
-                return;
             case "checkbox_enable_perf_logging":
                 if (!stored) {
                     new PerformanceDataTracker().clearLogs(this);
@@ -346,9 +340,6 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
             case SettingsCatalog.KEY_BITRATE_DEFAULT:
                 store.resetBitrate();
                 screen.refresh();
-                break;
-            case "edit_diy_bitrate":
-                askBitrate();
                 break;
             case "option_reset_osc_preference":
                 V2Dialogs.confirm(this, theme, getString(R.string.v2_set_osc_reset), getString(R.string.v2_set_reset_confirm),
@@ -470,29 +461,6 @@ public class SettingsActivity extends V2Activity implements SettingsScreen.Actio
                         V2Dialogs.message(this, theme, getString(R.string.v2_set_native_fps_title), getString(R.string.v2_set_native_text), getString(R.string.v2_ok));
                     });
         }
-    }
-
-    /** « Saisir un débit » (edit_diy_bitrate): any value, past the slider's end */
-    private void askBitrate() {
-        String current = SettingsCatalog.mbps(this, store.getInt(SettingsCatalog.KEY_BITRATE)).replaceAll("[^0-9,]", "");
-        V2Dialogs.prompt(this, theme, getString(R.string.v2_set_bitrate_custom), getString(R.string.v2_set_bitrate_custom_text),
-                current, "40", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL, 5,
-                getString(R.string.v2_set_apply), getString(R.string.v2_cancel), text -> {
-                    float mbps;
-                    try {
-                        mbps = Float.parseFloat(text.replace(',', '.'));
-                    } catch (NumberFormatException e) {
-                        mbps = 0;
-                    }
-                    int kbps = (int) (mbps * 1000);
-                    if (kbps <= 0) {
-                        invalid(getString(R.string.v2_set_bitrate_custom_invalid, text));
-                        return;
-                    }
-                    store.putString("edit_diy_bitrate", text.replace(',', '.'));
-                    store.putInt(SettingsCatalog.KEY_BITRATE, kbps);
-                    screen.refresh();
-                });
     }
 
     private void invalid(String text) {

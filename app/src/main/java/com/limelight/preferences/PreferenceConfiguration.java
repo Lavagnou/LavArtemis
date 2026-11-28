@@ -1107,6 +1107,7 @@ private static int getFramePacingValue(Context context) {
      * stays;</li>
      * <li>"optimize game settings" ({@code checkbox_enable_sops}): always on, as on the desktop
      * (the user did not know what it did).</li>
+     * <li>the second triage (2026-11-28): see below.</li>
      * </ul>
      */
     public static void forceRemovedSettings(PreferenceConfiguration config) {
@@ -1114,6 +1115,16 @@ private static int getFramePacingValue(Context context) {
         config.resolutionScaleFactor = DEFAULT_RESOLUTION_SCALE_FACTOR;
         config.mouseEmulation = false;
         config.enableSops = true;
+        // Second triage (2026-11-28), Android only: image at the top, enforced display mode, lower
+        // display refresh rate, all frame rates unlocked, compact stats open the menu, stats at
+        // the bottom: off. A metered network streams at the chosen bitrate.
+        config.alignDisplayTopCenter = false;
+        config.enforceDisplayMode = false;
+        config.reduceRefreshRate = false;
+        config.unlockFps = false;
+        config.enablePerfOverlayLiteDialog = false;
+        config.enablePerfOverlayBottom = false;
+        config.meteredBitrate = config.bitrate;
     }
 
     /** Touch mode « Multitouch » of {@code mouse_mode_list} (fingers touch the PC's screen) */

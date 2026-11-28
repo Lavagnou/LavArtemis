@@ -163,7 +163,6 @@
     <string name="v2_set_export">Exporter…</string>
     <string name="v2_set_share">Partager…</string>
     <string name="v2_set_check">Vérifier</string>
-    <string name="v2_set_type_in">Saisir…</string>
 
     <!-- Profil -->
     <string name="v2_set_profile">Profil actif</string>
@@ -244,14 +243,6 @@
     <string name="v2_set_follow_rotation_d">L\'image tourne avec l\'appareil pendant le stream ; le PC garde sa résolution.</string>
     <string name="v2_set_full_screen">Plein écran immersif</string>
     <string name="v2_set_full_screen_d">Masque les barres d\'Android pendant le stream.</string>
-    <string name="v2_set_top_center">Image en haut de l\'écran</string>
-    <string name="v2_set_top_center_d">Hors résolution native, l\'image est collée en haut au lieu d\'être centrée.</string>
-    <string name="v2_set_enforce_mode">Forcer le mode d\'affichage</string>
-    <string name="v2_set_enforce_mode_d">Impose la meilleure résolution et la meilleure fréquence à l\'écran ; nécessaire sur certains systèmes (ColorOS…).</string>
-    <string name="v2_set_reduce_refresh">Autoriser une fréquence d\'écran plus basse</string>
-    <string name="v2_set_reduce_refresh_d">Économise de l\'énergie, au prix d\'un peu de latence.</string>
-    <string name="v2_set_unlock_fps">Débloquer toutes les fréquences d\'images</string>
-    <string name="v2_set_unlock_fps_d">Propose 90 et 120 FPS même si l\'écran ne les annonce pas. Peut saccader sur un appareil qui ne suit pas.</string>
     <string name="v2_set_external">Écran externe en entier (bêta)</string>
     <string name="v2_set_external_d">Sur un écran externe, le stream l\'occupe en entier, à sa résolution et sa fréquence ; les réglages d\'image ne s\'y appliquent pas.</string>
 
@@ -261,13 +252,6 @@
     <string name="v2_set_bitrate_default">Revenir au débit recommandé</string>
     <string name="v2_set_bitrate_default_d">%1$s pour cette résolution et ces images par seconde, ajusté ensuite automatiquement.</string>
     <string name="v2_set_bitrate_default_button">Rétablir</string>
-    <string name="v2_set_bitrate_custom">Saisir un débit</string>
-    <string name="v2_set_bitrate_custom_d">Une valeur précise, même au-delà du curseur.</string>
-    <string name="v2_set_bitrate_custom_text">En Mbit/s, avec des décimales si besoin.</string>
-    <string name="v2_set_bitrate_custom_invalid">« %1$s » n\'est pas un débit : écris un nombre de Mbit/s plus grand que 0.</string>
-    <string name="v2_set_metered">Débit sur un réseau limité</string>
-    <string name="v2_set_metered_d">Utilisé sur un réseau mobile ou facturé à l\'usage. Auto : le quart du débit vidéo.</string>
-    <string name="v2_set_metered_auto">Auto (¼)</string>
     <string name="v2_set_codec">Format vidéo (codec)</string>
     <string name="v2_set_codec_d">« Auto » choisit le meilleur format que cet appareil sait décoder.</string>
     <string name="v2_set_codec_auto">Automatique (HEVC)</string>
@@ -283,10 +267,6 @@
     <string name="v2_set_overlay_d">FPS, latence et décodage en surimpression.</string>
     <string name="v2_set_overlay_lite">Statistiques compactes</string>
     <string name="v2_set_overlay_lite_d">Débit, latence, décodage, pertes et FPS sur une ligne.</string>
-    <string name="v2_set_overlay_menu">Les statistiques compactes ouvrent le menu</string>
-    <string name="v2_set_overlay_menu_d">Toucher les statistiques compactes ouvre le menu en jeu.</string>
-    <string name="v2_set_overlay_bottom">Statistiques en bas de l\'écran</string>
-    <string name="v2_set_overlay_bottom_d">Utile avec l\'image en haut de l\'écran et les statistiques compactes.</string>
 
     <!-- Audio -->
     <string name="v2_set_audio">Canaux audio</string>

@@ -90,6 +90,16 @@ public final class SettingsCatalog {
         m.put("checkbox_mouse_emulation", false);
         // "Optimiser les réglages du jeu": removed and always on, like the desktop
         m.put("checkbox_enable_sops", true);
+        // The user's second triage (2026-11-28): all off, as their default
+        m.put("checkbox_enable_view_top_center", false);
+        m.put("checkbox_enforce_display_mode", false);
+        m.put("checkbox_reduce_refresh_rate", false);
+        m.put("checkbox_unlock_fps", false);
+        m.put("checkbox_enable_perf_overlay_lite_dialog", false);
+        m.put("checkbox_enable_perf_overlay_bottom", false);
+        // « Débit sur un réseau limité »: no value, a metered network streams at the chosen bitrate
+        // (it used to fall to a quarter of it, without saying so)
+        m.put("seekbar_metered_bitrate_kbps", null);
         REMOVED = Collections.unmodifiableMap(m);
     }
 
@@ -102,6 +112,9 @@ public final class SettingsCatalog {
             "checkbox_small_icon_mode", "checkbox_resume_without_confirm",
             // typed in through the « Personnalisée… » / « Autre… » options of the lists
             "edit_diy_w_h", "custom_refresh_rate",
+            // « Saisir un débit » (removed 2026-11-28): the typed value went into the bitrate itself,
+            // nothing reads this key
+            "edit_diy_bitrate",
             // help links (Artemis wiki pages, in English): the user wants no help button left
             "option_help_custom_keys", "option_view_shared_pref_logs",
             // Obtainium: the Dev build updates itself (Avancé › Chercher une mise à jour); the user
@@ -312,10 +325,6 @@ public final class SettingsCatalog {
                 .dependsOn("checkbox_auto_orientation");
         toggle(l, AFFICHAGE, "checkbox_follow_device_rotation", R.string.v2_set_follow_rotation, false).desc(R.string.v2_set_follow_rotation_d);
         toggle(l, AFFICHAGE, "checkbox_full_screen", R.string.v2_set_full_screen, true).desc(R.string.v2_set_full_screen_d).expert();
-        toggle(l, AFFICHAGE, "checkbox_enable_view_top_center", R.string.v2_set_top_center, false).desc(R.string.v2_set_top_center_d).expert();
-        toggle(l, AFFICHAGE, "checkbox_enforce_display_mode", R.string.v2_set_enforce_mode, false).desc(R.string.v2_set_enforce_mode_d).expert();
-        toggle(l, AFFICHAGE, "checkbox_reduce_refresh_rate", R.string.v2_set_reduce_refresh, false).desc(R.string.v2_set_reduce_refresh_d).expert();
-        toggle(l, AFFICHAGE, "checkbox_unlock_fps", R.string.v2_set_unlock_fps, false).desc(R.string.v2_set_unlock_fps_d).expert();
         toggle(l, AFFICHAGE, "checkbox_enable_fullexdisplay", R.string.v2_set_external, false).desc(R.string.v2_set_external_d).expert();
 
         // ================================= Vidéo ================================
@@ -325,11 +334,6 @@ public final class SettingsCatalog {
                 .maxFrom(v -> "forcepyrowave".equals(v.getString("video_format")) ? BITRATE_MAX_PYROWAVE_KBPS : BITRATE_MAX_KBPS);
         action(l, VIDEO, KEY_BITRATE_DEFAULT, R.string.v2_set_bitrate_default, R.string.v2_set_bitrate_default_button)
                 .desc(R.string.v2_set_bitrate_default_d);
-        action(l, VIDEO, "edit_diy_bitrate", R.string.v2_set_bitrate_custom, R.string.v2_set_type_in)
-                .desc(R.string.v2_set_bitrate_custom_d).expert();
-        slider(l, VIDEO, "seekbar_metered_bitrate_kbps", R.string.v2_set_metered, 0).desc(R.string.v2_set_metered_d).expert()
-                .range(0, 300000, 500, 1000).curve(3f)
-                .format((c, v) -> v == 0 ? c.getString(R.string.v2_set_metered_auto) : mbps(c, v));
         choice(l, VIDEO, "video_format", R.string.v2_set_codec, "auto").desc(R.string.v2_set_codec_d).segments(0)
                 .options((c, env, v, expert) -> {
                     List<Option> out = new ArrayList<>();
@@ -350,10 +354,6 @@ public final class SettingsCatalog {
         toggle(l, VIDEO, "checkbox_full_range", R.string.v2_set_full_range, false).desc(R.string.v2_set_full_range_d).expert();
         toggle(l, VIDEO, "checkbox_enable_perf_overlay", R.string.v2_set_overlay, false).desc(R.string.v2_set_overlay_d);
         toggle(l, VIDEO, "checkbox_enable_perf_overlay_lite", R.string.v2_set_overlay_lite, false).desc(R.string.v2_set_overlay_lite_d).expert()
-                .dependsOn("checkbox_enable_perf_overlay");
-        toggle(l, VIDEO, "checkbox_enable_perf_overlay_lite_dialog", R.string.v2_set_overlay_menu, false).desc(R.string.v2_set_overlay_menu_d).expert()
-                .dependsOn(v -> v.getBool("checkbox_enable_perf_overlay") && v.getBool("checkbox_enable_perf_overlay_lite"));
-        toggle(l, VIDEO, "checkbox_enable_perf_overlay_bottom", R.string.v2_set_overlay_bottom, false).desc(R.string.v2_set_overlay_bottom_d).expert()
                 .dependsOn("checkbox_enable_perf_overlay");
 
         // ================================= Audio ================================
